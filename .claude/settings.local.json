@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dotnet new:*)",
+      "Bash(mkdir:*)",
+      "Bash(dotnet sln add:*)",
+      "Bash(dotnet build:*)",
+      "Bash(dotnet test)",
+      "Bash(dotnet test:*)",
+      "mcp__codesearch__store_checkpoint",
+      "mcp__codesearch__get_latest_checkpoint",
+      "Bash(dotnet run:*)",
+      "Bash(find:*)"
+    ],
+    "deny": []
+  }
+}

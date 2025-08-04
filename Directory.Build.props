@@ -1,0 +1,40 @@
+<Project>
+  
+  <!-- Common properties for all projects -->
+  <PropertyGroup>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <WarningsNotAsErrors />
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+
+  <!-- Common package properties -->
+  <PropertyGroup>
+    <Authors>COA Development Team</Authors>
+    <Company>COA</Company>
+    <Product>COA MCP Framework</Product>
+    <Copyright>© COA Development Team. All rights reserved.</Copyright>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/coa/mcp-framework</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/coa/mcp-framework</PackageProjectUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+  </PropertyGroup>
+
+  <!-- Include common files for packages -->
+  <ItemGroup Condition="'$(IsPackable)' == 'true'">
+    <None Include="$(MSBuildThisFileDirectory)README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <!-- Version management -->
+  <PropertyGroup>
+    <!-- These will be overridden by the Azure Pipeline -->
+    <VersionPrefix Condition="'$(VersionPrefix)' == ''">1.0.0</VersionPrefix>
+    <VersionSuffix Condition="'$(VersionSuffix)' == '' AND '$(Configuration)' == 'Debug'">dev</VersionSuffix>
+  </PropertyGroup>
+
+</Project>

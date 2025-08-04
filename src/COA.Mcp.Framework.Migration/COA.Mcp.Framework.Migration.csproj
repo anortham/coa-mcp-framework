@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <PackageId>COA.Mcp.Framework.Migration</PackageId>
+    <Version>1.0.0</Version>
+    <Authors>COA Development Team</Authors>
+    <Company>COA</Company>
+    <Product>COA MCP Framework</Product>
+    <Description>Migration tools for converting existing MCP projects to use COA.Mcp.Framework</Description>
+    <PackageTags>mcp;migration;framework;coa</PackageTags>
+    <IsPackable>true</IsPackable>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+    <PackageProjectUrl>https://github.com/coa/mcp-framework</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/coa/mcp-framework</RepositoryUrl>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="4.8.0" />
+    <PackageReference Include="Microsoft.CodeAnalysis.Workspaces.MSBuild" Version="4.8.0" />
+    <PackageReference Include="Microsoft.Extensions.FileSystemGlobbing" Version="9.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="9.0.0" />
+    <PackageReference Include="System.Text.Json" Version="9.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\COA.Mcp.Framework\COA.Mcp.Framework.csproj" />
+    <ProjectReference Include="..\COA.Mcp.Framework.TokenOptimization\COA.Mcp.Framework.TokenOptimization.csproj" />
+  </ItemGroup>
+
+</Project>

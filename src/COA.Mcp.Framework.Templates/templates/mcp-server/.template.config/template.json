@@ -1,0 +1,69 @@
+{
+  "$schema": "http://json.schemastore.org/template",
+  "author": "COA",
+  "classifications": ["Web", "MCP", "Service"],
+  "identity": "COA.Mcp.Server.Template",
+  "name": "COA MCP Server",
+  "shortName": "mcp-server",
+  "tags": {
+    "language": "C#",
+    "type": "project"
+  },
+  "sourceName": "McpServerTemplate",
+  "preferNameDirectory": true,
+  "symbols": {
+    "Framework": {
+      "type": "parameter",
+      "description": "The target framework for the project",
+      "datatype": "choice",
+      "defaultValue": "net8.0",
+      "choices": [
+        {
+          "choice": "net8.0",
+          "description": ".NET 8.0"
+        },
+        {
+          "choice": "net9.0",
+          "description": ".NET 9.0"
+        }
+      ]
+    },
+    "EnableDocker": {
+      "type": "parameter",
+      "datatype": "bool",
+      "defaultValue": "true",
+      "description": "Include Docker support"
+    },
+    "IncludeExampleTools": {
+      "type": "parameter",
+      "datatype": "bool",
+      "defaultValue": "true",
+      "description": "Include example tools"
+    },
+    "UseOpenTelemetry": {
+      "type": "parameter",
+      "datatype": "bool",
+      "defaultValue": "false",
+      "description": "Include OpenTelemetry support for observability"
+    }
+  },
+  "sources": [
+    {
+      "modifiers": [
+        {
+          "condition": "(!EnableDocker)",
+          "exclude": [
+            "Dockerfile",
+            ".dockerignore"
+          ]
+        },
+        {
+          "condition": "(!IncludeExampleTools)",
+          "exclude": [
+            "Tools/**/*"
+          ]
+        }
+      ]
+    }
+  ]
+}
