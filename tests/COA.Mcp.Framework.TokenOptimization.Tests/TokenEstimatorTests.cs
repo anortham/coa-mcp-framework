@@ -179,7 +179,7 @@ public class TokenEstimatorTests
         
         // Assert
         result.Should().HaveCountLessThan(100);
-        result.Should().HaveCountGreaterOrEqualTo(1);
+        result.Should().HaveCountGreaterThanOrEqualTo(1);
     }
     
     [Test]
