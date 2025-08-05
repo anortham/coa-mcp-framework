@@ -10,7 +10,8 @@
       "mcp__codesearch__store_checkpoint",
       "mcp__codesearch__get_latest_checkpoint",
       "Bash(dotnet run:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(mcp codesearch:*)"
     ],
     "deny": []
   }
