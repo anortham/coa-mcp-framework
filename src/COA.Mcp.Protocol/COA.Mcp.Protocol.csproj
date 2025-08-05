@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    
+    <!-- XML Documentation -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <DocumentationFile>$(OutputPath)$(AssemblyName).xml</DocumentationFile>
+    
+    <!-- Package Metadata -->
+    <PackageId>COA.Mcp.Protocol</PackageId>
+    <!-- Version is set by Azure Pipeline, but provide a default for local builds -->
+    <Version Condition="'$(Version)' == ''">1.3.177-local</Version>
+    <Authors>Children of Alabama</Authors>
+    <Description>MCP protocol types and interfaces for Model Context Protocol servers</Description>
+    <PackageProjectUrl>https://github.com/coa/codesearch-mcp</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/coa/codesearch-mcp</RepositoryUrl>
+    <PackageTags>mcp;protocol;model-context-protocol</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.Text.Json" Version="9.0.7" />
+  </ItemGroup>
+
+</Project>

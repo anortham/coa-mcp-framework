@@ -1,5 +1,5 @@
 # Azure Pipelines CI/CD for COA MCP Framework
-# Builds, tests, and publishes NuGet packages to Azure Artifacts
+# Builds, tests, and publishes NuGet packages to Azure Artifacts and NuGet.org
 
 name: 'COA MCP Framework - $(Build.SourceBranchName) - $(Date:yyyyMMdd)$(Rev:.r)'
 
@@ -323,12 +323,12 @@ stages:
               ArtifactName: "packages"
               publishLocation: "Container"
 
-  - stage: Publish
+  - stage: PublishInternal
     displayName: "Publish to Azure DevOps"
     dependsOn: Build
     condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
     jobs:
-      - job: PublishPackages
+      - job: PublishToAzureDevOps
         displayName: "Publish to COA Feed"
         steps:
           - task: DownloadBuildArtifacts@1
@@ -347,3 +347,87 @@ stages:
               nuGetFeedType: 'internal'
               publishVstsFeed: 'COA'
               allowPackageConflicts: true
+
+  - stage: PublishNuGetOrg
+    displayName: "Publish to NuGet.org"
+    dependsOn: Build
+    condition: and(succeeded(), startsWith(variables['Build.SourceBranch'], 'refs/tags/v'))
+    jobs:
+      - job: PublishToNuGetOrg
+        displayName: "Publish to NuGet.org"
+        steps:
+          - task: DownloadBuildArtifacts@1
+            displayName: "Download artifacts"
+            inputs:
+              buildType: "current"
+              downloadType: "single"
+              artifactName: "packages"
+              downloadPath: "$(System.ArtifactsDirectory)"
+
+          - powershell: |
+              Write-Host "Packages to publish to NuGet.org:"
+              Write-Host "================================="
+              Get-ChildItem -Path "$(System.ArtifactsDirectory)\packages" -Filter "*.nupkg" | ForEach-Object {
+                  Write-Host $_.Name
+              }
+              Write-Host "================================="
+            displayName: "List packages to publish"
+
+          - task: NuGetCommand@2
+            displayName: "Push COA.Mcp.Framework to NuGet.org"
+            inputs:
+              command: 'push'
+              packagesToPush: '$(System.ArtifactsDirectory)/packages/COA.Mcp.Framework.*.nupkg'
+              nuGetFeedType: 'external'
+              publishFeedCredentials: 'NuGetOrg-ServiceConnection'
+              verbosityPush: 'Detailed'
+
+          - task: NuGetCommand@2
+            displayName: "Push COA.Mcp.Framework.TokenOptimization to NuGet.org"
+            inputs:
+              command: 'push'
+              packagesToPush: '$(System.ArtifactsDirectory)/packages/COA.Mcp.Framework.TokenOptimization.*.nupkg'
+              nuGetFeedType: 'external'
+              publishFeedCredentials: 'NuGetOrg-ServiceConnection'
+              verbosityPush: 'Detailed'
+
+          - task: NuGetCommand@2
+            displayName: "Push COA.Mcp.Framework.Testing to NuGet.org"
+            inputs:
+              command: 'push'
+              packagesToPush: '$(System.ArtifactsDirectory)/packages/COA.Mcp.Framework.Testing.*.nupkg'
+              nuGetFeedType: 'external'
+              publishFeedCredentials: 'NuGetOrg-ServiceConnection'
+              verbosityPush: 'Detailed'
+
+          - task: NuGetCommand@2
+            displayName: "Push COA.Mcp.Framework.Templates to NuGet.org"
+            inputs:
+              command: 'push'
+              packagesToPush: '$(System.ArtifactsDirectory)/packages/COA.Mcp.Framework.Templates.*.nupkg'
+              nuGetFeedType: 'external'
+              publishFeedCredentials: 'NuGetOrg-ServiceConnection'
+              verbosityPush: 'Detailed'
+
+          - task: NuGetCommand@2
+            displayName: "Push COA.Mcp.Framework.CLI to NuGet.org"
+            inputs:
+              command: 'push'
+              packagesToPush: '$(System.ArtifactsDirectory)/packages/COA.Mcp.Framework.CLI.*.nupkg'
+              nuGetFeedType: 'external'
+              publishFeedCredentials: 'NuGetOrg-ServiceConnection'
+              verbosityPush: 'Detailed'
+
+          - task: NuGetCommand@2
+            displayName: "Push COA.Mcp.Framework.Migration to NuGet.org"
+            inputs:
+              command: 'push'
+              packagesToPush: '$(System.ArtifactsDirectory)/packages/COA.Mcp.Framework.Migration.*.nupkg'
+              nuGetFeedType: 'external'
+              publishFeedCredentials: 'NuGetOrg-ServiceConnection'
+              verbosityPush: 'Detailed'
+
+          - powershell: |
+              Write-Host "Successfully published packages to NuGet.org!"
+              Write-Host "View at: https://www.nuget.org/profiles/CityOfAustin"
+            displayName: "Publish success message"
