@@ -9,7 +9,6 @@
     <!-- NuGet Package Metadata -->
     <IsPackable>true</IsPackable>
     <PackageId>COA.Mcp.Framework</PackageId>
-    <Version>1.0.0</Version>
     <Authors>COA Development Team</Authors>
     <Description>Core framework for building Model Context Protocol (MCP) servers with attribute-based tool discovery and validation helpers.</Description>
     <PackageTags>mcp;ai;claude;framework;tools</PackageTags>

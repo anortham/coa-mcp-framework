@@ -2,7 +2,6 @@
 
   <PropertyGroup>
     <PackageType>Template</PackageType>
-    <PackageVersion>1.0.0</PackageVersion>
     <PackageId>COA.Mcp.Framework.Templates</PackageId>
     <Title>COA MCP Framework Templates</Title>
     <Authors>COA Development Team</Authors>

@@ -10,7 +10,6 @@
     <!-- NuGet Package Metadata -->
     <IsPackable>true</IsPackable>
     <PackageId>COA.Mcp.Framework.TokenOptimization</PackageId>
-    <Version>1.0.0</Version>
     <Authors>COA Development Team</Authors>
     <Company>COA</Company>
     <Product>COA MCP Framework</Product>

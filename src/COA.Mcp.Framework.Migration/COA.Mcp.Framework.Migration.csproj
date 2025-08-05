@@ -5,7 +5,6 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <PackageId>COA.Mcp.Framework.Migration</PackageId>
-    <Version>1.0.0</Version>
     <Authors>COA Development Team</Authors>
     <Company>COA</Company>
     <Product>COA MCP Framework</Product>
