@@ -51,6 +51,9 @@ public class MigrateCommand : Command
 
     private async Task MigrateProject(string projectPath, bool dryRun, bool backup)
     {
+        // Normalize the project path
+        projectPath = Path.GetFullPath(projectPath);
+        
         if (!File.Exists(projectPath))
         {
             AnsiConsole.MarkupLine($"[red]Project file not found:[/] {projectPath}");
@@ -64,7 +67,13 @@ public class MigrateCommand : Command
         }
         AnsiConsole.WriteLine();
 
-        var projectDir = Path.GetDirectoryName(projectPath)!;
+        var projectDir = Path.GetDirectoryName(projectPath);
+        if (string.IsNullOrEmpty(projectDir))
+        {
+            // If no directory info, assume current directory
+            projectDir = Directory.GetCurrentDirectory();
+            AnsiConsole.MarkupLine($"[yellow]Using current directory as project directory: {projectDir}[/]");
+        }
         MigrationReport? report = null;
 
         try

@@ -11,7 +11,12 @@
       "mcp__codesearch__get_latest_checkpoint",
       "Bash(dotnet run:*)",
       "Bash(find:*)",
-      "Bash(mcp codesearch:*)"
+      "Bash(mcp codesearch:*)",
+      "mcp__codenav__csharp_load_solution",
+      "mcp__codesearch__index_workspace",
+      "mcp__codesearch__search_assistant",
+      "mcp__codesearch__file_search",
+      "mcp__codesearch__directory_search"
     ],
     "deny": []
   }
