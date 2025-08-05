@@ -1,0 +1,10 @@
+<Project>
+  <!-- Prevent template projects from being built -->
+  <PropertyGroup>
+    <IsTemplate>true</IsTemplate>
+    <ExcludeFromBuild>true</ExcludeFromBuild>
+    <IsPackable>false</IsPackable>
+    <EnableDefaultItems>false</EnableDefaultItems>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+  </PropertyGroup>
+</Project>

@@ -1,9 +1,8 @@
-using COA.Mcp.Framework;
-using COA.Mcp.Framework.Registration;
-using COA.Mcp.Framework.TokenOptimization;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using McpServerTemplate.Services;
+using McpServerTemplate.Tools;
 #if (UseOpenTelemetry)
 using OpenTelemetry.Logs;
 using OpenTelemetry.Metrics;
@@ -11,74 +10,79 @@ using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 #endif
 
-var builder = McpServerBuilder.Create(args);
-
-// Configure logging
-builder.Logging.AddConsole();
-builder.Logging.SetMinimumLevel(LogLevel.Information);
-
-// Add configuration
-builder.Configuration.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
-
+// Build and run the host
+var host = Host.CreateDefaultBuilder(args)
+    .ConfigureLogging((context, logging) =>
+    {
+        logging.ClearProviders();
+        // MCP protocol requires that only stderr is used for logging
+        // stdout is reserved for JSON-RPC communication
+        Console.SetOut(Console.Error);
+        
+        logging.AddConsole();
+        logging.SetMinimumLevel(LogLevel.Information);
+    })
+    .ConfigureServices((context, services) =>
+    {
+        // Add configuration
+        services.AddSingleton(context.Configuration);
+        
 #if (UseOpenTelemetry)
-// Configure OpenTelemetry
-builder.Services.AddOpenTelemetry()
-    .ConfigureResource(resource => resource
-        .AddService(serviceName: "McpServerTemplate"))
-    .WithTracing(tracing => tracing
-        .AddAspNetCoreInstrumentation()
-        .AddConsoleExporter())
-    .WithMetrics(metrics => metrics
-        .AddRuntimeInstrumentation()
-        .AddConsoleExporter())
-    .WithLogging(logging => logging
-        .AddConsoleExporter());
+        // Configure OpenTelemetry
+        services.AddOpenTelemetry()
+            .ConfigureResource(resource => resource
+                .AddService(serviceName: "McpServerTemplate"))
+            .WithTracing(tracing => tracing
+                .AddSource("McpServerTemplate")
+                .AddConsoleExporter())
+            .WithMetrics(metrics => metrics
+                .AddRuntimeInstrumentation()
+                .AddConsoleExporter());
 #endif
 
-// Add MCP Framework
-builder.Services.AddMcpFramework(options =>
+        // NOTE: This template provides a starting structure.
+        // You'll need to implement the following based on your needs:
+        // 1. McpServer class that handles JSON-RPC communication
+        // 2. ToolRegistry to manage your tools
+        // 3. Tool discovery mechanism (manual or attribute-based)
+        
+        // Example of what you might add:
+        // services.AddSingleton<ToolRegistry>();
+        // services.AddSingleton<McpServer>();
+        // services.AddHostedService<McpServer>(provider => provider.GetRequiredService<McpServer>());
+
+        // Register your tool classes for dependency injection
+        services.AddSingleton<HelloWorldTool>();
+        services.AddSingleton<SystemInfoTool>();
+
+        // Add your services here
+        // services.AddSingleton<IMyService, MyService>();
+    })
+    .UseConsoleLifetime(options =>
+    {
+        options.SuppressStatusMessages = true;
+    })
+    .Build();
+
+// Example startup code - adjust based on your needs
+using (var scope = host.Services.CreateScope())
 {
-    // Automatic tool discovery
-    options.DiscoverToolsFromAssembly(typeof(Program).Assembly);
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+    logger.LogInformation("Starting McpServerTemplate MCP Server...");
     
-    // Token optimization settings
-    options.UseTokenOptimization(TokenOptimizationLevel.Aggressive);
-    options.SetDefaultTokenLimit(10000);
-    options.EnableProgressiveReduction(true);
-    
-    // Response building
-    options.UseAIOptimizedResponses(true);
-    options.ConfigureInsights(insights =>
-    {
-        insights.MinInsights = 3;
-        insights.MaxInsights = 5;
-        insights.IncludeUsageHints = true;
-    });
-    
-    // JSON settings
-    options.ConfigureJsonOptions(json =>
-    {
-        json.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
-        json.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
-    });
-});
-
-// Add your services here
-// builder.Services.AddSingleton<IMyService, MyService>();
-
-// Build and run the server
-var server = builder.Build();
+    // Add your tool registration logic here
+    // Example:
+    // var toolRegistry = scope.ServiceProvider.GetRequiredService<ToolRegistry>();
+    // toolRegistry.RegisterTool(...);
+}
 
 try
 {
-    var logger = server.Services.GetRequiredService<ILogger<Program>>();
-    logger.LogInformation("Starting McpServerTemplate MCP Server...");
-    
-    await server.RunAsync();
+    await host.RunAsync();
 }
 catch (Exception ex)
 {
-    var logger = server.Services.GetRequiredService<ILogger<Program>>();
+    var logger = host.Services.GetRequiredService<ILogger<Program>>();
     logger.LogCritical(ex, "An unhandled exception occurred while running the MCP server");
     throw;
 }

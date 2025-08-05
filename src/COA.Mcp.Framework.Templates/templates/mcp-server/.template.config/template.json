@@ -45,6 +45,12 @@
       "datatype": "bool",
       "defaultValue": "false",
       "description": "Include OpenTelemetry support for observability"
+    },
+    "IncludeFramework": {
+      "type": "parameter",
+      "datatype": "bool",
+      "defaultValue": "true",
+      "description": "Include COA MCP Framework packages"
     }
   },
   "sources": [
