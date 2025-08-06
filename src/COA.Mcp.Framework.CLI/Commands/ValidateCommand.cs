@@ -5,9 +5,11 @@ using System.Reflection;
 using COA.Mcp.Framework.Attributes;
 using COA.Mcp.Framework.Base;
 using COA.Mcp.Framework.Interfaces;
+using COA.Mcp.Framework.Models;
 using COA.Mcp.Framework.CLI.Generators;
 using Microsoft.Extensions.FileSystemGlobbing;
 using Spectre.Console;
+using ComponentModel = System.ComponentModel;
 
 namespace COA.Mcp.Framework.CLI.Commands;
 
@@ -163,32 +165,20 @@ public class ValidateCommand : Command
         var tools = 0;
         var issues = 0;
 
-        // Find all types with McpServerToolType attribute
+        // Find all types that inherit from McpToolBase<,> (v1.1.0 pattern)
         var toolTypes = assembly.GetTypes()
-            .Where(t => t.GetCustomAttribute<McpServerToolTypeAttribute>() != null)
+            .Where(t => IsToolType(t))
             .ToList();
 
         foreach (var toolType in toolTypes)
         {
+            tools++;
             var typeIssues = ValidateToolType(toolType, verbose);
             issues += typeIssues.Count;
 
-            // Find tool methods
-            var toolMethods = toolType.GetMethods()
-                .Where(m => m.GetCustomAttribute<McpServerToolAttribute>() != null)
-                .ToList();
-
-            tools += toolMethods.Count;
-
-            foreach (var method in toolMethods)
-            {
-                var methodIssues = ValidateToolMethod(method, verbose);
-                issues += methodIssues.Count;
-            }
-
             if (verbose || typeIssues.Count > 0)
             {
-                DisplayToolTypeValidation(toolType, toolMethods, typeIssues);
+                DisplayToolTypeValidation(toolType, typeIssues);
             }
         }
 
@@ -196,30 +186,49 @@ public class ValidateCommand : Command
         return (tools, issues);
     }
 
+    private bool IsToolType(Type type)
+    {
+        if (type.IsAbstract || type.IsInterface)
+            return false;
+
+        // Check if it inherits from McpToolBase<,>
+        var baseType = type.BaseType;
+        while (baseType != null)
+        {
+            if (baseType.IsGenericType && 
+                baseType.GetGenericTypeDefinition().Name == "McpToolBase`2")
+            {
+                return true;
+            }
+            baseType = baseType.BaseType;
+        }
+
+        return false;
+    }
+
     private List<string> ValidateToolType(Type type, bool verbose)
     {
         var issues = new List<string>();
 
-        // Check if implements IMcpTool<,> interface
-        var implementsInterface = type.GetInterfaces()
-            .Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IMcpTool<,>));
-        if (!implementsInterface)
+        // Check if inherits from McpToolBase<,>
+        if (!IsToolType(type))
         {
-            issues.Add($"Does not implement IMcpTool<TParams, TResult> interface");
+            issues.Add($"Does not inherit from McpToolBase<TParams, TResult>");
+            return issues;
         }
 
-        // Check for parameterless constructor or DI constructor
-        var constructors = type.GetConstructors();
-        if (constructors.Length == 0)
+        // Check for Name property override
+        var nameProp = type.GetProperty("Name");
+        if (nameProp == null || !nameProp.GetGetMethod()!.IsVirtual)
         {
-            issues.Add("No public constructors found");
+            issues.Add("Missing Name property override");
         }
 
-        // Check for ToolName property override
-        var toolNameProp = type.GetProperty("ToolName");
-        if (toolNameProp == null || !toolNameProp.GetGetMethod()!.IsVirtual)
+        // Check for Description property override
+        var descProp = type.GetProperty("Description");
+        if (descProp == null || !descProp.GetGetMethod()!.IsVirtual)
         {
-            issues.Add("Missing ToolName property override");
+            issues.Add("Missing Description property override");
         }
 
         // Check for Category property override
@@ -229,70 +238,130 @@ public class ValidateCommand : Command
             issues.Add("Missing Category property override");
         }
 
+        // Check for ExecuteInternalAsync method override
+        var executeMethod = type.GetMethod("ExecuteInternalAsync", 
+            BindingFlags.NonPublic | BindingFlags.Instance);
+        if (executeMethod == null || !executeMethod.IsVirtual)
+        {
+            issues.Add("Missing ExecuteInternalAsync method override");
+        }
+
+        // Check for proper constructor
+        var constructors = type.GetConstructors();
+        if (constructors.Length == 0)
+        {
+            issues.Add("No public constructors found");
+        }
+
+        // Validate parameter and result types
+        var baseType = type.BaseType;
+        while (baseType != null && baseType.IsGenericType)
+        {
+            if (baseType.GetGenericTypeDefinition().Name == "McpToolBase`2")
+            {
+                var genericArgs = baseType.GetGenericArguments();
+                if (genericArgs.Length == 2)
+                {
+                    var paramType = genericArgs[0];
+                    var resultType = genericArgs[1];
+
+                    // Check if result type inherits from ToolResultBase
+                    if (!typeof(ToolResultBase).IsAssignableFrom(resultType))
+                    {
+                        issues.Add($"Result type {resultType.Name} does not inherit from ToolResultBase");
+                    }
+
+                    // Check parameter properties for descriptions (if verbose)
+                    if (verbose)
+                    {
+                        var props = paramType.GetProperties();
+                        foreach (var prop in props)
+                        {
+                            if (prop.GetCustomAttribute<ComponentModel.DescriptionAttribute>() == null)
+                            {
+                                issues.Add($"Parameter property '{prop.Name}' missing Description attribute");
+                            }
+                        }
+                    }
+                }
+                break;
+            }
+            baseType = baseType.BaseType;
+        }
+
         return issues;
     }
 
-    private List<string> ValidateToolMethod(MethodInfo method, bool verbose)
+
+    private void DisplayToolTypeValidation(Type type, List<string> issues)
     {
-        var issues = new List<string>();
+        var tree = new Tree($"[yellow]{type.Name}[/]");
 
-        // Check method signature
-        if (!method.Name.EndsWith("Async"))
+        // Try to get the tool name
+        var nameProp = type.GetProperty("Name");
+        if (nameProp != null)
         {
-            issues.Add("Method name should end with 'Async'");
+            try
+            {
+                var instance = Activator.CreateInstance(type, GetConstructorArgs(type));
+                var name = nameProp.GetValue(instance) as string;
+                if (!string.IsNullOrEmpty(name))
+                {
+                    tree.AddNode($"[green]Tool name:[/] {name}");
+                }
+            }
+            catch
+            {
+                // Unable to instantiate, skip
+            }
         }
 
-        // Check return type
-        var returnType = method.ReturnType;
-        if (!typeof(Task).IsAssignableFrom(returnType))
+        if (issues.Count == 0)
         {
-            issues.Add("Method must return Task or Task<T>");
-        }
-
-        // Check for Description attribute
-        if (method.GetCustomAttribute<COA.Mcp.Framework.Attributes.DescriptionAttribute>() == null)
-        {
-            issues.Add("Missing Description attribute");
-        }
-
-        // Check parameters
-        var parameters = method.GetParameters();
-        if (parameters.Length != 1)
-        {
-            issues.Add("Method should have exactly one parameter");
+            tree.AddNode($"[green]✓[/] All validations passed");
         }
         else
         {
-            var paramType = parameters[0].ParameterType;
-            // Validate parameter type has properties with descriptions
-            var props = paramType.GetProperties();
-            foreach (var prop in props)
+            foreach (var issue in issues)
             {
-                if (prop.GetCustomAttribute<COA.Mcp.Framework.Attributes.DescriptionAttribute>() == null && verbose)
+                tree.AddNode($"[red]✗[/] {issue}");
+            }
+        }
+
+        AnsiConsole.Write(tree);
+    }
+
+    private object?[] GetConstructorArgs(Type type)
+    {
+        var constructors = type.GetConstructors();
+        if (constructors.Length == 0)
+            return Array.Empty<object?>();
+
+        var constructor = constructors[0];
+        var parameters = constructor.GetParameters();
+        var args = new object?[parameters.Length];
+
+        for (int i = 0; i < parameters.Length; i++)
+        {
+            // Try to provide default values for common types
+            var paramType = parameters[i].ParameterType;
+            if (paramType.IsInterface || paramType.IsAbstract)
+            {
+                args[i] = null;
+            }
+            else
+            {
+                try
                 {
-                    issues.Add($"Parameter property '{prop.Name}' missing Description attribute");
+                    args[i] = Activator.CreateInstance(paramType);
+                }
+                catch
+                {
+                    args[i] = null;
                 }
             }
         }
 
-        return issues;
-    }
-
-    private void DisplayToolTypeValidation(Type type, List<MethodInfo> methods, List<string> issues)
-    {
-        var tree = new Tree($"[yellow]{type.Name}[/]");
-
-        foreach (var method in methods)
-        {
-            var attr = method.GetCustomAttribute<McpServerToolAttribute>()!;
-            var node = tree.AddNode($"[green]✓[/] {attr.Name}");
-        }
-
-        foreach (var issue in issues)
-        {
-            tree.AddNode($"[red]✗[/] {issue}");
-        }
-
-        AnsiConsole.Write(tree);
+        return args;
     }
 }

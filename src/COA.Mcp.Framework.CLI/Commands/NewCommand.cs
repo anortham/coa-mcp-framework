@@ -67,110 +67,123 @@ public class NewCommand : Command
 
         AnsiConsole.MarkupLine($"[green]✓[/] Created {fileName}");
         AnsiConsole.MarkupLine($"[dim]Next steps:[/]");
-        AnsiConsole.MarkupLine($"  1. Update the tool implementation in {name}.cs");
-        AnsiConsole.MarkupLine($"  2. Define your parameter class");
-        AnsiConsole.MarkupLine($"  3. Add business logic to ExecuteAsync method");
-        AnsiConsole.MarkupLine($"  4. The tool will be automatically discovered at startup");
+        AnsiConsole.MarkupLine($"  1. Update the parameter class ({name.Replace("Tool", "")}Params)");
+        AnsiConsole.MarkupLine($"  2. Update the result class ({name.Replace("Tool", "")}Result)");
+        AnsiConsole.MarkupLine($"  3. Add business logic to ExecuteInternalAsync method");
+        AnsiConsole.MarkupLine($"  4. Register the tool with builder.RegisterToolType<{name}>() in your server");
     }
 
     private string GenerateToolCode(string name, string category)
     {
         var toolNameLower = name.Replace("Tool", "").ToLowerInvariant();
         var paramClassName = $"{name.Replace("Tool", "")}Params";
+        var resultClassName = $"{name.Replace("Tool", "")}Result";
 
-        return $@"using COA.Mcp.Framework;
-using COA.Mcp.Framework.Attributes;
-using COA.Mcp.Framework.Base;
+        return $@"using COA.Mcp.Framework.Base;
 using COA.Mcp.Framework.Models;
-using COA.Mcp.Framework.TokenOptimization;
 using System.ComponentModel;
+using System.ComponentModel.DataAnnotations;
 using Microsoft.Extensions.Logging;
 
 namespace MyMcpServer.Tools;
 
-[McpServerToolType]
-public class {name} : McpToolBase
+/// <summary>
+/// TODO: Add tool description here.
+/// Returns: TODO: Describe what this tool returns.
+/// Prerequisites: TODO: List any prerequisites.
+/// Use cases: TODO: List common use cases.
+/// </summary>
+public class {name} : McpToolBase<{paramClassName}, {resultClassName}>
 {{
     private readonly ILogger<{name}> _logger;
-    private readonly ITokenEstimator _tokenEstimator;
 
-    public override string ToolName => ""{toolNameLower}"";
-    public override ToolCategory Category => ToolCategory.{category};
-
-    public {name}(ILogger<{name}> logger, ITokenEstimator tokenEstimator)
-    {{
-        _logger = logger;
-        _tokenEstimator = tokenEstimator;
-    }}
-
-    [McpServerTool(Name = ""{toolNameLower}"")]
-    [Description(@""TODO: Add tool description here.
+    public override string Name => ""{toolNameLower}"";
+    public override string Description => @""TODO: Add tool description here.
     Returns: TODO: Describe what this tool returns.
     Prerequisites: TODO: List any prerequisites.
-    Use cases: TODO: List common use cases."")]
-    public async Task<object> ExecuteAsync({paramClassName} parameters)
+    Use cases: TODO: List common use cases."";
+    public override ToolCategory Category => ToolCategory.{category};
+
+    public {name}(ILogger<{name}> logger)
+    {{
+        _logger = logger;
+    }}
+
+    protected override async Task<{resultClassName}> ExecuteInternalAsync(
+        {paramClassName} parameters,
+        CancellationToken cancellationToken)
     {{
         _logger.LogInformation(""Executing {toolNameLower} tool"");
 
-        // Validate parameters using base class helpers
-        // var requiredParam = ValidateRequired(parameters.RequiredParam, nameof(parameters.RequiredParam));
-
-        return await ExecuteWithTokenManagement(async () =>
+        try
         {{
-            var sw = System.Diagnostics.Stopwatch.StartNew();
-            
             // TODO: Implement your tool logic here
-            await Task.Delay(100); // Simulate work
+            await Task.Delay(100, cancellationToken); // Simulate work
 
-            var result = new
+            return new {resultClassName}
             {{
                 Success = true,
+                Operation = ""{toolNameLower}"",
                 Message = ""TODO: Replace with actual result"",
-                // Add your data here
+                // Add your data properties here
             }};
-
-            sw.Stop();
-
-            // Generate insights about the operation
-            var insights = new List<string>
+        }}
+        catch (Exception ex)
+        {{
+            _logger.LogError(ex, ""Error executing {toolNameLower}"");
+            
+            return new {resultClassName}
             {{
-                ""TODO: Add meaningful insights about the operation"",
-                ""TODO: Add another insight"",
-                $""Operation completed in {{sw.ElapsedMilliseconds}}ms""
-            }};
-
-            // Suggest next actions
-            var actions = new List<AIAction>
-            {{
-                new AIAction
+                Success = false,
+                Operation = ""{toolNameLower}"",
+                Error = new ErrorInfo
                 {{
-                    Tool = ""another_tool"",
-                    Description = ""TODO: Suggest a logical next action""
+                    Code = ""ERROR_CODE"",
+                    Message = ex.Message,
+                    Recovery = new RecoveryInfo
+                    {{
+                        Steps = new[] {{ ""Step 1: Check X"", ""Step 2: Try Y"" }},
+                        SuggestedActions = new[]
+                        {{
+                            new SuggestedAction
+                            {{
+                                Id = ""retry"",
+                                Description = ""Retry the operation"",
+                                Priority = ""high""
+                            }}
+                        }}
+                    }}
                 }}
             }};
-
-            return new
-            {{
-                Success = true,
-                Data = result,
-                Insights = insights,
-                Actions = actions,
-                Meta = new ToolMetadata
-                {{
-                    ExecutionTime = $""{{sw.ElapsedMilliseconds}}ms"",
-                    TokensEstimated = _tokenEstimator.EstimateObject(result),
-                    ToolVersion = ""1.0.0""
-                }}
-            }};
-        }});
+        }}
     }}
 }}
 
+/// <summary>
+/// Parameters for the {toolNameLower} tool
+/// </summary>
 public class {paramClassName}
 {{
     // TODO: Define your parameters here
+    // [Required]
     // [Description(""Description of this parameter"")]
     // public string? ExampleParam {{ get; set; }}
+    
+    // [Range(1, 100)]
+    // [Description(""An optional numeric parameter"")]
+    // public int? MaxResults {{ get; set; }}
+}}
+
+/// <summary>
+/// Result from the {toolNameLower} tool
+/// </summary>
+public class {resultClassName} : ToolResultBase
+{{
+    // TODO: Add your result properties here
+    public string? Message {{ get; set; }}
+    
+    // Example: public List<string>? Items {{ get; set; }}
+    // Example: public int Count {{ get; set; }}
 }}";
     }
 }
