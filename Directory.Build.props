@@ -12,13 +12,13 @@
 
   <!-- Common package properties -->
   <PropertyGroup>
-    <Authors>COA Development Team</Authors>
-    <Company>COA</Company>
+    <Authors>Your Name or Organization</Authors>
+    <Company>Your Company</Company>
     <Product>COA MCP Framework</Product>
-    <Copyright>© COA Development Team. All rights reserved.</Copyright>
+    <Copyright>© 2024 Your Organization. All rights reserved.</Copyright>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <RepositoryUrl>https://github.com/coa/mcp-framework</RepositoryUrl>
-    <PackageProjectUrl>https://github.com/coa/mcp-framework</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/yourusername/coa-mcp-framework</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/yourusername/coa-mcp-framework</PackageProjectUrl>
     <RepositoryType>git</RepositoryType>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>

@@ -4,7 +4,7 @@ A comprehensive .NET framework for building and consuming Model Context Protocol
 
 [![NuGet Version](https://img.shields.io/nuget/v/COA.Mcp.Framework)](https://www.nuget.org/packages/COA.Mcp.Framework)
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](https://github.com/coa/mcp-framework)
-[![Tests](https://img.shields.io/badge/tests-341%20passing-success)](https://github.com/coa/mcp-framework)
+[![Tests](https://img.shields.io/badge/tests-352%20passing-success)](https://github.com/coa/mcp-framework)
 [![.NET 9.0](https://img.shields.io/badge/.NET-9.0-blue)](https://dotnet.microsoft.com/download)
 
 ## 🚀 Quick Start
@@ -13,7 +13,7 @@ A comprehensive .NET framework for building and consuming Model Context Protocol
 
 ```xml
 <!-- Add to your .csproj file -->
-<PackageReference Include="COA.Mcp.Framework" Version="1.0.0" />
+<PackageReference Include="COA.Mcp.Framework" Version="1.1.0" />
 ```
 
 ### Create Your First MCP Server
@@ -106,11 +106,11 @@ Your MCP server is ready! 🎉
 
 | Package | Version | Description |
 |---------|---------|-------------|
-| **COA.Mcp.Framework** | 1.0.0 | Core framework with MCP protocol included |
-| **COA.Mcp.Client** | 1.0.0 | Strongly-typed C# client for MCP servers |
-| COA.Mcp.Framework.TokenOptimization | 1.0.0 | Advanced token management (optional) |
-| COA.Mcp.Framework.Testing | 1.0.0 | Testing helpers and assertions (optional) |
-| COA.Mcp.Framework.CLI | 1.0.0 | Command-line tools (optional) |
+| **COA.Mcp.Framework** | 1.1.0 | Core framework with MCP protocol included |
+| **COA.Mcp.Client** | 1.1.0 | Strongly-typed C# client for MCP servers |
+| COA.Mcp.Framework.TokenOptimization | 1.1.0 | Advanced token management (optional) |
+| COA.Mcp.Framework.Testing | 1.1.0 | Testing helpers and assertions (optional) |
+| COA.Mcp.Framework.CLI | 1.1.0 | Command-line tools (optional) |
 
 ## ✨ Key Features
 
@@ -415,7 +415,7 @@ builder.Services.AddSingleton<IResourceRegistry, ResourceRegistry>();
 
 ```csharp
 // Add the TokenOptimization package
-// <PackageReference Include="COA.Mcp.Framework.TokenOptimization" Version="1.0.0" />
+// <PackageReference Include="COA.Mcp.Framework.TokenOptimization" Version="1.1.0" />
 
 public class SearchTool : McpToolBase<SearchParams, SearchResult>
 {
@@ -545,7 +545,7 @@ The framework powers production MCP servers:
 | Metric | Target | Actual |
 |--------|--------|--------|
 | Build Time | <3s | 2.46s |
-| Test Suite | 100% pass | 230/230 ✓ |
+| Test Suite | 100% pass | 352/352 ✓ |
 | Warnings | 0 | 0 ✓ |
 | Framework Overhead | <5% | ~3% |
 

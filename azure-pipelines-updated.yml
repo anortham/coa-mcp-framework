@@ -1,28 +1,25 @@
-# Azure Pipelines CI/CD for COA MCP Framework
-# Builds, tests, and publishes NuGet packages to Azure Artifacts and NuGet.org
+# Azure Pipelines RELEASE Pipeline for COA MCP Framework
+# Manual trigger only - publishes to Azure Artifacts and NuGet.org
+# For CI builds, use azure-pipelines.yml
 
-name: 'COA MCP Framework - $(Build.SourceBranchName) - $(Date:yyyyMMdd)$(Rev:.r)'
+name: 'COA MCP Framework - RELEASE - v$(majorVersion).$(minorVersion).$(patchVersion)'
 
-trigger:
-  branches:
-    include:
-      - main
-      - develop
-      - release/*
-  tags:
-    include:
-      - v*
-  paths:
-    exclude:
-      - "**/*.md"
-      - ".gitignore"
-      - "docs/**"
+# MANUAL TRIGGER ONLY - No automatic triggers
+trigger: none
 
-pr:
-  branches:
-    include:
-      - main
-      - develop
+# Don't run on pull requests
+pr: none
+
+# Parameters for manual runs
+parameters:
+  - name: publishToNuGet
+    displayName: 'Publish to NuGet.org?'
+    type: boolean
+    default: false
+  - name: createGitTag
+    displayName: 'Create Git tag for release?'
+    type: boolean
+    default: true
 
 pool:
   name: "Default" # Using local Windows agent pool
@@ -30,9 +27,9 @@ pool:
 variables:
   buildConfiguration: "Release"
   dotnetSdkVersion: "9.x"
-  # Base version for Framework packages
+  # Base version for Framework packages - v1.1.0
   majorVersion: 1
-  minorVersion: 0
+  minorVersion: 1
   # Auto-incrementing patch version - increments on every build
   # The counter is keyed by major.minor version, so it resets when those change
   patchVersion: $[counter(format('{0}.{1}', variables['majorVersion'], variables['minorVersion']), 0)]
@@ -48,11 +45,11 @@ variables:
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
   DOTNET_CLI_TELEMETRY_OPTOUT: true
   NUGET_PACKAGES: $(Pipeline.Workspace)\.nuget\packages
-  # Release flag based on tags
-  ${{ if startsWith(variables['Build.SourceBranch'], 'refs/tags/v') }}:
-    isRelease: true
-  ${{ else }}:
-    isRelease: false
+  # Manual run parameters
+  shouldPublishToNuGet: ${{ parameters.publishToNuGet }}
+  shouldCreateTag: ${{ parameters.createGitTag }}
+  # Always treat manual runs as releases
+  isRelease: true
 
 stages:
   - stage: Build
@@ -307,6 +304,18 @@ stages:
               versioningScheme: "off"
               arguments: "$(versionArguments) --no-restore"
 
+          # Pack Client Library
+          - task: DotNetCoreCLI@2
+            displayName: "Pack COA.Mcp.Client"
+            inputs:
+              command: "pack"
+              packagesToPack: "src/COA.Mcp.Client/COA.Mcp.Client.csproj"
+              configuration: $(buildConfiguration)
+              packDirectory: "$(Build.ArtifactStagingDirectory)/packages"
+              nobuild: true
+              versioningScheme: "off"
+              arguments: "$(versionArguments) --no-restore"
+
           - powershell: |
               Write-Host "Generated NuGet packages:"
               Write-Host "========================="
@@ -350,8 +359,8 @@ stages:
 
   - stage: PublishNuGetOrg
     displayName: "Publish to NuGet.org"
-    dependsOn: Build
-    condition: and(succeeded(), startsWith(variables['Build.SourceBranch'], 'refs/tags/v'))
+    dependsOn: PublishInternal
+    condition: and(succeeded(), eq(variables['shouldPublishToNuGet'], 'true'))
     jobs:
       - job: PublishToNuGetOrg
         displayName: "Publish to NuGet.org"
@@ -427,7 +436,16 @@ stages:
               publishFeedCredentials: 'NuGetOrg-ServiceConnection'
               verbosityPush: 'Detailed'
 
+          - task: NuGetCommand@2
+            displayName: "Push COA.Mcp.Client to NuGet.org"
+            inputs:
+              command: 'push'
+              packagesToPush: '$(System.ArtifactsDirectory)/packages/COA.Mcp.Client.*.nupkg'
+              nuGetFeedType: 'external'
+              publishFeedCredentials: 'NuGetOrg-ServiceConnection'
+              verbosityPush: 'Detailed'
+
           - powershell: |
               Write-Host "Successfully published packages to NuGet.org!"
-              Write-Host "View at: https://www.nuget.org/profiles/CityOfAustin"
+              Write-Host "Packages should appear at https://www.nuget.org shortly"
             displayName: "Publish success message"
