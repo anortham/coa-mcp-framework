@@ -10,25 +10,42 @@
 4. Restart MCP servers
 ```
 
-## 🏗️ Current Architecture (v1.0.0)
+## 🏗️ Current Architecture (v1.1.0)
 
 ### Core Components
 ```
 COA.Mcp.Framework/
 ├── Base/McpToolBase.Generic.cs     # Generic base: McpToolBase<TParams, TResult>
 ├── Server/
-│   ├── McpServer.cs                # Server with CreateBuilder() static method
+│   ├── McpServer.cs                # Server with transport support
 │   └── McpServerBuilder.cs         # Fluent builder API
+├── Transport/
+│   ├── IMcpTransport.cs            # Transport abstraction
+│   ├── StdioTransport.cs           # Console I/O (default)
+│   ├── HttpTransport.cs            # HTTP/HTTPS with WebSocket
+│   └── WebSocketTransport.cs       # Pure WebSocket
+├── Schema/
+│   ├── IJsonSchema.cs              # Type-safe schema interface
+│   ├── JsonSchema<T>.cs            # Generic schema implementation
+│   └── RuntimeJsonSchema.cs        # Runtime schema for non-generic
 ├── Registration/McpToolRegistry.cs # Unified registry (manual + discovery)
 ├── Models/
 │   ├── ErrorModels.cs              # ErrorInfo, RecoveryInfo, SuggestedAction
 │   └── ToolResultBase.cs           # Base result with Success, Error, Meta
 └── Interfaces/IMcpTool.cs          # Tool interface (generic & non-generic)
+
+COA.Mcp.Client/
+├── McpHttpClient.cs                # Base HTTP client
+├── TypedMcpClient<T,R>.cs         # Strongly-typed client
+├── McpClientBuilder.cs             # Fluent client builder
+└── Configuration/
+    └── McpClientOptions.cs        # Client configuration
 ```
 
 ### Package Dependencies
 - **COA.Mcp.Protocol** (1.3.x) - Included as dependency
-- **COA.Mcp.Framework** (1.0.0) - Core framework
+- **COA.Mcp.Framework** (1.1.0) - Core framework with transport support
+- **COA.Mcp.Client** (1.0.0) - Strongly-typed C# client library
 - **Optional**: TokenOptimization, Testing, CLI packages
 
 ## 📝 Quick Reference
@@ -63,6 +80,23 @@ builder.DiscoverTools(assembly);     // Auto-discovery
 await builder.RunAsync();
 ```
 
+### Using the Client Library
+```csharp
+// Create a typed client
+var client = McpClientBuilder
+    .Create("http://localhost:5000")
+    .WithTimeout(TimeSpan.FromSeconds(30))
+    .WithRetry(3, 1000)
+    .BuildTyped<MyParams, MyResult>();
+
+// Connect and initialize
+await client.ConnectAsync();
+await client.InitializeAsync();
+
+// Call tools with type safety
+var result = await client.CallToolAsync("my_tool", new MyParams { /* ... */ });
+```
+
 ### Error Handling
 ```csharp
 return new MyResult
@@ -90,8 +124,13 @@ return new MyResult
 - ✅ Manual tool registration (RegisterToolType<T>)
 - ✅ Tool discovery (DiscoverTools)
 - ✅ Error models with recovery steps
+- ✅ Multiple transport types (Stdio, HTTP, WebSocket)
+- ✅ Strongly-typed C# client library with fluent API
+- ✅ Type-safe schema system (IJsonSchema, JsonSchema<T>)
 - ✅ SimpleMcpServer example (4 working tools)
-- ✅ 230 tests passing, 0 warnings, 0 errors
+- ✅ HttpMcpServer example with web client
+- ✅ McpClientExample demonstrating client usage
+- ✅ 341 tests passing across all projects
 
 ### Not Yet Implemented
 - ❌ AddMcpFramework service extension

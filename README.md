@@ -1,6 +1,11 @@
 # COA MCP Framework
 
-A comprehensive .NET framework for building Model Context Protocol (MCP) servers with built-in token optimization, AI-friendly responses, and developer-first design.
+A comprehensive .NET framework for building and consuming Model Context Protocol (MCP) servers with built-in token optimization, AI-friendly responses, strong typing, and developer-first design.
+
+[![NuGet Version](https://img.shields.io/nuget/v/COA.Mcp.Framework)](https://www.nuget.org/packages/COA.Mcp.Framework)
+[![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](https://github.com/coa/mcp-framework)
+[![Tests](https://img.shields.io/badge/tests-341%20passing-success)](https://github.com/coa/mcp-framework)
+[![.NET 9.0](https://img.shields.io/badge/.NET-9.0-blue)](https://dotnet.microsoft.com/download)
 
 ## 🚀 Quick Start
 
@@ -102,6 +107,7 @@ Your MCP server is ready! 🎉
 | Package | Version | Description |
 |---------|---------|-------------|
 | **COA.Mcp.Framework** | 1.0.0 | Core framework with MCP protocol included |
+| **COA.Mcp.Client** | 1.0.0 | Strongly-typed C# client for MCP servers |
 | COA.Mcp.Framework.TokenOptimization | 1.0.0 | Advanced token management (optional) |
 | COA.Mcp.Framework.Testing | 1.0.0 | Testing helpers and assertions (optional) |
 | COA.Mcp.Framework.CLI | 1.0.0 | Command-line tools (optional) |
@@ -134,6 +140,60 @@ Your MCP server is ready! 🎉
 - Built-in validation helpers
 - Comprehensive IntelliSense support
 - Rich example projects
+
+## 🎯 Client Library
+
+### Consuming MCP Servers with COA.Mcp.Client
+
+The framework includes a strongly-typed C# client library for interacting with MCP servers:
+
+```csharp
+// Create a typed client with fluent configuration
+var client = await McpClientBuilder
+    .Create("http://localhost:5000")
+    .WithTimeout(TimeSpan.FromSeconds(30))
+    .WithRetry(maxAttempts: 3, delayMs: 1000)
+    .WithApiKey("your-api-key")
+    .BuildAndInitializeAsync();
+
+// List available tools
+var tools = await client.ListToolsAsync();
+
+// Call a tool with type safety
+var result = await client.CallToolAsync("weather", new { location = "Seattle" });
+```
+
+### Strongly-Typed Client Operations
+
+```csharp
+// Define your types
+public class WeatherParams
+{
+    public string Location { get; set; }
+    public string Units { get; set; } = "celsius";
+}
+
+public class WeatherResult : ToolResultBase
+{
+    public override string Operation => "get_weather";
+    public double Temperature { get; set; }
+    public string Description { get; set; }
+}
+
+// Create a typed client
+var typedClient = McpClientBuilder
+    .Create("http://localhost:5000")
+    .BuildTyped<WeatherParams, WeatherResult>();
+
+// Call with full type safety
+var weather = await typedClient.CallToolAsync("weather", 
+    new WeatherParams { Location = "Seattle" });
+
+if (weather.Success)
+{
+    Console.WriteLine($"Temperature: {weather.Temperature}°");
+}
+```
 
 ## 🏁 Getting Started
 
@@ -213,6 +273,38 @@ builder.DiscoverTools(typeof(Program).Assembly);
 
 // Build and run
 await builder.RunAsync();
+```
+
+### Transport Configuration
+
+The framework supports multiple transport types for flexibility:
+
+```csharp
+// Default: Standard I/O (for Claude Desktop and CLI tools)
+var builder = new McpServerBuilder()
+    .WithServerInfo("My Server", "1.0.0");
+    // Uses stdio transport by default
+
+// HTTP Transport (for web-based clients)
+var builder = new McpServerBuilder()
+    .WithServerInfo("My Server", "1.0.0")
+    .UseHttpTransport(options =>
+    {
+        options.Port = 5000;
+        options.EnableWebSocket = true;
+        options.EnableCors = true;
+        options.Authentication = AuthenticationType.ApiKey;
+        options.ApiKey = "your-api-key";
+    });
+
+// WebSocket Transport (for real-time communication)
+var builder = new McpServerBuilder()
+    .WithServerInfo("My Server", "1.0.0")
+    .UseWebSocketTransport(options =>
+    {
+        options.Port = 8080;
+        options.Path = "/mcp";
+    });
 ```
 
 ## 🔥 Advanced Features

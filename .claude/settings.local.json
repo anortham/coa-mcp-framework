@@ -19,7 +19,11 @@
       "mcp__codesearch__directory_search",
       "Bash(ls:*)",
       "mcp__codesearch__text_search",
-      "mcp__codenav__csharp_get_diagnostics"
+      "mcp__codenav__csharp_get_diagnostics",
+      "mcp__codenav__csharp_symbol_search",
+      "mcp__codenav__csharp_goto_definition",
+      "mcp__codesearch__store_memory",
+      "Bash(dotnet clean:*)"
     ],
     "deny": []
   }

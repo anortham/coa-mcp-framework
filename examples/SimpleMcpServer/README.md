@@ -140,7 +140,7 @@ The example demonstrates key framework concepts:
 1. **Tool Implementation** - Each tool extends `McpToolBase<TParams, TResult>` for type safety
 2. **Dependency Injection** - Tools can receive services through constructor injection
 3. **Input Validation** - Using the framework's validation helpers
-4. **Schema Generation** - Providing JSON schema for tool parameters
+4. **Schema Generation** - Automatic JSON schema generation from parameter types
 5. **Async Operations** - All tools support cancellation tokens
 6. **Logging** - Integrated logging through Microsoft.Extensions.Logging
 
@@ -150,9 +150,8 @@ To add a new tool:
 
 1. Create a new class extending `McpToolBase<TParams, TResult>`
 2. Define parameter and result classes
-3. Implement the `ExecuteAsync` method
-4. Override `GetInputSchema` to provide parameter schema
-5. Register the tool in Program.cs using `.AddTool<YourTool>()`
+3. Implement the `ExecuteInternalAsync` method
+4. Register the tool in Program.cs using `builder.RegisterToolType<YourTool>()`
 
 ## Framework Features Demonstrated
 

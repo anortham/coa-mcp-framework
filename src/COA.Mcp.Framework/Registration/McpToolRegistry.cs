@@ -11,6 +11,7 @@ using COA.Mcp.Framework.Attributes;
 using COA.Mcp.Framework.Base;
 using COA.Mcp.Framework.Exceptions;
 using COA.Mcp.Framework.Interfaces;
+using COA.Mcp.Framework.Schema;
 using COA.Mcp.Protocol;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -185,7 +186,7 @@ public class McpToolRegistry
         {
             Name = t.Name,
             Description = t.Description,
-            InputSchema = t.InputSchema
+            InputSchema = t.InputSchema.ToJsonElement()
         }).ToList();
     }
 
@@ -347,7 +348,7 @@ public class McpToolRegistry
         public required IMcpTool ToolInstance { get; init; }
         public required Type ParameterType { get; init; }
         public required Type ResultType { get; init; }
-        public required object InputSchema { get; init; }
+        public required IJsonSchema InputSchema { get; init; }
     }
 
     /// <summary>
@@ -389,9 +390,11 @@ public class McpToolRegistry
         public Type ParameterType => _parameterType;
         public Type ResultType => _resultType;
 
-        public object GetInputSchema()
+        public IJsonSchema GetInputSchema()
         {
-            return Utilities.JsonSchemaGenerator.GenerateSchema(_parameterType);
+            // Create a non-generic JsonSchema wrapper for runtime types
+            var schemaDict = Utilities.JsonSchemaGenerator.GenerateSchema(_parameterType);
+            return new RuntimeJsonSchema(schemaDict);
         }
 
         public async Task<object?> ExecuteAsync(object? parameters, CancellationToken cancellationToken)

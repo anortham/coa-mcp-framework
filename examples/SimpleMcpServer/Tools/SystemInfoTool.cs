@@ -3,6 +3,7 @@ using System.Runtime.InteropServices;
 using COA.Mcp.Framework.Base;
 using COA.Mcp.Framework;
 using COA.Mcp.Framework.Interfaces;
+using COA.Mcp.Framework.Models;
 
 namespace SimpleMcpServer.Tools;
 
@@ -115,35 +116,6 @@ public class SystemInfoTool : McpToolBase<SystemInfoParameters, SystemInfoResult
 
         return info;
     }
-
-    public override object GetInputSchema()
-    {
-        return new
-        {
-            type = "object",
-            properties = new
-            {
-                includeEnvironmentVariables = new 
-                { 
-                    type = "boolean", 
-                    description = "Include environment variables in the response",
-                    @default = false
-                },
-                includeDrives = new 
-                { 
-                    type = "boolean", 
-                    description = "Include drive information in the response",
-                    @default = false
-                },
-                filterSensitive = new 
-                { 
-                    type = "boolean", 
-                    description = "Filter sensitive information from environment variables",
-                    @default = true
-                }
-            }
-        };
-    }
 }
 
 public class SystemInfoParameters
@@ -158,9 +130,9 @@ public class SystemInfoParameters
     public bool? FilterSensitive { get; set; } = true;
 }
 
-public class SystemInfoResult
+public class SystemInfoResult : ToolResultBase
 {
-    public bool Success { get; set; }
+    public override string Operation => "system_info";
     public DateTime Timestamp { get; set; }
     public SystemDetails? System { get; set; }
     public RuntimeDetails? Runtime { get; set; }

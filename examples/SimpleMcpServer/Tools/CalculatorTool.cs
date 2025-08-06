@@ -3,6 +3,7 @@ using System.ComponentModel.DataAnnotations;
 using COA.Mcp.Framework.Base;
 using COA.Mcp.Framework;
 using COA.Mcp.Framework.Interfaces;
+using COA.Mcp.Framework.Models;
 
 namespace SimpleMcpServer.Tools;
 
@@ -56,7 +57,11 @@ public class CalculatorTool : McpToolBase<CalculatorParameters, CalculatorResult
                     return new CalculatorResult
                     {
                         Success = false,
-                        Error = "Division by zero is not allowed"
+                        Error = new ErrorInfo
+                        {
+                            Code = "DIVISION_BY_ZERO",
+                            Message = "Division by zero is not allowed"
+                        }
                     };
                 }
                 result = a / b;
@@ -67,7 +72,11 @@ public class CalculatorTool : McpToolBase<CalculatorParameters, CalculatorResult
                 return new CalculatorResult
                 {
                     Success = false,
-                    Error = $"Unknown operation: {parameters.Operation}. Supported operations: add, subtract, multiply, divide"
+                    Error = new ErrorInfo
+                    {
+                        Code = "UNKNOWN_OPERATION",
+                        Message = $"Unknown operation: {parameters.Operation}. Supported operations: add, subtract, multiply, divide"
+                    }
                 };
         }
 
@@ -79,34 +88,6 @@ public class CalculatorTool : McpToolBase<CalculatorParameters, CalculatorResult
             Result = result,
             Expression = expression,
             Calculation = $"{expression} = {result}"
-        };
-    }
-
-    public override object GetInputSchema()
-    {
-        return new
-        {
-            type = "object",
-            properties = new
-            {
-                operation = new 
-                { 
-                    type = "string", 
-                    description = "The operation to perform: add, subtract, multiply, or divide",
-                    @enum = new[] { "add", "subtract", "multiply", "divide", "+", "-", "*", "/" }
-                },
-                a = new 
-                { 
-                    type = "number", 
-                    description = "The first operand" 
-                },
-                b = new 
-                { 
-                    type = "number", 
-                    description = "The second operand" 
-                }
-            },
-            required = new[] { "operation", "a", "b" }
         };
     }
 }
@@ -126,11 +107,10 @@ public class CalculatorParameters
     public double? B { get; set; }  // Nullable to distinguish between unset and 0
 }
 
-public class CalculatorResult
+public class CalculatorResult : ToolResultBase
 {
-    public bool Success { get; set; }
+    public override string Operation => "calculator";
     public double? Result { get; set; }
     public string? Expression { get; set; }
     public string? Calculation { get; set; }
-    public string? Error { get; set; }
 }

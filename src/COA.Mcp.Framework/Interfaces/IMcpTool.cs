@@ -1,5 +1,6 @@
 using System.Threading;
 using System.Threading.Tasks;
+using COA.Mcp.Framework.Schema;
 
 namespace COA.Mcp.Framework.Interfaces;
 
@@ -35,12 +36,12 @@ public interface IMcpTool<TParams, TResult>
     Task<TResult> ExecuteAsync(TParams parameters, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Gets the JSON schema for the tool's parameters.
-    /// This is used for MCP protocol tool discovery.
+    /// Gets the strongly-typed JSON schema for the tool's input parameters.
     /// </summary>
-    /// <returns>The JSON schema as an object.</returns>
-    object GetInputSchema();
+    /// <returns>A typed JSON schema for the parameters.</returns>
+    JsonSchema<TParams> GetInputSchema();
 }
+
 
 /// <summary>
 /// Non-generic base interface for runtime tool discovery and invocation.
@@ -76,7 +77,7 @@ public interface IMcpTool
     /// <summary>
     /// Gets the JSON schema for the tool's parameters.
     /// </summary>
-    object GetInputSchema();
+    IJsonSchema GetInputSchema();
 
     /// <summary>
     /// Executes the tool with untyped parameters.

@@ -4,6 +4,8 @@ using System.Reflection;
 using COA.Mcp.Framework.Interfaces;
 using COA.Mcp.Framework.Registration;
 using COA.Mcp.Framework.Resources;
+using COA.Mcp.Framework.Transport;
+using COA.Mcp.Framework.Transport.Configuration;
 using COA.Mcp.Protocol;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -21,6 +23,7 @@ public class McpServerBuilder
     private Action<McpToolRegistry>? _toolConfiguration;
     private Action<ResourceRegistry>? _resourceConfiguration;
     private Assembly? _toolAssembly;
+    private IMcpTransport? _transport;
 
     /// <summary>
     /// Initializes a new instance of the McpServerBuilder class.
@@ -53,15 +56,49 @@ public class McpServerBuilder
     }
 
     /// <summary>
-    /// Configures custom input/output streams.
+    /// Configures the server to use stdio transport (default).
     /// </summary>
-    /// <param name="input">The input stream to read from.</param>
-    /// <param name="output">The output stream to write to.</param>
+    /// <param name="configure">Optional action to configure stdio options.</param>
     /// <returns>The builder for chaining.</returns>
-    public McpServerBuilder WithStreams(TextReader input, TextWriter output)
+    public McpServerBuilder UseStdioTransport(Action<StdioTransportOptions>? configure = null)
     {
-        _configuration.Input = input;
-        _configuration.Output = output;
+        var options = new StdioTransportOptions();
+        configure?.Invoke(options);
+        
+        var logger = _services.BuildServiceProvider().GetService<ILogger<StdioTransport>>();
+        _transport = new StdioTransport(options.Input, options.Output, logger);
+        _services.AddSingleton(_transport);
+        
+        return this;
+    }
+    
+    /// <summary>
+    /// Configures the server to use HTTP transport.
+    /// </summary>
+    /// <param name="configure">Action to configure HTTP options.</param>
+    /// <returns>The builder for chaining.</returns>
+    public McpServerBuilder UseHttpTransport(Action<HttpTransportOptions> configure)
+    {
+        var options = new HttpTransportOptions();
+        configure?.Invoke(options);
+        
+        var logger = _services.BuildServiceProvider().GetService<ILogger<HttpTransport>>();
+        _transport = new HttpTransport(options, logger);
+        _services.AddSingleton(_transport);
+        _services.AddSingleton(options);
+        
+        return this;
+    }
+    
+    /// <summary>
+    /// Configures the server to use a custom transport.
+    /// </summary>
+    /// <param name="transport">The transport implementation to use.</param>
+    /// <returns>The builder for chaining.</returns>
+    public McpServerBuilder UseTransport(IMcpTransport transport)
+    {
+        _transport = transport ?? throw new ArgumentNullException(nameof(transport));
+        _services.AddSingleton(_transport);
         return this;
     }
 
@@ -170,6 +207,12 @@ public class McpServerBuilder
     /// <returns>The configured MCP server ready to run.</returns>
     public McpServer Build()
     {
+        // If no transport specified, use stdio by default
+        if (_transport == null)
+        {
+            UseStdioTransport();
+        }
+        
         var serviceProvider = _services.BuildServiceProvider();
         
         // Get registries
@@ -195,13 +238,8 @@ public class McpServerBuilder
         };
         
         var logger = serviceProvider.GetService<ILogger<McpServer>>();
-        var server = new McpServer(toolRegistry, resourceRegistry, serverInfo, logger);
-        
-        // Set custom streams if provided
-        if (_configuration.Input != null && _configuration.Output != null)
-        {
-            server.SetStreams(_configuration.Input, _configuration.Output);
-        }
+        var transport = serviceProvider.GetRequiredService<IMcpTransport>();
+        var server = new McpServer(transport, toolRegistry, resourceRegistry, serverInfo, logger);
         
         return server;
     }
@@ -259,8 +297,6 @@ public class McpServerBuilder
     {
         public string ServerName { get; set; } = "COA MCP Server";
         public string ServerVersion { get; set; } = "1.0.0";
-        public TextReader? Input { get; set; }
-        public TextWriter? Output { get; set; }
     }
 }
 

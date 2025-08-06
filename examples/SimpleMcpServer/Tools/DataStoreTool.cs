@@ -3,6 +3,7 @@ using System.ComponentModel.DataAnnotations;
 using COA.Mcp.Framework.Base;
 using COA.Mcp.Framework;
 using COA.Mcp.Framework.Interfaces;
+using COA.Mcp.Framework.Models;
 using Microsoft.Extensions.Logging;
 
 namespace SimpleMcpServer.Tools;
@@ -46,7 +47,7 @@ public class DataStoreTool : McpToolBase<DataStoreParameters, DataStoreResult>
                     return new DataStoreResult
                     {
                         Success = true,
-                        Operation = "set",
+                        OperationPerformed = "set",
                         Key = setKey,
                         Message = $"Value stored successfully for key '{setKey}'"
                     };
@@ -61,16 +62,20 @@ public class DataStoreTool : McpToolBase<DataStoreParameters, DataStoreResult>
                         return new DataStoreResult
                         {
                             Success = false,
-                            Operation = "get",
+                            OperationPerformed = "get",
                             Key = getKey,
-                            Error = $"Key '{getKey}' not found"
+                            Error = new ErrorInfo
+                            {
+                                Code = "KEY_NOT_FOUND",
+                                Message = $"Key '{getKey}' not found"
+                            }
                         };
                     }
                     
                     return new DataStoreResult
                     {
                         Success = true,
-                        Operation = "get",
+                        OperationPerformed = "get",
                         Key = getKey,
                         Value = value,
                         Message = $"Value retrieved for key '{getKey}'"
@@ -84,7 +89,7 @@ public class DataStoreTool : McpToolBase<DataStoreParameters, DataStoreResult>
                     return new DataStoreResult
                     {
                         Success = deleted,
-                        Operation = "delete",
+                        OperationPerformed = "delete",
                         Key = deleteKey,
                         Message = deleted 
                             ? $"Key '{deleteKey}' deleted successfully" 
@@ -97,7 +102,7 @@ public class DataStoreTool : McpToolBase<DataStoreParameters, DataStoreResult>
                     return new DataStoreResult
                     {
                         Success = true,
-                        Operation = "list",
+                        OperationPerformed = "list",
                         Keys = keys.ToList(),
                         Message = $"Found {keys.Count()} keys"
                     };
@@ -107,7 +112,7 @@ public class DataStoreTool : McpToolBase<DataStoreParameters, DataStoreResult>
                     return new DataStoreResult
                     {
                         Success = true,
-                        Operation = "clear",
+                        OperationPerformed = "clear",
                         Message = "All data cleared"
                     };
 
@@ -118,7 +123,7 @@ public class DataStoreTool : McpToolBase<DataStoreParameters, DataStoreResult>
                     return new DataStoreResult
                     {
                         Success = true,
-                        Operation = "exists",
+                        OperationPerformed = "exists",
                         Key = existsKey,
                         Exists = exists,
                         Message = exists 
@@ -130,7 +135,11 @@ public class DataStoreTool : McpToolBase<DataStoreParameters, DataStoreResult>
                     return new DataStoreResult
                     {
                         Success = false,
-                        Error = $"Unknown operation: {operation}. Supported: set, get, delete, list, clear, exists"
+                        Error = new ErrorInfo
+                        {
+                            Code = "UNKNOWN_OPERATION",
+                            Message = $"Unknown operation: {operation}. Supported: set, get, delete, list, clear, exists"
+                        }
                     };
             }
         }
@@ -140,38 +149,14 @@ public class DataStoreTool : McpToolBase<DataStoreParameters, DataStoreResult>
             return new DataStoreResult
             {
                 Success = false,
-                Operation = operation,
-                Error = $"Error: {ex.Message}"
+                OperationPerformed = operation,
+                Error = new ErrorInfo
+                {
+                    Code = "PROCESSING_ERROR",
+                    Message = $"Error: {ex.Message}"
+                }
             };
         }
-    }
-
-    public override object GetInputSchema()
-    {
-        return new
-        {
-            type = "object",
-            properties = new
-            {
-                operation = new 
-                { 
-                    type = "string", 
-                    description = "The operation to perform",
-                    @enum = new[] { "set", "get", "delete", "list", "clear", "exists" }
-                },
-                key = new 
-                { 
-                    type = "string", 
-                    description = "The key for the data" 
-                },
-                value = new 
-                { 
-                    type = "string", 
-                    description = "The value to store (for set operation)" 
-                }
-            },
-            required = new[] { "operation" }
-        };
     }
 }
 
@@ -188,16 +173,15 @@ public class DataStoreParameters
     public string? Value { get; set; }
 }
 
-public class DataStoreResult
+public class DataStoreResult : ToolResultBase
 {
-    public bool Success { get; set; }
-    public string? Operation { get; set; }
+    public override string Operation => "data_store";
+    public string? OperationPerformed { get; set; }
     public string? Key { get; set; }
     public string? Value { get; set; }
     public List<string>? Keys { get; set; }
     public bool? Exists { get; set; }
-    public string? Message { get; set; }
-    public string? Error { get; set; }
+    public new string? Message { get; set; }  // Use 'new' to hide inherited member
 }
 
 // Service interface and implementation
