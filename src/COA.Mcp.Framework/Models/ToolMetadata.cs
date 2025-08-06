@@ -88,7 +88,7 @@ public class ToolMetadata
     /// <summary>
     /// Gets or sets the tool instance (if already instantiated).
     /// </summary>
-    public ITool? ToolInstance { get; init; }
+    public IMcpTool? ToolInstance { get; init; }
 }
 
 /// <summary>

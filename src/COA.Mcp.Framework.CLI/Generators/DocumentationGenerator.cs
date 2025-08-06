@@ -2,6 +2,7 @@ using System.Reflection;
 using System.Text;
 using COA.Mcp.Framework.Attributes;
 using COA.Mcp.Framework.Base;
+using COA.Mcp.Framework.Interfaces;
 using ComponentModel = System.ComponentModel;
 
 namespace COA.Mcp.Framework.CLI.Generators;
@@ -94,10 +95,10 @@ public class DocumentationGenerator
             sb.AppendLine();
 
             // Tool info
-            if (toolType.BaseType == typeof(McpToolBase))
+            if (toolType.GetInterfaces().Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IMcpTool<,>)))
             {
                 var instance = Activator.CreateInstance(toolType, GetConstructorArgs(toolType));
-                if (instance is McpToolBase toolBase)
+                if (instance is IMcpTool toolBase)
                 {
                     sb.AppendLine($"**Category:** {toolBase.Category}");
                     sb.AppendLine();

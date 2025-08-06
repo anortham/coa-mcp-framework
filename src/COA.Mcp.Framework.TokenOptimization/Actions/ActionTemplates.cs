@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using COA.Mcp.Framework.TokenOptimization.Models;
+using COA.Mcp.Framework.Models;
 
 namespace COA.Mcp.Framework.TokenOptimization.Actions
 {

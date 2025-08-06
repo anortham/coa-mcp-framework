@@ -1,12 +1,10 @@
 using System;
 using System.Linq;
 using System.Reflection;
-using System.Threading;
-using System.Threading.Tasks;
 using COA.Mcp.Framework.Interfaces;
+using COA.Mcp.Framework.Server;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Microsoft.Extensions.Hosting;
 
 namespace COA.Mcp.Framework.Registration;
 
@@ -26,21 +24,26 @@ public static class ServiceCollectionExtensions
         configure?.Invoke(options);
 
         // Register core services
-        services.TryAddSingleton<IToolRegistry, AttributeBasedToolRegistry>();
-        services.TryAddSingleton<IToolDiscovery, ToolDiscoveryService>();
+        services.TryAddSingleton<McpToolRegistry>();
         services.TryAddSingleton<IParameterValidator, DefaultParameterValidator>();
         
         // Register the options
         services.AddSingleton(options);
 
-        // Discover and register tools if assemblies are specified
+        // Discover and register tools from assemblies
         if (options.AssembliesToScan.Any())
         {
-            services.AddSingleton<IHostedService, ToolDiscoveryHostedService>(provider =>
+            services.AddSingleton(provider =>
             {
-                var registry = provider.GetRequiredService<IToolRegistry>();
-                var discovery = provider.GetRequiredService<IToolDiscovery>();
-                return new ToolDiscoveryHostedService(registry, discovery, options.AssembliesToScan.ToArray());
+                var registry = provider.GetRequiredService<McpToolRegistry>();
+                
+                // Discover tools from all specified assemblies
+                foreach (var assembly in options.AssembliesToScan)
+                {
+                    DiscoverAndRegisterTools(provider, registry, assembly);
+                }
+                
+                return registry;
             });
         }
 
@@ -57,14 +60,14 @@ public static class ServiceCollectionExtensions
     /// Adds a specific tool to the service collection.
     /// </summary>
     public static IServiceCollection AddMcpTool<TTool>(this IServiceCollection services)
-        where TTool : class, ITool
+        where TTool : class, IMcpTool
     {
         services.TryAddScoped<TTool>();
-        services.AddSingleton<IHostedService>(provider =>
+        
+        // Register with the tool registry when the service is resolved
+        services.Configure<McpToolRegistrationOptions>(opts =>
         {
-            var registry = provider.GetRequiredService<IToolRegistry>();
-            var tool = ActivatorUtilities.CreateInstance<TTool>(provider);
-            return new SingleToolRegistrationService(registry, tool);
+            opts.ToolTypes.Add(typeof(TTool));
         });
 
         return services;
@@ -79,11 +82,9 @@ public static class ServiceCollectionExtensions
     {
         RegisterToolTypes(services, assembly);
         
-        services.AddSingleton<IHostedService>(provider =>
+        services.Configure<McpToolRegistrationOptions>(opts =>
         {
-            var registry = provider.GetRequiredService<IToolRegistry>();
-            var discovery = provider.GetRequiredService<IToolDiscovery>();
-            return new ToolDiscoveryHostedService(registry, discovery, assembly);
+            opts.AssembliesToScan.Add(assembly);
         });
 
         return services;
@@ -91,9 +92,10 @@ public static class ServiceCollectionExtensions
 
     private static void RegisterToolTypes(IServiceCollection services, Assembly assembly)
     {
+        // Find all types that implement IMcpTool
         var toolTypes = assembly.GetTypes()
             .Where(t => t.IsClass && !t.IsAbstract &&
-                       t.GetCustomAttribute<Attributes.McpServerToolTypeAttribute>() != null)
+                       typeof(IMcpTool).IsAssignableFrom(t))
             .ToList();
 
         foreach (var toolType in toolTypes)
@@ -101,65 +103,34 @@ public static class ServiceCollectionExtensions
             // Register as scoped to support per-request state
             services.TryAddScoped(toolType);
             
-            // If it implements ITool, also register by interface
-            if (typeof(ITool).IsAssignableFrom(toolType))
-            {
-                services.TryAddScoped(typeof(ITool), toolType);
-            }
+            // Also register by IMcpTool interface
+            services.TryAddScoped(typeof(IMcpTool), toolType);
         }
     }
 
-    // Helper hosted service for tool discovery
-    private class ToolDiscoveryHostedService : IHostedService
+    private static void DiscoverAndRegisterTools(
+        IServiceProvider provider,
+        McpToolRegistry registry,
+        Assembly assembly)
     {
-        private readonly IToolRegistry _registry;
-        private readonly IToolDiscovery _discovery;
-        private readonly Assembly[] _assemblies;
+        var toolTypes = assembly.GetTypes()
+            .Where(t => t.IsClass && !t.IsAbstract &&
+                       typeof(IMcpTool).IsAssignableFrom(t))
+            .ToList();
 
-        public ToolDiscoveryHostedService(
-            IToolRegistry registry,
-            IToolDiscovery discovery,
-            params Assembly[] assemblies)
+        foreach (var toolType in toolTypes)
         {
-            _registry = registry;
-            _discovery = discovery;
-            _assemblies = assemblies;
-        }
-
-        public Task StartAsync(CancellationToken cancellationToken)
-        {
-            var metadata = _discovery.DiscoverTools(_assemblies);
-            
-            foreach (var tool in metadata)
+            try
             {
-                _registry.RegisterTool(tool);
+                var tool = (IMcpTool)ActivatorUtilities.CreateInstance(provider, toolType);
+                registry.RegisterTool(tool);
             }
-
-            return Task.CompletedTask;
+            catch (Exception ex)
+            {
+                // Log error but don't fail startup
+                Console.Error.WriteLine($"Failed to register tool {toolType.Name}: {ex.Message}");
+            }
         }
-
-        public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
-    }
-
-    // Helper hosted service for single tool registration
-    private class SingleToolRegistrationService : IHostedService
-    {
-        private readonly IToolRegistry _registry;
-        private readonly ITool _tool;
-
-        public SingleToolRegistrationService(IToolRegistry registry, ITool tool)
-        {
-            _registry = registry;
-            _tool = tool;
-        }
-
-        public Task StartAsync(CancellationToken cancellationToken)
-        {
-            _registry.RegisterTool(_tool);
-            return Task.CompletedTask;
-        }
-
-        public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
     }
 }
 
@@ -189,6 +160,16 @@ public class McpFrameworkOptions
     public int DefaultTimeoutMs { get; set; } = 30000;
 
     /// <summary>
+    /// Gets or sets the token optimization level.
+    /// </summary>
+    public TokenOptimizationLevel TokenOptimization { get; set; } = TokenOptimizationLevel.Balanced;
+
+    /// <summary>
+    /// Gets or sets whether to use AI-optimized responses.
+    /// </summary>
+    public bool UseAIOptimizedResponses { get; set; } = true;
+
+    /// <summary>
     /// Adds an assembly to scan for tools.
     /// </summary>
     public McpFrameworkOptions DiscoverToolsFromAssembly(Assembly assembly)
@@ -201,10 +182,47 @@ public class McpFrameworkOptions
     }
 
     /// <summary>
-    /// Adds the calling assembly to scan for tools.
+    /// Sets the token optimization level.
     /// </summary>
-    public McpFrameworkOptions DiscoverToolsFromCurrentAssembly()
+    public McpFrameworkOptions UseTokenOptimization(TokenOptimizationLevel level)
     {
-        return DiscoverToolsFromAssembly(Assembly.GetCallingAssembly());
+        TokenOptimization = level;
+        return this;
     }
 }
+
+/// <summary>
+/// Token optimization levels.
+/// </summary>
+public enum TokenOptimizationLevel
+{
+    /// <summary>
+    /// No token optimization.
+    /// </summary>
+    None,
+
+    /// <summary>
+    /// Conservative optimization - preserves most content.
+    /// </summary>
+    Conservative,
+
+    /// <summary>
+    /// Balanced optimization - good trade-off between content and tokens.
+    /// </summary>
+    Balanced,
+
+    /// <summary>
+    /// Aggressive optimization - minimizes token usage.
+    /// </summary>
+    Aggressive
+}
+
+/// <summary>
+/// Options for tool registration.
+/// </summary>
+internal class McpToolRegistrationOptions
+{
+    public List<Type> ToolTypes { get; } = new();
+    public List<Assembly> AssembliesToScan { get; } = new();
+}
+

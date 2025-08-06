@@ -37,16 +37,27 @@
 - **NEVER** check in broken builds or failing tests
 - **ALWAYS** maintain backward compatibility in minor versions
 
-## 🏗️ Framework Architecture
+## 🏗️ Framework Architecture (v1.0.0 - SIMPLIFIED!)
 
 ### Package Structure
 
 ```
-COA.Mcp.Protocol (v2.0.0) - Base MCP protocol implementation
-├── COA.Mcp.Framework (v1.0.0) - Core abstractions and tool system
+COA.Mcp.Framework (v1.0.0) - COMPLETE MCP SOLUTION
+├── Includes COA.Mcp.Protocol (v1.3.x) as dependency
+├── McpServer - Full server implementation
+├── McpToolBase<TParams, TResult> - Type-safe tools
+├── McpToolRegistry - Single unified registry
+└── McpServerBuilder - Fluent configuration
+
+Optional Extensions:
 ├── COA.Mcp.Framework.TokenOptimization (v1.0.0) - Token management
-└── COA.Mcp.Framework.Testing (v1.0.0) - Testing infrastructure
+├── COA.Mcp.Framework.Testing (v1.0.0) - Testing infrastructure
+├── COA.Mcp.Framework.Migration (v1.0.0) - Migration utilities
+├── COA.Mcp.Framework.Templates (v1.0.0) - Project templates
+└── COA.Mcp.Framework.CLI (v1.0.0) - Command-line tools
 ```
+
+**IMPORTANT**: Users only need to reference `COA.Mcp.Framework` - it includes everything needed to build an MCP server!
 
 ### Design Principles
 
@@ -58,16 +69,18 @@ COA.Mcp.Protocol (v2.0.0) - Base MCP protocol implementation
 
 ## 📦 Package Development Guidelines
 
-### COA.Mcp.Protocol (Moving from existing projects)
+### COA.Mcp.Protocol (Integrated into Framework)
 
-This is the foundation - the MCP protocol implementation that both CodeSearch and CodeNav currently depend on.
+The foundation MCP protocol implementation, now integrated into the framework solution with separate versioning (1.3.x).
 
 ```csharp
 // Core protocol types
 - McpServer
-- ToolRegistry
+- ToolRegistry  
 - ResourceRegistry
 - Protocol messages and contracts
+- TypedJsonRpc implementation
+- Server capabilities management
 ```
 
 ### COA.Mcp.Framework
@@ -91,6 +104,12 @@ public abstract class McpToolBase : ITool
     // Token-aware execution
     protected Task<TResult> ExecuteWithTokenManagement<TResult>(
         Func<Task<TResult>> operation);
+    
+    // Enhanced error handling (NEW)
+    protected ToolResultBase CreateErrorResult(string operation, string error, 
+        string? recoveryStep = null);
+    protected ToolResultBase CreateValidationErrorResult(string operation, 
+        string paramName, string requirement);
 }
 
 // Interfaces
@@ -99,6 +118,36 @@ public interface ITool
     string ToolName { get; }
     string Description { get; }
     ToolCategory Category { get; }
+}
+
+// NEW: Resource Provider Infrastructure
+public interface IResourceProvider
+{
+    bool CanHandle(string uri);
+    Task<ResourceContent> GetResourceAsync(string uri);
+}
+
+public interface IResourceRegistry
+{
+    void RegisterProvider(IResourceProvider provider);
+    Task<ResourceContent> GetResourceAsync(string uri);
+}
+
+// NEW: Standardized Result Models
+public abstract class ToolResultBase
+{
+    public bool Success { get; set; }
+    public abstract string Operation { get; }
+    public ErrorInfo? Error { get; set; }
+    public Dictionary<string, object>? Meta { get; set; }
+}
+
+// NEW: AI-Friendly Error Models
+public class ErrorInfo
+{
+    public required string Code { get; set; }
+    public string? Message { get; set; }
+    public RecoveryInfo? Recovery { get; set; }
 }
 ```
 

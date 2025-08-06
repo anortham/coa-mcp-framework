@@ -1,4 +1,5 @@
 using COA.Mcp.Framework.TokenOptimization.Models;
+using COA.Mcp.Framework.Models;
 using FluentAssertions;
 using FluentAssertions.Collections;
 using FluentAssertions.Execution;
@@ -69,7 +70,7 @@ namespace COA.Mcp.Framework.Testing.Assertions
                 .ForCondition(content => !string.IsNullOrEmpty(content))
                 .FailWith("Expected insight to contain text {0}{reason}, but content was empty.", expectedText)
                 .Then
-                .ForCondition(content => content.Contains(expectedText, StringComparison.OrdinalIgnoreCase))
+                .ForCondition(content => content!.Contains(expectedText, StringComparison.OrdinalIgnoreCase))
                 .FailWith("Expected insight to contain text {0}{reason}, but found {1}.",
                     expectedText, Subject.Text);
 
@@ -94,9 +95,9 @@ namespace COA.Mcp.Framework.Testing.Assertions
                 .ForCondition(metadata => metadata != null)
                 .FailWith("Expected insight to have metadata with key {0}{reason}, but metadata was null.", key)
                 .Then
-                .ForCondition(metadata => metadata.ContainsKey(key))
+                .ForCondition(metadata => metadata!.ContainsKey(key))
                 .FailWith("Expected insight to have metadata with key {0}{reason}, but found keys: {1}.",
-                    key, string.Join(", ", Subject.Metadata.Keys));
+                    key, string.Join(", ", Subject?.Metadata?.Keys ?? Enumerable.Empty<string>()));
 
             return new AndConstraint<InsightAssertions>(this);
         }
@@ -224,7 +225,7 @@ namespace COA.Mcp.Framework.Testing.Assertions
         {
             var insightTypes = Subject?
                 .Where(i => i.Metadata?.ContainsKey("type") == true)
-                .Select(i => i.Metadata["type"])
+                .Select(i => i.Metadata!["type"])
                 .Distinct()
                 .Count() ?? 0;
 

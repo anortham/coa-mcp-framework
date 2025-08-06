@@ -13,13 +13,13 @@ namespace COA.Mcp.Framework.Testing.Assertions
     /// <summary>
     /// Fluent assertions for MCP tools.
     /// </summary>
-    public class ToolAssertions : ReferenceTypeAssertions<ITool, ToolAssertions>
+    public class ToolAssertions : ReferenceTypeAssertions<IMcpTool, ToolAssertions>
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="ToolAssertions"/> class.
         /// </summary>
         /// <param name="tool">The tool to assert on.</param>
-        public ToolAssertions(ITool tool) : base(tool)
+        public ToolAssertions(IMcpTool tool) : base(tool)
         {
             Identifier = "tool";
         }
@@ -45,9 +45,9 @@ namespace COA.Mcp.Framework.Testing.Assertions
                 .ForCondition(tool => tool != null)
                 .FailWith("Expected tool to have name {0}{reason}, but found <null>.", expectedName)
                 .Then
-                .ForCondition(tool => tool.ToolName == expectedName)
+                .ForCondition(tool => tool.Name == expectedName)
                 .FailWith("Expected tool to have name {0}{reason}, but found {1}.", 
-                    expectedName, Subject.ToolName);
+                    expectedName, Subject.Name);
 
             return new AndConstraint<ToolAssertions>(this);
         }
@@ -225,7 +225,7 @@ namespace COA.Mcp.Framework.Testing.Assertions
         /// </summary>
         /// <param name="tool">The tool to assert on.</param>
         /// <returns>Tool assertions.</returns>
-        public static ToolAssertions Should(this ITool tool)
+        public static ToolAssertions Should(this IMcpTool tool)
         {
             return new ToolAssertions(tool);
         }
@@ -248,8 +248,8 @@ namespace COA.Mcp.Framework.Testing.Assertions
         /// <param name="because">Additional reason for the assertion.</param>
         /// <param name="becauseArgs">Arguments for the reason.</param>
         /// <returns>The tool for further assertions.</returns>
-        public static ITool ContainToolNamed(
-            this GenericCollectionAssertions<ITool> assertions,
+        public static IMcpTool ContainToolNamed(
+            this GenericCollectionAssertions<IMcpTool> assertions,
             string toolName,
             string because = "",
             params object[] becauseArgs)
@@ -260,11 +260,11 @@ namespace COA.Mcp.Framework.Testing.Assertions
                 .ForCondition(tools => tools != null)
                 .FailWith("Expected collection to contain tool named {0}{reason}, but found <null>.", toolName)
                 .Then
-                .ForCondition(tools => tools.Any(t => t.ToolName == toolName))
+                .ForCondition(tools => tools.Any(t => t.Name == toolName))
                 .FailWith("Expected collection to contain tool named {0}{reason}, but found tools: {1}.", 
-                    toolName, string.Join(", ", assertions.Subject.Select(t => t.ToolName)));
+                    toolName, string.Join(", ", assertions.Subject.Select(t => t.Name)));
 
-            return assertions.Subject.First(t => t.ToolName == toolName);
+            return assertions.Subject.First(t => t.Name == toolName);
         }
     }
 }

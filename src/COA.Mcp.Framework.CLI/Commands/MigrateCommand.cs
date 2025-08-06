@@ -283,7 +283,7 @@ public class {className} : McpToolBase
         return items;
     }
 
-    private async Task DisplayMigrationReport(MigrationReport report)
+    private Task DisplayMigrationReport(MigrationReport report)
     {
         AnsiConsole.WriteLine();
         AnsiConsole.Write(new Rule("[blue]Migration Analysis Report[/]"));
@@ -333,6 +333,8 @@ public class {className} : McpToolBase
         
         AnsiConsole.WriteLine();
         AnsiConsole.MarkupLine($"Total patterns found: [yellow]{report.Patterns.Count}[/]");
+        
+        return Task.CompletedTask;
     }
     
     private string GetPriorityColor(Priority priority)
@@ -346,10 +348,10 @@ public class {className} : McpToolBase
         };
     }
 
-    private async Task CreateBackups(IEnumerable<string> files)
+    private Task CreateBackups(IEnumerable<string> files)
     {
         AnsiConsole.Status()
-            .Start("Creating backups...", async ctx =>
+            .Start("Creating backups...", ctx =>
             {
                 foreach (var file in files)
                 {
@@ -358,6 +360,7 @@ public class {className} : McpToolBase
                     ctx.Status($"Backed up {Path.GetFileName(file)}");
                 }
             });
+        return Task.CompletedTask;
     }
 
     private async Task ApplyMigrations(MigrationReport report)

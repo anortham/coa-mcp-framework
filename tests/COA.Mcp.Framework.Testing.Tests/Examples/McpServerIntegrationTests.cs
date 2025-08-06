@@ -28,8 +28,7 @@ namespace COA.Mcp.Framework.Testing.Tests.Examples
         {
             // Configure MCP framework (simplified for example)
             // In real implementation, this would use the actual extension method
-            services.AddSingleton<IToolRegistry, AttributeBasedToolRegistry>();
-            services.AddSingleton<IToolDiscovery, ToolDiscoveryService>();
+            services.AddSingleton<McpToolRegistry>();
 
             // Add services
             services.AddSingleton<IWeatherService, MockWeatherService>();
@@ -45,12 +44,17 @@ namespace COA.Mcp.Framework.Testing.Tests.Examples
         public async Task McpServer_Startup_RegistersAllTools()
         {
             // Arrange
-            var toolRegistry = GetRequiredService<IToolRegistry>();
+            var toolRegistry = GetRequiredService<McpToolRegistry>();
 
-            // Act
+            // Act - Wait for the hosted service to complete registration
+            var registered = await WaitForConditionAsync(
+                () => toolRegistry.GetAllTools().Any(),
+                TimeSpan.FromSeconds(2));
+            
             var tools = toolRegistry.GetAllTools();
 
             // Assert
+            registered.Should().BeTrue("tools should be registered within timeout");
             tools.Should().NotBeEmpty();
             tools.Should().ContainToolNamed("get_weather");
         }
@@ -172,34 +176,28 @@ namespace COA.Mcp.Framework.Testing.Tests.Examples
     /// </summary>
     internal class ToolRegistrationService : IHostedService
     {
-        private readonly IToolRegistry _toolRegistry;
-        private readonly IToolDiscovery _toolDiscovery;
+        private readonly McpToolRegistry _toolRegistry;
         private readonly IServiceProvider _serviceProvider;
 
         public ToolRegistrationService(
-            IToolRegistry toolRegistry,
-            IToolDiscovery toolDiscovery,
+            McpToolRegistry toolRegistry,
             IServiceProvider serviceProvider)
         {
             _toolRegistry = toolRegistry;
-            _toolDiscovery = toolDiscovery;
             _serviceProvider = serviceProvider;
         }
 
         public Task StartAsync(CancellationToken cancellationToken)
         {
-            // Discover tools from the test assembly
-            var tools = _toolDiscovery.DiscoverTools(typeof(WeatherTool).Assembly);
-            
-            foreach (var toolInfo in tools)
+            // Get the WeatherTool instance from DI and register it
+            var weatherTool = _serviceProvider.GetService<WeatherTool>();
+            if (weatherTool != null)
             {
-                // Get tool instance from DI
-                var tool = _serviceProvider.GetService(toolInfo.DeclaringType) as ITool;
-                if (tool != null)
-                {
-                    _toolRegistry.RegisterTool(tool);
-                }
+                _toolRegistry.RegisterTool(weatherTool);
             }
+            
+            // Alternatively, use auto-discovery for the assembly
+            // _toolRegistry.DiscoverAndRegisterTools(typeof(WeatherTool).Assembly);
             
             return Task.CompletedTask;
         }

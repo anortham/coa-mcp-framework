@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using COA.Mcp.Framework.TokenOptimization;
 using COA.Mcp.Framework.TokenOptimization.Actions;
 using COA.Mcp.Framework.TokenOptimization.Models;
+using COA.Mcp.Framework.Models;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
@@ -50,7 +51,7 @@ namespace COA.Mcp.Framework.TokenOptimization.Tests.Actions
             template.Setup(t => t.GenerateAsync(It.IsAny<object>(), It.IsAny<ActionContext>()))
                 .ReturnsAsync(new AIAction 
                 { 
-                    Action = "test_action", 
+                    Tool = "test_action", 
                     Description = "Test action",
                     Category = "test"
                 });
@@ -67,7 +68,7 @@ namespace COA.Mcp.Framework.TokenOptimization.Tests.Actions
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Count, Is.GreaterThanOrEqualTo(1));
-            Assert.That(result[0].Action, Is.EqualTo("test_action"));
+            Assert.That(result[0].Tool, Is.EqualTo("test_action"));
         }
 
         [Test]
@@ -85,7 +86,7 @@ namespace COA.Mcp.Framework.TokenOptimization.Tests.Actions
             {
                 new AIAction 
                 { 
-                    Action = "next_action", 
+                    Tool = "next_action", 
                     Description = "Next suggested action",
                     Category = "navigate"
                 }
@@ -102,7 +103,7 @@ namespace COA.Mcp.Framework.TokenOptimization.Tests.Actions
 
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Any(a => a.Action == "next_action"), Is.True);
+            Assert.That(result.Any(a => a.Tool == "next_action"), Is.True);
         }
 
         [Test]
@@ -118,7 +119,7 @@ namespace COA.Mcp.Framework.TokenOptimization.Tests.Actions
 
             var duplicateAction = new AIAction 
             { 
-                Action = "duplicate_action", 
+                Tool = "duplicate_action", 
                 Description = "Duplicate action",
                 Category = "test"
             };
@@ -142,7 +143,7 @@ namespace COA.Mcp.Framework.TokenOptimization.Tests.Actions
 
             // Assert
             Assert.That(result, Is.Not.Null);
-            Assert.That(result.Count(a => a.Action == "duplicate_action"), Is.EqualTo(1));
+            Assert.That(result.Count(a => a.Tool == "duplicate_action"), Is.EqualTo(1));
         }
 
         [Test]
@@ -161,7 +162,7 @@ namespace COA.Mcp.Framework.TokenOptimization.Tests.Actions
             {
                 actions.Add(new AIAction 
                 { 
-                    Action = $"action_{i}", 
+                    Tool = $"action_{i}", 
                     Description = $"Action {i}",
                     Category = "test"
                 });
@@ -195,9 +196,9 @@ namespace COA.Mcp.Framework.TokenOptimization.Tests.Actions
 
             var actions = new List<AIAction>
             {
-                new AIAction { Action = "action1", Description = "Action 1" },
-                new AIAction { Action = "action2", Description = "Action 2" },
-                new AIAction { Action = "action3", Description = "Action 3" }
+                new AIAction { Tool = "action1", Description = "Action 1" },
+                new AIAction { Tool = "action2", Description = "Action 2" },
+                new AIAction { Tool = "action3", Description = "Action 3" }
             };
 
             _templateProviderMock.Setup(p => p.GetTemplatesAsync(It.IsAny<Type>(), It.IsAny<ActionContext>()))

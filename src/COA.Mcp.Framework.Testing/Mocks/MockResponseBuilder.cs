@@ -1,4 +1,5 @@
 using COA.Mcp.Framework.TokenOptimization.Models;
+using COA.Mcp.Framework.Models;
 using COA.Mcp.Framework.TokenOptimization.ResponseBuilders;
 using System;
 using System.Collections.Generic;

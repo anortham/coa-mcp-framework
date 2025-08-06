@@ -28,14 +28,14 @@ namespace COA.Mcp.Framework.Testing.Performance
         /// <param name="warmupIterations">Number of warmup iterations.</param>
         /// <returns>The benchmark result.</returns>
         public async Task<ResponseTimeResult> BenchmarkToolAsync(
-            ITool tool,
+            IMcpTool tool,
             object parameters,
             int iterations = 10,
             int warmupIterations = 3)
         {
             var result = new ResponseTimeResult
             {
-                ToolName = tool.ToolName,
+                ToolName = tool.Name,
                 Iterations = iterations,
                 Timestamp = DateTime.UtcNow
             };
@@ -98,7 +98,7 @@ namespace COA.Mcp.Framework.Testing.Performance
         /// <param name="toolBenchmarks">Tool and parameter pairs to benchmark.</param>
         /// <returns>Comparison result.</returns>
         public async Task<ToolComparisonResult> CompareTool
-            (params (ITool tool, object parameters)[] toolBenchmarks)
+            (params (IMcpTool tool, object parameters)[] toolBenchmarks)
         {
             var results = new List<ResponseTimeResult>();
 
@@ -120,7 +120,7 @@ namespace COA.Mcp.Framework.Testing.Performance
         /// <param name="duration">Test duration.</param>
         /// <returns>Load test result.</returns>
         public async Task<LoadTestResult> RunLoadTestAsync(
-            ITool tool,
+            IMcpTool tool,
             object parameters,
             int concurrentRequests = 10,
             TimeSpan? duration = null)
@@ -129,7 +129,7 @@ namespace COA.Mcp.Framework.Testing.Performance
             
             var result = new LoadTestResult
             {
-                ToolName = tool.ToolName,
+                ToolName = tool.Name,
                 ConcurrentRequests = concurrentRequests,
                 Duration = duration.Value
             };

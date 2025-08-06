@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using COA.Mcp.Framework.Models;
 
 namespace COA.Mcp.Framework.TokenOptimization.Models;
 
@@ -67,58 +68,6 @@ public class AIResponseData
     /// </summary>
     [JsonExtensionData]
     public Dictionary<string, object>? ExtensionData { get; set; }
-}
-
-/// <summary>
-/// Represents a suggested action for the AI to take next.
-/// </summary>
-public class AIAction
-{
-    /// <summary>
-    /// Gets or sets the action identifier.
-    /// </summary>
-    [JsonPropertyName("action")]
-    public string Action { get; set; } = string.Empty;
-    
-    /// <summary>
-    /// Gets or sets the tool name for the action (alias for Action).
-    /// </summary>
-    [JsonIgnore]
-    public string Tool 
-    { 
-        get => Action; 
-        set => Action = value; 
-    }
-    
-    /// <summary>
-    /// Gets or sets the human-readable description of the action.
-    /// </summary>
-    [JsonPropertyName("description")]
-    public string Description { get; set; } = string.Empty;
-    
-    /// <summary>
-    /// Gets or sets the rationale for suggesting this action.
-    /// </summary>
-    [JsonPropertyName("rationale")]
-    public string? Rationale { get; set; }
-    
-    /// <summary>
-    /// Gets or sets the category of this action.
-    /// </summary>
-    [JsonPropertyName("category")]
-    public string? Category { get; set; }
-    
-    /// <summary>
-    /// Gets or sets the parameters for the action.
-    /// </summary>
-    [JsonPropertyName("parameters")]
-    public Dictionary<string, object>? Parameters { get; set; }
-    
-    /// <summary>
-    /// Gets or sets the priority of this action (higher is more important).
-    /// </summary>
-    [JsonPropertyName("priority")]
-    public int Priority { get; set; } = 50;
 }
 
 /// <summary>

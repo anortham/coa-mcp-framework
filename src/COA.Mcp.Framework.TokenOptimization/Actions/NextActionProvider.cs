@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using COA.Mcp.Framework.TokenOptimization.Models;
+using COA.Mcp.Framework.Models;
 using Microsoft.Extensions.Logging;
 
 namespace COA.Mcp.Framework.TokenOptimization.Actions
@@ -74,7 +75,7 @@ namespace COA.Mcp.Framework.TokenOptimization.Actions
             }
         }
 
-        private async Task<List<AIAction>> GetWorkflowActionsAsync(ActionContext context, ContextAnalysis analysis)
+        private Task<List<AIAction>> GetWorkflowActionsAsync(ActionContext context, ContextAnalysis analysis)
         {
             var actions = new List<AIAction>();
 
@@ -98,7 +99,7 @@ namespace COA.Mcp.Framework.TokenOptimization.Actions
                 }
             }
 
-            return actions;
+            return Task.FromResult(actions);
         }
 
         private List<AIAction> GetIntentBasedActions(ContextAnalysis analysis, ActionContext context)

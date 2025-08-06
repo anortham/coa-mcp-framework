@@ -7,10 +7,13 @@ This document shows a **step-by-step manual migration** of a single tool from Co
 First, add the framework packages to your project:
 
 ```xml
-<!-- In COA.CodeNav.McpServer.csproj, add: -->
+<!-- In your MCP Server .csproj, add: -->
+<PackageReference Include="COA.Mcp.Protocol" Version="1.3.*" />
 <PackageReference Include="COA.Mcp.Framework" Version="1.0.*" />
 <PackageReference Include="COA.Mcp.Framework.TokenOptimization" Version="1.0.*" />
 ```
+
+**Note**: COA.Mcp.Protocol is now included with the framework but published separately with its own versioning.
 
 ## Step 2: Create the Migrated Tool (Side-by-Side)
 
@@ -208,7 +211,25 @@ Once you've verified the V2 tool works correctly:
 2. **Uses ExecuteWithTokenManagement** - Automatic token optimization
 3. **Returns AIOptimizedResponse** - Standardized response format
 4. **Uses framework's Insight/AIAction types** - Better structure
-5. **Simpler error handling** - Framework handles error responses
+5. **Enhanced error handling** - New `ToolResultBase` with AI-friendly error models
+
+### NEW: Using Enhanced Error Handling
+
+```csharp
+// Instead of returning raw error objects, use ToolResultBase:
+public class WorkspaceStatsResult : ToolResultBase
+{
+    public override string Operation => "get_workspace_statistics";
+    public WorkspaceStatistics? Stats { get; set; }
+}
+
+// In your tool execution:
+if (error != null)
+{
+    return CreateErrorResult("get_workspace_statistics", error.Message, 
+        recoveryStep: "Ensure workspace is loaded with csharp_load_solution");
+}
+```
 
 ## Benefits You Get
 

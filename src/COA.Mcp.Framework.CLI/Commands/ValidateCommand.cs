@@ -4,6 +4,7 @@ using System.ComponentModel;
 using System.Reflection;
 using COA.Mcp.Framework.Attributes;
 using COA.Mcp.Framework.Base;
+using COA.Mcp.Framework.Interfaces;
 using COA.Mcp.Framework.CLI.Generators;
 using Microsoft.Extensions.FileSystemGlobbing;
 using Spectre.Console;
@@ -199,10 +200,12 @@ public class ValidateCommand : Command
     {
         var issues = new List<string>();
 
-        // Check if inherits from McpToolBase
-        if (!typeof(McpToolBase).IsAssignableFrom(type))
+        // Check if implements IMcpTool<,> interface
+        var implementsInterface = type.GetInterfaces()
+            .Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IMcpTool<,>));
+        if (!implementsInterface)
         {
-            issues.Add($"Does not inherit from McpToolBase");
+            issues.Add($"Does not implement IMcpTool<TParams, TResult> interface");
         }
 
         // Check for parameterless constructor or DI constructor

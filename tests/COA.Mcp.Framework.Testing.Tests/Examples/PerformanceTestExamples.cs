@@ -275,9 +275,9 @@ namespace COA.Mcp.Framework.Testing.Tests.Examples
             {
             }
 
-            public override async Task<object> ExecuteAsync(object parameters)
+            public override async Task<object?> ExecuteAsync(object? parameters, CancellationToken cancellationToken = default)
             {
-                var weatherParams = (WeatherParams)parameters;
+                var weatherParams = (WeatherParams)parameters!;
                 var cacheKey = $"{weatherParams.Location}:{weatherParams.MaxResults}";
 
                 if (_cache.TryGetValue(cacheKey, out var cached))
@@ -285,8 +285,8 @@ namespace COA.Mcp.Framework.Testing.Tests.Examples
                     return cached;
                 }
 
-                var result = await base.ExecuteAsync(parameters);
-                _cache[cacheKey] = result;
+                var result = await base.ExecuteAsync(parameters, cancellationToken);
+                _cache[cacheKey] = result!;
                 return result;
             }
         }

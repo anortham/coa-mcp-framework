@@ -4,6 +4,7 @@ using COA.Mcp.Framework.Testing.Assertions;
 using COA.Mcp.Framework.Testing.Builders;
 using COA.Mcp.Framework.TokenOptimization;
 using COA.Mcp.Framework.TokenOptimization.Models;
+using COA.Mcp.Framework.Models;
 using FluentAssertions;
 using FluentAssertions.Execution;
 using NUnit.Framework;
@@ -256,17 +257,17 @@ namespace COA.Mcp.Framework.Testing.Tests.Examples
         public void ToolCollection_Assertions()
         {
             // Arrange
-            var tools = new List<ITool>
+            var tools = new List<IMcpTool>
             {
                 new WeatherTool(null!, null!),
                 new MockTool("analyze_code", ToolCategory.Analysis),
-                new MockTool("format_code", ToolCategory.Modification)
+                new MockTool("format_code", ToolCategory.Refactoring)
             };
 
             // Act & Assert
             tools.Should().HaveCount(3);
-            tools.Should().Contain(t => t.ToolName == "get_weather");
-            tools.Should().Contain(t => t.ToolName == "analyze_code");
+            tools.Should().Contain(t => t.Name == "get_weather");
+            tools.Should().Contain(t => t.Name == "analyze_code");
 
             // Find specific tool and assert
             var weatherTool = tools.Should().ContainToolNamed("get_weather");
@@ -275,19 +276,31 @@ namespace COA.Mcp.Framework.Testing.Tests.Examples
         }
 
         // Helper mock tool
-        private class MockTool : ITool
+        private class MockTool : IMcpTool
         {
-            public string ToolName { get; }
-            public string Description => $"Mock {ToolName} tool";
+            public string Name { get; }
+            public string Description => $"Mock {Name} tool";
             public ToolCategory Category { get; }
+            public Type ParameterType => typeof(object);
+            public Type ResultType => typeof(object);
 
             public MockTool(string name, ToolCategory category)
             {
-                ToolName = name;
+                Name = name;
                 Category = category;
             }
 
-            public Task<object> ExecuteAsync(object parameters) => Task.FromResult<object>(new { });
+            public object GetInputSchema()
+            {
+                return new
+                {
+                    type = "object",
+                    properties = new { }
+                };
+            }
+
+            public Task<object?> ExecuteAsync(object? parameters, CancellationToken cancellationToken = default) 
+                => Task.FromResult<object?>(new { });
         }
     }
 }

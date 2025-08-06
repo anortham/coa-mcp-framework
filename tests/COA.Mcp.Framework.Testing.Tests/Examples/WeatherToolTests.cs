@@ -135,14 +135,16 @@ namespace COA.Mcp.Framework.Testing.Tests.Examples
 
     // Example tool implementation
     [McpServerToolType]
-    public class WeatherTool : ITool
+    public class WeatherTool : IMcpTool
     {
         private readonly IWeatherService _weatherService;
         private readonly ILogger<WeatherTool> _logger;
 
-        public string ToolName => "get_weather";
+        public string Name => "get_weather";
         public string Description => "Gets weather information for a location";
         public ToolCategory Category => ToolCategory.Query;
+        public Type ParameterType => typeof(WeatherParams);
+        public Type ResultType => typeof(object);
 
         public WeatherTool(IWeatherService weatherService, ILogger<WeatherTool> logger)
         {
@@ -150,8 +152,22 @@ namespace COA.Mcp.Framework.Testing.Tests.Examples
             _logger = logger;
         }
 
+        public object GetInputSchema()
+        {
+            return new
+            {
+                type = "object",
+                properties = new
+                {
+                    location = new { type = "string", description = "Location to get weather for" },
+                    forecastDays = new { type = "integer", description = "Number of forecast days" }
+                },
+                required = new[] { "location" }
+            };
+        }
+
         [McpServerTool("get_weather")]
-        public virtual async Task<object> ExecuteAsync(object parameters)
+        public virtual async Task<object?> ExecuteAsync(object? parameters, CancellationToken cancellationToken = default)
         {
             var weatherParams = (WeatherParams)parameters;
 

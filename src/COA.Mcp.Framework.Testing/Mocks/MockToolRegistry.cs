@@ -1,23 +1,43 @@
 using COA.Mcp.Framework;
 using COA.Mcp.Framework.Interfaces;
+using COA.Mcp.Framework.Registration;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 
+using Microsoft.Extensions.DependencyInjection;
+
 namespace COA.Mcp.Framework.Testing.Mocks
 {
     /// <summary>
-    /// Mock implementation of IToolRegistry for testing.
+    /// Mock implementation of McpToolRegistry for testing.
     /// </summary>
-    public class MockToolRegistry : IToolRegistry
+    public class MockToolRegistry : McpToolRegistry
     {
-        private readonly Dictionary<string, ITool> _tools = new();
-        private readonly Dictionary<string, ToolMetadata> _toolMetadata = new();
+        /// <summary>
+        /// Initializes a new instance of the MockToolRegistry class.
+        /// </summary>
+        public MockToolRegistry() : base(CreateServiceProvider())
+        {
+        }
 
+        /// <summary>
+        /// Initializes a new instance of the MockToolRegistry class with a custom service provider.
+        /// </summary>
+        public MockToolRegistry(IServiceProvider serviceProvider) : base(serviceProvider)
+        {
+        }
+
+        private static IServiceProvider CreateServiceProvider()
+        {
+            var services = new ServiceCollection();
+            services.AddLogging();
+            return services.BuildServiceProvider();
+        }
         /// <summary>
         /// Gets the number of registered tools.
         /// </summary>
-        public int ToolCount => _tools.Count;
+        public int ToolCount => GetAllTools().Count();
 
         /// <summary>
         /// Gets or sets whether to throw an exception when a tool is not found.
@@ -39,173 +59,111 @@ namespace COA.Mcp.Framework.Testing.Mocks
         /// </summary>
         public List<string> UnregisteredTools { get; } = new();
 
-        /// <inheritdoc/>
-        public void RegisterTool(ITool tool)
+        /// <summary>
+        /// Registers an IMcpTool and tracks the registration.
+        /// </summary>
+        public new void RegisterTool(IMcpTool tool)
         {
             if (tool == null) throw new ArgumentNullException(nameof(tool));
-
-            _tools[tool.ToolName] = tool;
-            RegisteredTools.Add(tool.ToolName);
-
-            // Create metadata from tool
-            var metadata = new ToolMetadata
-            {
-                Name = tool.ToolName,
-                Description = tool.Description,
-                Category = tool.Category,
-                DeclaringType = tool.GetType(),
-                ToolInstance = tool
-            };
-            _toolMetadata[tool.ToolName] = metadata;
+            
+            base.RegisterTool(tool);
+            RegisteredTools.Add(tool.Name);
         }
 
-        /// <inheritdoc/>
-        public void RegisterTool(ToolMetadata toolMetadata)
-        {
-            if (toolMetadata == null) throw new ArgumentNullException(nameof(toolMetadata));
-
-            _toolMetadata[toolMetadata.Name] = toolMetadata;
-            RegisteredTools.Add(toolMetadata.Name);
-
-            // If we have a tool instance, register it too
-            if (toolMetadata.ToolInstance != null)
-            {
-                _tools[toolMetadata.Name] = toolMetadata.ToolInstance;
-            }
-        }
-
-        /// <inheritdoc/>
-        public ITool? GetTool(string toolName)
+        /// <summary>
+        /// Gets a tool by name and tracks the query.
+        /// </summary>
+        public new IMcpTool? GetTool(string toolName)
         {
             QueriedTools.Add(toolName);
-
-            if (_tools.TryGetValue(toolName, out var tool))
-            {
-                return tool;
-            }
-
-            if (ThrowOnNotFound)
+            
+            var tool = base.GetTool(toolName);
+            
+            if (tool == null && ThrowOnNotFound)
             {
                 throw new KeyNotFoundException($"Tool '{toolName}' not found in registry.");
             }
-
-            return null;
+            
+            return tool;
         }
 
-        /// <inheritdoc/>
-        public ToolMetadata? GetToolMetadata(string toolName)
-        {
-            QueriedTools.Add(toolName);
-
-            if (_toolMetadata.TryGetValue(toolName, out var metadata))
-            {
-                return metadata;
-            }
-
-            if (ThrowOnNotFound)
-            {
-                throw new KeyNotFoundException($"Tool metadata for '{toolName}' not found in registry.");
-            }
-
-            return null;
-        }
-
-        /// <inheritdoc/>
-        public IEnumerable<ITool> GetAllTools()
-        {
-            return _tools.Values.ToList();
-        }
-
-        /// <inheritdoc/>
-        public IEnumerable<ToolMetadata> GetAllToolMetadata()
-        {
-            return _toolMetadata.Values.ToList();
-        }
-
-        /// <inheritdoc/>
-        public bool IsToolRegistered(string toolName)
-        {
-            return _tools.ContainsKey(toolName);
-        }
-
-        /// <inheritdoc/>
-        public bool UnregisterTool(string toolName)
+        /// <summary>
+        /// Unregisters a tool by name.
+        /// </summary>
+        public new bool UnregisterTool(string toolName)
         {
             UnregisteredTools.Add(toolName);
-            
-            var removed = _tools.Remove(toolName);
-            _toolMetadata.Remove(toolName);
-            
-            return removed;
-        }
-
-        /// <inheritdoc/>
-        public IEnumerable<ITool> GetToolsByCategory(ToolCategory category)
-        {
-            return _tools.Values.Where(t => t.Category == category).ToList();
+            return base.UnregisterTool(toolName);
         }
 
         /// <summary>
         /// Clears all registered tools.
         /// </summary>
-        public void Clear()
+        public new void Clear()
         {
-            _tools.Clear();
-            _toolMetadata.Clear();
-            QueriedTools.Clear();
             RegisteredTools.Clear();
+            QueriedTools.Clear();
             UnregisteredTools.Clear();
+            base.Clear();
         }
 
         /// <summary>
-        /// Adds a simple mock tool for testing.
+        /// Creates a simple mock tool for testing.
         /// </summary>
-        /// <param name="name">The tool name.</param>
-        /// <param name="description">The tool description.</param>
-        /// <param name="category">The tool category.</param>
-        /// <param name="executeFunc">Optional execution function.</param>
-        public void AddMockTool(
-            string name, 
-            string description = "Mock tool", 
-            ToolCategory category = ToolCategory.General,
-            Func<object, Task<object>>? executeFunc = null)
+        public static IMcpTool CreateMockTool(string name = "test_tool", string description = "Test tool", ToolCategory category = ToolCategory.General)
         {
-            var mockTool = new SimpleMockTool(name, description, category, executeFunc);
-            RegisterTool(mockTool);
+            return new SimpleMockTool(name, description, category);
         }
 
         /// <summary>
-        /// Simple mock tool implementation.
+        /// Adds a simple mock tool to the registry.
         /// </summary>
-        private class SimpleMockTool : ITool
+        public void AddMockTool(string name = "test_tool", string description = "Test tool", ToolCategory category = ToolCategory.General)
         {
-            private readonly Func<object, Task<object>>? _executeFunc;
+            var tool = CreateMockTool(name, description, category);
+            RegisterTool(tool);
+        }
 
-            public SimpleMockTool(
-                string name, 
-                string description, 
-                ToolCategory category,
-                Func<object, Task<object>>? executeFunc = null)
+        /// <summary>
+        /// Gets tools by category.
+        /// </summary>
+        public IEnumerable<IMcpTool> GetToolsByCategory(ToolCategory category)
+        {
+            return GetAllTools().Where(t => t.Category == category);
+        }
+
+        // Simple mock tool implementation for testing
+        private class SimpleMockTool : IMcpTool
+        {
+            private readonly string _name;
+            private readonly string _description;
+            private readonly ToolCategory _category;
+
+            public SimpleMockTool(string name, string description, ToolCategory category)
             {
-                ToolName = name;
-                Description = description;
-                Category = category;
-                _executeFunc = executeFunc;
+                _name = name;
+                _description = description;
+                _category = category;
             }
 
-            public string ToolName { get; }
-            public string Description { get; }
-            public ToolCategory Category { get; }
+            public string Name => _name;
+            public string Description => _description;
+            public ToolCategory Category => _category;
+            public Type ParameterType => typeof(object);
+            public Type ResultType => typeof(object);
 
-            public async Task<object> ExecuteAsync(object parameters)
+            public object GetInputSchema()
             {
-                if (_executeFunc != null)
+                return new
                 {
-                    return await _executeFunc(parameters);
-                }
+                    type = "object",
+                    properties = new Dictionary<string, object>()
+                };
+            }
 
-                await Task.CompletedTask;
-                return new { success = true, parameters };
+            public Task<object?> ExecuteAsync(object? parameters, CancellationToken cancellationToken = default)
+            {
+                return Task.FromResult<object?>(new { Success = true, Message = "Mock execution" });
             }
         }
     }
