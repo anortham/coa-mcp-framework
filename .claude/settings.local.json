@@ -16,7 +16,10 @@
       "mcp__codesearch__index_workspace",
       "mcp__codesearch__search_assistant",
       "mcp__codesearch__file_search",
-      "mcp__codesearch__directory_search"
+      "mcp__codesearch__directory_search",
+      "Bash(ls:*)",
+      "mcp__codesearch__text_search",
+      "mcp__codenav__csharp_get_diagnostics"
     ],
     "deny": []
   }

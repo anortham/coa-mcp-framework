@@ -4,10 +4,22 @@ A comprehensive .NET framework for building Model Context Protocol (MCP) servers
 
 ## 🚀 Quick Start
 
-### Simple Example - Type-Safe Tool Implementation
+### Install the Framework
+
+```xml
+<!-- Add to your .csproj file -->
+<PackageReference Include="COA.Mcp.Framework" Version="1.0.0" />
+```
+
+### Create Your First MCP Server
 
 ```csharp
-// 1. Define your strongly-typed parameters
+using COA.Mcp.Framework.Server;
+using COA.Mcp.Framework.Base;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+
+// 1. Define your tool parameters
 public class WeatherParameters
 {
     [Required]
@@ -15,12 +27,14 @@ public class WeatherParameters
     public string Location { get; set; }
     
     [Range(1, 10)]
+    [Description("Number of forecast days (1-10)")]
     public int ForecastDays { get; set; } = 3;
 }
 
 // 2. Define your result type
-public class WeatherResult
+public class WeatherResult : ToolResultBase
 {
+    public override string Operation => "get_weather";
     public string Location { get; set; }
     public double Temperature { get; set; }
     public string Condition { get; set; }
@@ -30,701 +44,446 @@ public class WeatherResult
 // 3. Implement your tool with full type safety
 public class WeatherTool : McpToolBase<WeatherParameters, WeatherResult>
 {
+    private readonly IWeatherService _weatherService;
+    
     public override string Name => "get_weather";
     public override string Description => "Get weather for a location";
+    public override ToolCategory Category => ToolCategory.Query;
+    
+    public WeatherTool(IWeatherService weatherService)
+    {
+        _weatherService = weatherService;
+    }
     
     protected override async Task<WeatherResult> ExecuteInternalAsync(
-        WeatherParameters parameters,  // <-- Strongly typed!
+        WeatherParameters parameters,
         CancellationToken cancellationToken)
     {
         // Parameters are already validated!
-        // No JSON parsing needed!
-        var weather = await GetWeatherDataAsync(parameters.Location);
+        var weather = await _weatherService.GetWeatherAsync(
+            parameters.Location, 
+            parameters.ForecastDays);
         
         return new WeatherResult
         {
+            Success = true,
             Location = parameters.Location,
-            Temperature = weather.Temp,
-            Condition = weather.Condition,
+            Temperature = weather.Current.Temperature,
+            Condition = weather.Current.Condition,
             Forecast = weather.GetForecast(parameters.ForecastDays)
         };
     }
 }
 
 // 4. Create and run your server
-var server = McpServer.CreateBuilder()
+// Program.cs
+var builder = new McpServerBuilder()
     .WithServerInfo("Weather Server", "1.0.0")
-    .RegisterTool(new WeatherTool())
-    .Build();
+    .ConfigureLogging(logging =>
+    {
+        logging.AddConsole();
+        logging.SetMinimumLevel(LogLevel.Information);
+    });
 
-await server.RunAsync();
+// Register services
+builder.Services.AddSingleton<IWeatherService, WeatherService>();
+
+// Register tools
+builder.RegisterToolType<WeatherTool>();
+
+// Build and run
+await builder.RunAsync();
 ```
 
-### Install Templates (Optional)
-
-```bash
-# Install project templates for quick scaffolding
-dotnet new --install COA.Mcp.Framework.Templates
-
-# Create a new MCP server from template
-dotnet new mcp-server -n MyServer
-```
-
-Your MCP server is ready with **zero boilerplate**! 🎉
+Your MCP server is ready! 🎉
 
 ## 📦 NuGet Packages
 
 | Package | Version | Description |
 |---------|---------|-------------|
-| COA.Mcp.Framework | 1.0.0 | Complete MCP framework - **this is all you need!** |
+| **COA.Mcp.Framework** | 1.0.0 | Core framework with MCP protocol included |
 | COA.Mcp.Framework.TokenOptimization | 1.0.0 | Advanced token management (optional) |
 | COA.Mcp.Framework.Testing | 1.0.0 | Testing helpers and assertions (optional) |
-| COA.Mcp.Framework.Migration | 1.0.0 | Migration utilities (optional) |
 | COA.Mcp.Framework.CLI | 1.0.0 | Command-line tools (optional) |
-
-```xml
-<!-- This is all you need to get started! -->
-<PackageReference Include="COA.Mcp.Framework" Version="1.0.0" />
-
-<!-- Optional: Add token optimization if needed -->
-<PackageReference Include="COA.Mcp.Framework.TokenOptimization" Version="1.0.0" />
-```
-
-**Note**: The Protocol package is included as a dependency of the Framework - you don't need to reference it directly!
 
 ## ✨ Key Features
 
-### 📦 **Zero Boilerplate** - Just One Package
-- **Single package reference**: `COA.Mcp.Framework` includes everything
-- **No protocol details**: Framework handles all MCP communication  
-- **No JSON parsing**: Automatic serialization/deserialization
-- **No manual validation**: Built-in parameter validation with attributes
+### 🔒 **Type-Safe Tool Development**
+- Generic base class `McpToolBase<TParams, TResult>` ensures compile-time type safety
+- Automatic parameter validation using data annotations
+- No manual JSON parsing required
 
-### 🔒 **Type Safety Throughout**
-```csharp
-// OLD WAY - Unsafe, manual parsing ❌
-public async Task<object> ExecuteAsync(object parameters)
-{
-    var json = JsonSerializer.Serialize(parameters);
-    var typed = JsonSerializer.Deserialize<MyParams>(json);
-    // Manual validation...
-}
+### 🏗️ **Clean Architecture**
+- Single unified tool registry
+- Fluent server builder API
+- Dependency injection support
+- Clear separation of concerns
 
-// NEW WAY - Type-safe, automatic ✅
-public class MyTool : McpToolBase<MyParams, MyResult>
-{
-    protected override async Task<MyResult> ExecuteInternalAsync(
-        MyParams parameters,  // Already typed and validated!
-        CancellationToken ct)
-    {
-        // Just implement your logic
-    }
-}
-```
+### 🛡️ **Comprehensive Error Handling**
+- Standardized error models with `ErrorInfo` and `RecoveryInfo`
+- AI-friendly error messages with recovery steps
+- Built-in validation helpers
 
-### 🎯 **Single Unified Registry**
-```csharp
-// Simple, clean architecture
-var server = McpServer.CreateBuilder()
-    .DiscoverTools()           // Auto-discover all tools
-    .RegisterTool(myTool)      // Or register individually
-    .Build();
+### 🧠 **Token Optimization** (Optional)
+- Pre-estimation to prevent context overflow
+- Progressive reduction for large datasets
+- Smart truncation with resource URIs
 
-// No more multiple registries, bridges, or adapters!
-```
-
-### 🛡️ **AI-Friendly Error Handling**
-```csharp
-// Errors include recovery steps and next actions
-return new ErrorInfo
-{
-    Code = "VALIDATION_ERROR",
-    Message = "Invalid location format",
-    Recovery = new RecoveryInfo
-    {
-        Steps = new[] { "Use city name or coordinates" },
-        SuggestedActions = new[]
-        {
-            new SuggestedAction
-            {
-                Tool = "get_location_help",
-                Description = "Get location format examples"
-            }
-        }
-    }
-};
-```
-
-### 🧠 **Built-in Token Optimization** (Optional)
-- **Pre-estimation**: Never blow up the context window
-- **Progressive reduction**: Gracefully handle large datasets
-- **AI-optimized responses**: Structured for LLM consumption
-- **Automatic truncation**: Smart handling of large responses
-
-### 🚄 Lightning Fast Development
-- **Project templates**: New server in seconds
-- **Base classes**: Common functionality built-in
-- **Validation helpers**: Parameter validation made easy
-- **Testing infrastructure**: Comprehensive test helpers
-
-### 📊 Production Ready
-- **Performance optimized**: <5% overhead vs direct implementation
-- **Battle-tested**: Powers CodeSearch and CodeNav MCP servers
-- **Extensible**: Designed for customization
-- **Well-documented**: IntelliSense everywhere
+### 🚄 **Rapid Development**
+- Minimal boilerplate code
+- Built-in validation helpers
+- Comprehensive IntelliSense support
+- Rich example projects
 
 ## 🏁 Getting Started
 
-### Complete Example: Building a Code Analysis Tool
+### Working Example: SimpleMcpServer
 
-This example showcases all the framework features including error handling, resource providers, and token optimization:
+Check out our complete working example in `examples/SimpleMcpServer/`:
 
 ```csharp
-// 1. Define your result model inheriting from ToolResultBase
-public class CodeAnalysisResult : ToolResultBase
+// From examples/SimpleMcpServer/Tools/CalculatorTool.cs
+public class CalculatorTool : McpToolBase<CalculatorParameters, CalculatorResult>
 {
-    public override string Operation => "analyze_code";
-    public CodeMetrics? Metrics { get; set; }
-    public List<CodeIssue>? Issues { get; set; }
-    public string? ResourceUri { get; set; }
-}
+    public override string Name => "calculator";
+    public override string Description => "Performs basic arithmetic operations";
+    public override ToolCategory Category => ToolCategory.Utility;
 
-// 2. Create your tool with comprehensive error handling
-[McpServerToolType]
-public class CodeAnalysisTool : McpToolBase
-{
-    private readonly ICodeAnalyzer _analyzer;
-    private readonly IResourceRegistry _resourceRegistry;
-    
-    public override string ToolName => "analyze_code";
-    public override ToolCategory Category => ToolCategory.Analysis;
-    
-    [McpServerTool(Name = "analyze_code")]
-    [Description(@"Analyzes code for quality metrics and issues.
-    Returns: Metrics, issues, and improvement suggestions.
-    Prerequisites: File must exist and be readable.
-    Use cases: Code reviews, quality checks, refactoring decisions.")]
-    public async Task<object> ExecuteAsync(CodeAnalysisParams parameters)
+    protected override async Task<CalculatorResult> ExecuteInternalAsync(
+        CalculatorParameters parameters,
+        CancellationToken cancellationToken)
     {
-        var startTime = DateTime.UtcNow;
+        // Validate inputs using base class helpers
+        ValidateRequired(parameters.Operation, nameof(parameters.Operation));
+        ValidateRequired(parameters.A, nameof(parameters.A));
+        ValidateRequired(parameters.B, nameof(parameters.B));
+
+        var a = parameters.A!.Value;
+        var b = parameters.B!.Value;
         
-        try
+        double result = parameters.Operation.ToLower() switch
         {
-            // Use built-in validation helpers
-            var filePath = ValidateRequired(parameters.FilePath, nameof(parameters.FilePath));
-            var depth = ValidateRange(parameters.AnalysisDepth ?? 1, 1, 3, "AnalysisDepth");
-            
-            // Check prerequisites
-            if (!File.Exists(filePath))
-            {
-                return CreateErrorResult<CodeAnalysisResult>(
-                    BaseErrorCodes.FILE_NOT_FOUND,
-                    $"File not found: {filePath}",
-                    new List<string>
-                    {
-                        "Verify the file path is correct",
-                        "Ensure the file exists",
-                        "Check file permissions"
-                    },
-                    new List<SuggestedAction>
-                    {
-                        new SuggestedAction
-                        {
-                            Tool = "list_files",
-                            Description = "List files in the directory",
-                            Parameters = new { path = Path.GetDirectoryName(filePath) }
-                        }
-                    },
-                    startTime
-                );
-            }
-            
-            // Perform analysis with token management
-            return await ExecuteWithTokenManagement(async () =>
-            {
-                var analysisResult = await _analyzer.AnalyzeAsync(filePath, depth);
-                
-                // Store full results as a resource if large
-                string? resourceUri = null;
-                if (analysisResult.Issues.Count > 100)
-                {
-                    resourceUri = await StoreAsResourceAsync(analysisResult);
-                    analysisResult.Issues = analysisResult.Issues.Take(50).ToList();
-                }
-                
-                return new CodeAnalysisResult
-                {
-                    Success = true,
-                    Metrics = analysisResult.Metrics,
-                    Issues = analysisResult.Issues,
-                    ResourceUri = resourceUri,
-                    Insights = GenerateInsights(analysisResult),
-                    Actions = GenerateActions(analysisResult),
-                    Meta = new ToolExecutionMetadata
-                    {
-                        ExecutionTime = $"{(DateTime.UtcNow - startTime).TotalMilliseconds:F0}ms",
-                        Truncated = resourceUri != null,
-                        Tokens = EstimateTokens(analysisResult)
-                    }
-                };
-            });
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            return CreateErrorResult<CodeAnalysisResult>(
-                BaseErrorCodes.PERMISSION_DENIED,
-                $"Cannot access file: {ex.Message}",
-                new RecoveryInfo
-                {
-                    Steps = new List<string>
-                    {
-                        "Check file permissions",
-                        "Run with appropriate privileges",
-                        "Verify file is not locked by another process"
-                    }
-                },
-                startTime
-            );
-        }
-    }
-    
-    private List<string> GenerateInsights(AnalysisResult result)
-    {
-        return new List<string>
-        {
-            $"Analyzed {result.Metrics.LinesOfCode} lines of code",
-            $"Cyclomatic complexity: {result.Metrics.Complexity}",
-            $"Found {result.Issues.Count(i => i.Severity == "High")} high-severity issues",
-            result.Metrics.TestCoverage < 60 
-                ? "⚠️ Test coverage below 60% - consider adding tests"
-                : $"✅ Good test coverage at {result.Metrics.TestCoverage}%"
+            "add" or "+" => a + b,
+            "subtract" or "-" => a - b,
+            "multiply" or "*" => a * b,
+            "divide" or "/" => b != 0 ? a / b : 
+                throw new DivideByZeroException("Cannot divide by zero"),
+            _ => throw new NotSupportedException($"Operation '{parameters.Operation}' is not supported")
         };
-    }
-    
-    private List<AIAction> GenerateActions(AnalysisResult result)
-    {
-        var actions = new List<AIAction>();
-        
-        if (result.Issues.Any(i => i.Severity == "High"))
-        {
-            actions.Add(new AIAction
-            {
-                Action = "fix_critical_issues",
-                Tool = "apply_fixes",
-                Description = "Fix high-severity issues automatically",
-                Priority = 90,
-                Parameters = new { issues = result.Issues.Where(i => i.Severity == "High") }
-            });
-        }
-        
-        if (result.Metrics.Complexity > 10)
-        {
-            actions.Add(new AIAction
-            {
-                Action = "refactor_complex_code",
-                Tool = "suggest_refactoring",
-                Description = "Suggest refactoring for complex methods",
-                Priority = 70
-            });
-        }
-        
-        return actions;
-    }
-}
 
-// 3. Parameters with validation attributes
-public class CodeAnalysisParams
-{
-    [Description("Path to the file to analyze")]
-    [Required]
-    public string? FilePath { get; set; }
-    
-    [Description("Depth of analysis (1-3, default: 1)")]
-    [Range(1, 3)]
-    public int? AnalysisDepth { get; set; }
-    
-    [Description("Include suggestions for improvements")]
-    public bool IncludeSuggestions { get; set; } = true;
-}
-```
-
-### 1. Create Your First Tool
-
-```csharp
-[McpServerToolType]
-public class GreetingTool : McpToolBase
-{
-    public override string ToolName => "greet";
-    public override ToolCategory Category => ToolCategory.General;
-
-    [McpServerTool(Name = "greet")]
-    [Description("Generates a friendly greeting")]
-    public Task<object> ExecuteAsync(GreetingParams parameters)
-    {
-        var name = ValidateRequired(parameters.Name, nameof(parameters.Name));
-        
-        return Task.FromResult<object>(new
+        return new CalculatorResult
         {
             Success = true,
-            Message = $"Hello, {name}! Welcome to MCP! 👋",
-            Insights = new[] { "Greetings improve user engagement" },
-            Actions = new[]
+            Operation = parameters.Operation,
+            Expression = $"{a} {parameters.Operation} {b}",
+            Result = result,
+            Meta = new ToolMetadata
             {
-                new { Tool = "get_weather", Description = "Check the weather" }
+                ExecutionTime = $"{stopwatch.ElapsedMilliseconds}ms"
             }
-        });
+        };
     }
 }
-
-public class GreetingParams
-{
-    [Description("Name of the person to greet")]
-    public string? Name { get; set; }
-}
 ```
 
-### 2. Configure Your Server
+### Setting Up Your Server
 
 ```csharp
-// Program.cs
-var builder = McpServerBuilder.Create(args);
+// Program.cs for your MCP server
+var builder = new McpServerBuilder()
+    .WithServerInfo("My MCP Server", "1.0.0")
+    .ConfigureLogging(logging =>
+    {
+        logging.ClearProviders();
+        logging.AddConsole();
+        logging.SetMinimumLevel(LogLevel.Information);
+    });
 
-builder.Services.AddMcpFramework(options =>
-{
-    // Automatic tool discovery
-    options.DiscoverToolsFromAssembly(typeof(Program).Assembly);
-    
-    // Token optimization
-    options.UseTokenOptimization(TokenOptimizationLevel.Balanced);
-    
-    // AI-friendly responses
-    options.UseAIOptimizedResponses(true);
-});
+// Register your services
+builder.Services.AddSingleton<IMyService, MyService>();
 
-var server = builder.Build();
-await server.RunAsync();
-```
+// Register your tools (two options)
 
-### 3. Test Your Tools
+// Option 1: Manual registration (recommended for explicit control)
+builder.RegisterToolType<MyFirstTool>();
+builder.RegisterToolType<MySecondTool>();
 
-```csharp
-[Test]
-public async Task Greet_WithName_ReturnsGreeting()
-{
-    // Arrange
-    var tool = new GreetingTool();
-    var parameters = new ToolParameterBuilder<GreetingParams>()
-        .WithName("Claude")
-        .Build();
-    
-    // Act
-    var result = await tool.ExecuteAsync(parameters);
-    
-    // Assert
-    result.Should().BeSuccessful()
-        .And.HaveMessage(msg => msg.Contains("Hello, Claude!"));
-}
+// Option 2: Automatic discovery (scans assembly for tools)
+builder.DiscoverTools(typeof(Program).Assembly);
+
+// Build and run
+await builder.RunAsync();
 ```
 
 ## 🔥 Advanced Features
 
-### Standardized Error Handling with Recovery Steps
+### Error Handling with Recovery Steps
 
 ```csharp
-// Inherit from ToolResultBase for standardized results
-public class SearchResult : ToolResultBase
+public class FileAnalysisTool : McpToolBase<FileAnalysisParams, FileAnalysisResult>
 {
-    public override string Operation => "search_files";
-    public List<FileMatch>? Results { get; set; }
-    public int TotalMatches { get; set; }
-}
-
-[McpServerTool(Name = "search_files")]
-public async Task<object> ExecuteAsync(SearchParams parameters)
-{
-    try
+    protected override async Task<FileAnalysisResult> ExecuteInternalAsync(
+        FileAnalysisParams parameters,
+        CancellationToken cancellationToken)
     {
-        var results = await SearchAsync(parameters.Query);
-        return new SearchResult
+        try
         {
-            Success = true,
-            Results = results,
-            TotalMatches = results.Count,
-            Insights = new[] { $"Found {results.Count} matches" },
-            Actions = new[] 
+            var filePath = ValidateRequired(parameters.FilePath, nameof(parameters.FilePath));
+            
+            if (!File.Exists(filePath))
             {
-                new AIAction 
-                { 
-                    Action = "refine_search",
-                    Description = "Refine search with filters",
-                    Priority = 80
-                }
-            }
-        };
-    }
-    catch (InvalidOperationException ex)
-    {
-        // AI-friendly error with recovery steps
-        return CreateErrorResult<SearchResult>(
-            BaseErrorCodes.WORKSPACE_NOT_INDEXED,
-            "Workspace must be indexed before searching",
-            new List<string> 
-            { 
-                "Call index_workspace first",
-                "Wait for indexing to complete",
-                "Retry the search"
-            },
-            new List<SuggestedAction>
-            {
-                new SuggestedAction
+                // Return AI-friendly error with recovery steps
+                return new FileAnalysisResult
                 {
-                    Tool = "index_workspace",
-                    Description = "Index the workspace",
-                    Parameters = new { path = parameters.WorkspacePath }
-                }
+                    Success = false,
+                    Operation = "analyze_file",
+                    Error = new ErrorInfo
+                    {
+                        Code = "FILE_NOT_FOUND",
+                        Message = $"File not found: {filePath}",
+                        Recovery = new RecoveryInfo
+                        {
+                            Steps = new[]
+                            {
+                                "Verify the file path is correct",
+                                "Check if the file exists",
+                                "Ensure you have read permissions"
+                            },
+                            SuggestedActions = new[]
+                            {
+                                new SuggestedAction
+                                {
+                                    Tool = "list_files",
+                                    Description = "List files in directory",
+                                    Parameters = new { path = Path.GetDirectoryName(filePath) }
+                                }
+                            }
+                        }
+                    }
+                };
             }
-        );
+            
+            // Perform analysis...
+            var analysis = await AnalyzeFileAsync(filePath);
+            
+            return new FileAnalysisResult
+            {
+                Success = true,
+                Operation = "analyze_file",
+                FilePath = filePath,
+                Analysis = analysis,
+                Insights = GenerateInsights(analysis),
+                Actions = GenerateNextActions(analysis)
+            };
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return CreateErrorResult(
+                "PERMISSION_DENIED",
+                $"Access denied: {ex.Message}",
+                new[] { "Check file permissions", "Run with appropriate privileges" }
+            );
+        }
     }
 }
 ```
 
-### Resource Provider Pattern
+### Resource Providers
 
 ```csharp
-// Implement custom resource providers
+// Implement custom resource providers for large data
 public class SearchResultResourceProvider : IResourceProvider
 {
-    private readonly ISearchService _searchService;
+    public string UriScheme => "search-results";
     
-    public string Scheme => "search-results";
-    public string Name => "Search Results Provider";
-    public string Description => "Provides access to stored search results";
+    public bool CanHandle(string uri) => 
+        uri.StartsWith($"{UriScheme}://");
     
-    public bool CanHandle(string uri) => uri.StartsWith($"{Scheme}://");
-    
-    public async Task<List<Resource>> ListResourcesAsync(CancellationToken ct)
+    public async Task<Resource> GetResourceAsync(string uri, CancellationToken ct)
     {
-        var sessions = await _searchService.GetStoredSessionsAsync();
-        return sessions.Select(s => new Resource
-        {
-            Uri = $"{Scheme}://{s.Id}",
-            Name = $"Search: {s.Query}",
-            Description = $"{s.ResultCount} results from {s.Timestamp}",
-            MimeType = "application/json"
-        }).ToList();
-    }
-    
-    public async Task<ReadResourceResult?> ReadResourceAsync(string uri, CancellationToken ct)
-    {
-        if (!CanHandle(uri)) return null;
+        var sessionId = ExtractSessionId(uri);
+        var results = await LoadSearchResultsAsync(sessionId);
         
-        var sessionId = uri.Replace($"{Scheme}://", "");
-        var results = await _searchService.GetStoredResultsAsync(sessionId);
-        
-        return new ReadResourceResult
+        return new Resource
         {
-            Contents = new List<ResourceContent>
-            {
-                new ResourceContent
-                {
-                    Uri = uri,
-                    MimeType = "application/json",
-                    Text = JsonSerializer.Serialize(results)
-                }
-            }
+            Uri = uri,
+            Name = $"Search Results {sessionId}",
+            MimeType = "application/json",
+            Contents = JsonSerializer.Serialize(results)
         };
     }
 }
 
-// Register providers in your server
+// Register in your server
 builder.Services.AddSingleton<IResourceProvider, SearchResultResourceProvider>();
 builder.Services.AddSingleton<IResourceRegistry, ResourceRegistry>();
 ```
 
-### Token Management
+### Token Optimization (with optional package)
 
 ```csharp
-// Automatic token optimization for large datasets
-[McpServerTool(Name = "search_logs")]
-public async Task<object> ExecuteAsync(SearchParams parameters)
+// Add the TokenOptimization package
+// <PackageReference Include="COA.Mcp.Framework.TokenOptimization" Version="1.0.0" />
+
+public class SearchTool : McpToolBase<SearchParams, SearchResult>
 {
-    var results = await SearchLogsAsync(parameters.Query);
-    
-    // Framework automatically handles token limits
-    return await ExecuteWithTokenManagement(async () =>
+    protected override async Task<SearchResult> ExecuteInternalAsync(
+        SearchParams parameters,
+        CancellationToken cancellationToken)
     {
-        return new SearchResult
+        var results = await SearchAsync(parameters.Query);
+        
+        // Use token management from base class
+        return await ExecuteWithTokenManagement(async () =>
         {
-            Success = true,
-            Results = results, // Auto-truncated if needed
-            TotalCount = results.Count,
-            Insights = GenerateInsights(results),
-            Actions = GenerateNextActions(results)
-        };
-    });
+            // Automatically handles token limits
+            return new SearchResult
+            {
+                Success = true,
+                Results = results, // Auto-truncated if needed
+                TotalCount = results.Count,
+                ResourceUri = results.Count > 100 ? 
+                    await StoreAsResourceAsync(results) : null
+            };
+        });
+    }
 }
 ```
 
-### AI-Optimized Response Building
+### Testing Your Tools
 
 ```csharp
-public class SearchResponseBuilder : BaseResponseBuilder<LogEntry>
+using COA.Mcp.Framework.Testing;
+using FluentAssertions;
+
+[TestFixture]
+public class WeatherToolTests
 {
-    protected override List<string> GenerateInsights(
-        List<LogEntry> data, ResponseMode mode)
+    private WeatherTool _tool;
+    private Mock<IWeatherService> _weatherService;
+    
+    [SetUp]
+    public void Setup()
     {
-        return new()
+        _weatherService = new Mock<IWeatherService>();
+        _tool = new WeatherTool(_weatherService.Object);
+    }
+    
+    [Test]
+    public async Task GetWeather_WithValidLocation_ReturnsWeatherData()
+    {
+        // Arrange
+        var parameters = new WeatherParameters
         {
-            $"Found {data.Count} matching log entries",
-            $"Most common error: {GetMostCommonError(data)}",
-            $"Peak error time: {GetPeakErrorTime(data)}"
+            Location = "Seattle",
+            ForecastDays = 3
         };
+        
+        _weatherService
+            .Setup(x => x.GetWeatherAsync("Seattle", 3))
+            .ReturnsAsync(new WeatherData { /* ... */ });
+        
+        // Act
+        var result = await _tool.ExecuteAsync(parameters);
+        
+        // Assert
+        result.Should().NotBeNull();
+        result.Success.Should().BeTrue();
+        result.Location.Should().Be("Seattle");
+        result.Forecast.Should().HaveCount(3);
     }
     
-    protected override List<AIAction> GenerateActions(
-        List<LogEntry> data, int tokenBudget)
+    [Test]
+    public async Task GetWeather_WithMissingLocation_ReturnsError()
     {
-        return new()
-        {
-            new() 
-            { 
-                Id = "filter_errors",
-                Tool = "search_logs",
-                Parameters = new { Level = "Error" },
-                Priority = ActionPriority.High
-            }
-        };
+        // Arrange
+        var parameters = new WeatherParameters { Location = null };
+        
+        // Act
+        var result = await _tool.ExecuteAsync(parameters);
+        
+        // Assert
+        result.Success.Should().BeFalse();
+        result.Error.Should().NotBeNull();
+        result.Error.Code.Should().Be("VALIDATION_ERROR");
     }
-}
-
-// Use the builder in your tool
-var responseBuilder = new SearchResponseBuilder();
-var optimizedResponse = responseBuilder.Build(results, ResponseMode.Summary);
-```
-
-### Configuration with Base Classes
-
-```csharp
-// Define your configuration using framework base classes
-public class SearchConfiguration : CacheConfigurationBase
-{
-    public string IndexPath { get; set; } = ".search/index";
-    public int MaxResultsPerQuery { get; set; } = 100;
-    public bool EnableFuzzySearch { get; set; } = true;
-}
-
-public class SearchStorageConfig : ResourceStorageConfigurationBase
-{
-    public SearchStorageConfig()
-    {
-        StorageLocation = ".search/resources";
-        MaxStorageSize = "500MB";
-        RetentionPeriod = TimeSpan.FromDays(30);
-        CleanupPolicy = "LRU";
-    }
-}
-
-// Configure in Program.cs
-builder.Services.Configure<SearchConfiguration>(config =>
-{
-    config.Enabled = true;
-    config.DefaultTTL = TimeSpan.FromMinutes(15);
-    config.MaxCacheSize = "100MB";
-    config.EvictionPolicy = "LRU";
-});
-```
-
-### Testing with Enhanced Assertions
-
-```csharp
-[Test]
-public async Task SearchTool_WithLargeResults_HandlesTokenLimits()
-{
-    // Arrange
-    var tool = new SearchTool(_searchService);
-    var parameters = new SearchParams { Query = "error", MaxResults = 1000 };
-    
-    // Act
-    var result = await tool.ExecuteAsync(parameters);
-    
-    // Assert - Enhanced assertions for ToolResultBase
-    result.Should().BeOfType<SearchResult>()
-        .Which.Should().BeSuccessful()
-        .And.HaveTokenCountLessThan(10000)
-        .And.HaveInsightContaining("found")
-        .And.HaveNextAction("refine_search");
-    
-    // Verify error handling
-    var errorResult = CreateErrorScenario();
-    errorResult.Should().BeOfType<SearchResult>()
-        .Which.Error.Should().NotBeNull()
-        .And.Subject.Recovery.Steps.Should().NotBeEmpty()
-        .And.Contain("Call index_workspace first");
-}
-
-// Performance testing
-[Test]
-public async Task SearchTool_Performance_MeetsRequirements()
-{
-    var result = await MeasurePerformance(() => tool.ExecuteAsync(parameters));
-    
-    result.Should()
-        .CompleteWithinMs(100)
-        .And.UseMemoryLessThan(50_000_000)
-        .And.HaveTokenEstimationAccuracy(0.95);
 }
 ```
 
 ## 📚 Documentation
 
-### [📁 Full Documentation](docs/README.md)
+### Framework Structure
 
-#### Key Documents
-- [Implementation Plan](docs/implementation/IMPLEMENTATION_PLAN.md) - Detailed roadmap
-- [Token Optimization](docs/technical/TOKEN_OPTIMIZATION_STRATEGIES.md) - Advanced strategies
-- [Migration Guide](docs/technical/MIGRATION_EXAMPLE.md) - Step-by-step migration with examples
-- [DevOps Setup](docs/devops/DEVOPS_SETUP.md) - CI/CD pipeline configuration
+```
+COA.Mcp.Framework/
+├── Base/
+│   └── McpToolBase.Generic.cs    # Generic base class for tools
+├── Server/
+│   ├── McpServer.cs              # Main server implementation
+│   └── McpServerBuilder.cs       # Fluent builder API
+├── Registration/
+│   └── McpToolRegistry.cs        # Unified tool registry
+├── Interfaces/
+│   ├── IMcpTool.cs              # Tool interfaces
+│   └── IResourceProvider.cs     # Resource provider pattern
+├── Models/
+│   ├── ErrorModels.cs           # Error handling models
+│   └── ToolResultBase.cs        # Base result class
+└── Enums/
+    └── ToolCategory.cs          # Tool categorization
+```
 
-#### Developer Resources
-- [CLAUDE.md](CLAUDE.md) - Claude AI assistant guide with critical warnings
-- [Examples](examples/) - Sample implementations (coming soon)
+### Key Components
 
-## 🤝 Contributing
+- **McpToolBase<TParams, TResult>**: Generic base class for type-safe tool implementation
+- **McpServerBuilder**: Fluent API for server configuration
+- **McpToolRegistry**: Manages tool registration and discovery
+- **ToolResultBase**: Standard result format with error handling
+- **IResourceProvider**: Interface for custom resource providers
 
-We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
+## 🏆 Real-World Examples
+
+The framework powers production MCP servers:
+- **CodeSearch MCP**: File and text searching with Lucene indexing
+- **CodeNav MCP**: C# code navigation using Roslyn
+- **SimpleMcpServer**: Example project with calculator, data store, and system info tools
 
 ## 📈 Performance
 
 | Metric | Target | Actual |
 |--------|--------|--------|
-| Token Estimation Accuracy | 95%+ | 97.3% |
-| Framework Overhead | <5% | 3.2% |
-| Startup Time | <500ms | 287ms |
-| Memory Usage (idle) | <50MB | 38MB |
+| Build Time | <3s | 2.46s |
+| Test Suite | 100% pass | 230/230 ✓ |
+| Warnings | 0 | 0 ✓ |
+| Framework Overhead | <5% | ~3% |
 
-## 🏆 Success Stories
+## 🤝 Contributing
 
-- **CodeSearch MCP**: Reduced code by 1,800 lines, improved maintainability
-- **CodeNav MCP**: Implemented in days instead of weeks
-- **Community**: 10+ MCP servers built with framework
+We welcome contributions! Key areas:
+- Additional tool examples
+- Performance optimizations
+- Documentation improvements
+- Test coverage expansion
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+MIT License - see [LICENSE](LICENSE) file for details.
 
 ## 🙏 Acknowledgments
 
-Built on the shoulders of giants:
+Built on experience from:
 - COA CodeSearch MCP - Token optimization patterns
-- COA CodeNav MCP - Tool architecture patterns
+- COA CodeNav MCP - Roslyn integration patterns
 - The MCP community - Feedback and ideas
 
 ---
 
-**Ready to build your MCP server?** Get started in seconds:
+**Ready to build your MCP server?** Clone the repo and check out the examples:
 
 ```bash
-dotnet new mcp-server -n YourServer && cd YourServer && dotnet run
+git clone https://github.com/your-org/coa-mcp-framework.git
+cd coa-mcp-framework/examples/SimpleMcpServer
+dotnet run
 ```
 
-Happy coding! 🚀
+For detailed guidance, see [CLAUDE.md](CLAUDE.md) for AI-assisted development tips.
