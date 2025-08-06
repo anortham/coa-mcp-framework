@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MCP HTTP/WebSocket Test Client</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            color: white;
+            text-align: center;
+            margin-bottom: 30px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        .card h2 {
+            color: #333;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #667eea;
+        }
+        
+        .status {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+        
+        .status.connected {
+            background: #10b981;
+            color: white;
+        }
+        
+        .status.disconnected {
+            background: #ef4444;
+            color: white;
+        }
+        
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 5px;
+            transition: background 0.3s;
+        }
+        
+        button:hover {
+            background: #764ba2;
+        }
+        
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .tool-button {
+            background: #10b981;
+        }
+        
+        .tool-button:hover {
+            background: #059669;
+        }
+        
+        input, select {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        
+        .response {
+            background: #f3f4f6;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        
+        .log {
+            background: #1f2937;
+            color: #10b981;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        
+        .tools-grid {
+            display: grid;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .tool-form {
+            background: #f9fafb;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 MCP HTTP/WebSocket Test Client</h1>
+        
+        <div class="grid">
+            <!-- HTTP Test Card -->
+            <div class="card">
+                <h2>HTTP API Tests</h2>
+                
+                <div>
+                    <h3>Health Check</h3>
+                    <button onclick="checkHealth()">Check Health</button>
+                    <div id="health-response" class="response"></div>
+                </div>
+                
+                <div style="margin-top: 20px;">
+                    <h3>List Tools</h3>
+                    <button onclick="listTools()">List Tools</button>
+                    <div id="tools-response" class="response"></div>
+                </div>
+                
+                <div style="margin-top: 20px;">
+                    <h3>Initialize</h3>
+                    <button onclick="initialize()">Initialize</button>
+                    <div id="init-response" class="response"></div>
+                </div>
+            </div>
+            
+            <!-- WebSocket Test Card -->
+            <div class="card">
+                <h2>WebSocket Connection</h2>
+                <div id="ws-status" class="status disconnected">Disconnected</div>
+                
+                <div>
+                    <button id="ws-connect" onclick="connectWebSocket()">Connect</button>
+                    <button id="ws-disconnect" onclick="disconnectWebSocket()" disabled>Disconnect</button>
+                </div>
+                
+                <div style="margin-top: 20px;">
+                    <h3>Send Message</h3>
+                    <select id="ws-method">
+                        <option value="initialize">Initialize</option>
+                        <option value="tools/list">List Tools</option>
+                        <option value="tools/call">Call Tool</option>
+                    </select>
+                    <button onclick="sendWebSocketMessage()" id="ws-send" disabled>Send</button>
+                </div>
+                
+                <div style="margin-top: 20px;">
+                    <h3>WebSocket Log</h3>
+                    <div id="ws-log" class="log"></div>
+                </div>
+            </div>
+            
+            <!-- Tool Testing Card -->
+            <div class="card">
+                <h2>Tool Testing</h2>
+                
+                <div class="tools-grid">
+                    <div>
+                        <h3>Weather Tool</h3>
+                        <input type="text" id="weather-location" placeholder="Enter city name" value="Seattle">
+                        <button class="tool-button" onclick="callWeatherTool()">Get Weather</button>
+                        <div id="weather-response" class="response"></div>
+                    </div>
+                    
+                    <div>
+                        <h3>Calculator Tool</h3>
+                        <input type="number" id="calc-a" placeholder="First number" value="10">
+                        <select id="calc-op">
+                            <option value="add">Add</option>
+                            <option value="subtract">Subtract</option>
+                            <option value="multiply">Multiply</option>
+                            <option value="divide">Divide</option>
+                            <option value="power">Power</option>
+                            <option value="modulo">Modulo</option>
+                        </select>
+                        <input type="number" id="calc-b" placeholder="Second number" value="5">
+                        <button class="tool-button" onclick="callCalculatorTool()">Calculate</button>
+                        <div id="calc-response" class="response"></div>
+                    </div>
+                    
+                    <div>
+                        <h3>Time Tool</h3>
+                        <select id="time-timezone">
+                            <option value="UTC">UTC</option>
+                            <option value="PST">PST</option>
+                            <option value="EST">EST</option>
+                            <option value="CST">CST</option>
+                            <option value="MST">MST</option>
+                            <option value="GMT">GMT</option>
+                            <option value="CET">CET</option>
+                            <option value="JST">JST</option>
+                            <option value="AEST">AEST</option>
+                        </select>
+                        <button class="tool-button" onclick="callTimeTool()">Get Time</button>
+                        <div id="time-response" class="response"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const BASE_URL = 'http://localhost:5000';
+        const WS_URL = 'ws://localhost:5000/mcp/ws';
+        let ws = null;
+        let requestId = 1;
+        
+        // HTTP Functions
+        async function checkHealth() {
+            try {
+                const response = await fetch(`${BASE_URL}/mcp/health`);
+                const data = await response.json();
+                document.getElementById('health-response').textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                document.getElementById('health-response').textContent = `Error: ${error.message}`;
+            }
+        }
+        
+        async function listTools() {
+            try {
+                const response = await fetch(`${BASE_URL}/mcp/tools`);
+                const data = await response.json();
+                document.getElementById('tools-response').textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                document.getElementById('tools-response').textContent = `Error: ${error.message}`;
+            }
+        }
+        
+        async function initialize() {
+            try {
+                const request = {
+                    jsonrpc: "2.0",
+                    method: "initialize",
+                    params: {
+                        protocolVersion: "2024-11-05",
+                        capabilities: {},
+                        clientInfo: {
+                            name: "Web Test Client",
+                            version: "1.0.0"
+                        }
+                    },
+                    id: requestId++
+                };
+                
+                const response = await fetch(`${BASE_URL}/mcp/rpc`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(request)
+                });
+                const data = await response.json();
+                document.getElementById('init-response').textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                document.getElementById('init-response').textContent = `Error: ${error.message}`;
+            }
+        }
+        
+        // WebSocket Functions
+        function connectWebSocket() {
+            if (ws) {
+                ws.close();
+            }
+            
+            ws = new WebSocket(WS_URL);
+            const log = document.getElementById('ws-log');
+            
+            ws.onopen = () => {
+                updateWebSocketStatus(true);
+                log.textContent += `[${new Date().toISOString()}] Connected to WebSocket\n`;
+            };
+            
+            ws.onmessage = (event) => {
+                log.textContent += `[${new Date().toISOString()}] Received: ${event.data}\n`;
+                log.scrollTop = log.scrollHeight;
+            };
+            
+            ws.onerror = (error) => {
+                log.textContent += `[${new Date().toISOString()}] Error: ${error}\n`;
+            };
+            
+            ws.onclose = () => {
+                updateWebSocketStatus(false);
+                log.textContent += `[${new Date().toISOString()}] Disconnected from WebSocket\n`;
+            };
+        }
+        
+        function disconnectWebSocket() {
+            if (ws) {
+                ws.close();
+                ws = null;
+            }
+        }
+        
+        function updateWebSocketStatus(connected) {
+            const status = document.getElementById('ws-status');
+            const connectBtn = document.getElementById('ws-connect');
+            const disconnectBtn = document.getElementById('ws-disconnect');
+            const sendBtn = document.getElementById('ws-send');
+            
+            if (connected) {
+                status.textContent = 'Connected';
+                status.className = 'status connected';
+                connectBtn.disabled = true;
+                disconnectBtn.disabled = false;
+                sendBtn.disabled = false;
+            } else {
+                status.textContent = 'Disconnected';
+                status.className = 'status disconnected';
+                connectBtn.disabled = false;
+                disconnectBtn.disabled = true;
+                sendBtn.disabled = true;
+            }
+        }
+        
+        function sendWebSocketMessage() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                alert('WebSocket is not connected');
+                return;
+            }
+            
+            const method = document.getElementById('ws-method').value;
+            let message;
+            
+            switch (method) {
+                case 'initialize':
+                    message = {
+                        jsonrpc: "2.0",
+                        method: "initialize",
+                        params: {
+                            protocolVersion: "2024-11-05",
+                            capabilities: {},
+                            clientInfo: {
+                                name: "WebSocket Test Client",
+                                version: "1.0.0"
+                            }
+                        },
+                        id: requestId++
+                    };
+                    break;
+                    
+                case 'tools/list':
+                    message = {
+                        jsonrpc: "2.0",
+                        method: "tools/list",
+                        id: requestId++
+                    };
+                    break;
+                    
+                case 'tools/call':
+                    message = {
+                        jsonrpc: "2.0",
+                        method: "tools/call",
+                        params: {
+                            name: "get_weather",
+                            arguments: { location: "Seattle" }
+                        },
+                        id: requestId++
+                    };
+                    break;
+            }
+            
+            ws.send(JSON.stringify(message));
+            const log = document.getElementById('ws-log');
+            log.textContent += `[${new Date().toISOString()}] Sent: ${JSON.stringify(message)}\n`;
+            log.scrollTop = log.scrollHeight;
+        }
+        
+        // Tool Functions
+        async function callWeatherTool() {
+            const location = document.getElementById('weather-location').value;
+            const request = {
+                jsonrpc: "2.0",
+                method: "tools/call",
+                params: {
+                    name: "get_weather",
+                    arguments: { location }
+                },
+                id: requestId++
+            };
+            
+            try {
+                const response = await fetch(`${BASE_URL}/mcp/rpc`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(request)
+                });
+                const data = await response.json();
+                document.getElementById('weather-response').textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                document.getElementById('weather-response').textContent = `Error: ${error.message}`;
+            }
+        }
+        
+        async function callCalculatorTool() {
+            const a = parseFloat(document.getElementById('calc-a').value);
+            const b = parseFloat(document.getElementById('calc-b').value);
+            const operation = document.getElementById('calc-op').value;
+            
+            const request = {
+                jsonrpc: "2.0",
+                method: "tools/call",
+                params: {
+                    name: "calculate",
+                    arguments: { operation, a, b }
+                },
+                id: requestId++
+            };
+            
+            try {
+                const response = await fetch(`${BASE_URL}/mcp/rpc`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(request)
+                });
+                const data = await response.json();
+                document.getElementById('calc-response').textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                document.getElementById('calc-response').textContent = `Error: ${error.message}`;
+            }
+        }
+        
+        async function callTimeTool() {
+            const timezone = document.getElementById('time-timezone').value;
+            
+            const request = {
+                jsonrpc: "2.0",
+                method: "tools/call",
+                params: {
+                    name: "get_time",
+                    arguments: { timezone }
+                },
+                id: requestId++
+            };
+            
+            try {
+                const response = await fetch(`${BASE_URL}/mcp/rpc`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(request)
+                });
+                const data = await response.json();
+                document.getElementById('time-response').textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                document.getElementById('time-response').textContent = `Error: ${error.message}`;
+            }
+        }
+    </script>
+</body>
+</html>

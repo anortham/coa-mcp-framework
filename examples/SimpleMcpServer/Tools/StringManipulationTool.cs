@@ -5,6 +5,7 @@ using System.Text.RegularExpressions;
 using COA.Mcp.Framework.Base;
 using COA.Mcp.Framework;
 using COA.Mcp.Framework.Interfaces;
+using COA.Mcp.Framework.Models;
 
 namespace SimpleMcpServer.Tools;
 
@@ -107,7 +108,11 @@ public class StringManipulationTool : McpToolBase<StringManipulationParameters, 
                         return new StringManipulationResult
                         {
                             Success = false,
-                            Error = "Invalid base64 string"
+                            Error = new ErrorInfo
+                            {
+                                Code = "INVALID_BASE64",
+                                Message = "Invalid base64 string"
+                            }
                         };
                     }
                     break;
@@ -116,7 +121,11 @@ public class StringManipulationTool : McpToolBase<StringManipulationParameters, 
                     return new StringManipulationResult
                     {
                         Success = false,
-                        Error = $"Unknown operation: {operation}"
+                        Error = new ErrorInfo
+                        {
+                            Code = "UNKNOWN_OPERATION",
+                            Message = $"Unknown operation: {operation}"
+                        }
                     };
             }
 
@@ -127,7 +136,7 @@ public class StringManipulationTool : McpToolBase<StringManipulationParameters, 
                 Success = true,
                 Original = text,
                 Result = result,
-                Operation = operation,
+                OperationPerformed = operation,
                 Statistics = stats.Count > 0 ? stats : null
             };
         }
@@ -136,7 +145,11 @@ public class StringManipulationTool : McpToolBase<StringManipulationParameters, 
             return new StringManipulationResult
             {
                 Success = false,
-                Error = $"Error performing {operation}: {ex.Message}"
+                Error = new ErrorInfo
+                {
+                    Code = "PROCESSING_ERROR",
+                    Message = $"Error performing {operation}: {ex.Message}"
+                }
             };
         }
     }
@@ -149,45 +162,6 @@ public class StringManipulationTool : McpToolBase<StringManipulationParameters, 
     private int CountWords(string text)
     {
         return Regex.Matches(text, @"\b\w+\b").Count;
-    }
-
-    public override object GetInputSchema()
-    {
-        return new
-        {
-            type = "object",
-            properties = new
-            {
-                text = new 
-                { 
-                    type = "string", 
-                    description = "The text to manipulate" 
-                },
-                operation = new 
-                { 
-                    type = "string", 
-                    description = "The operation to perform",
-                    @enum = new[] 
-                    { 
-                        "reverse", "uppercase", "lowercase", "capitalize", 
-                        "count_words", "remove_spaces", "trim", "replace",
-                        "extract_numbers", "extract_emails", 
-                        "base64_encode", "base64_decode"
-                    }
-                },
-                find = new 
-                { 
-                    type = "string", 
-                    description = "Text to find (for replace operation)" 
-                },
-                replaceWith = new 
-                { 
-                    type = "string", 
-                    description = "Text to replace with (for replace operation)" 
-                }
-            },
-            required = new[] { "text", "operation" }
-        };
     }
 }
 
@@ -208,12 +182,11 @@ public class StringManipulationParameters
     public string? ReplaceWith { get; set; }
 }
 
-public class StringManipulationResult
+public class StringManipulationResult : ToolResultBase
 {
-    public bool Success { get; set; }
+    public override string Operation => "string_manipulation";
     public string? Original { get; set; }
     public string? Result { get; set; }
-    public string? Operation { get; set; }
+    public string? OperationPerformed { get; set; }
     public Dictionary<string, object>? Statistics { get; set; }
-    public string? Error { get; set; }
 }

@@ -1,5 +1,6 @@
 using COA.Mcp.Framework;
 using COA.Mcp.Framework.Interfaces;
+using COA.Mcp.Framework.Schema;
 using COA.Mcp.Framework.Testing.Assertions;
 using COA.Mcp.Framework.Testing.Builders;
 using COA.Mcp.Framework.TokenOptimization;
@@ -290,13 +291,14 @@ namespace COA.Mcp.Framework.Testing.Tests.Examples
                 Category = category;
             }
 
-            public object GetInputSchema()
+            public IJsonSchema GetInputSchema()
             {
-                return new
+                var schema = new Dictionary<string, object>
                 {
-                    type = "object",
-                    properties = new { }
+                    ["type"] = "object",
+                    ["properties"] = new Dictionary<string, object>()
                 };
+                return new RuntimeJsonSchema(schema);
             }
 
             public Task<object?> ExecuteAsync(object? parameters, CancellationToken cancellationToken = default) 

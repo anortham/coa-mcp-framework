@@ -92,7 +92,7 @@ namespace COA.Mcp.Framework.TokenOptimization.Actions
 
             foreach (var template in templates)
             {
-                var action = await template.GenerateAsync(data, context);
+                var action = await template.GenerateAsync(data!, context);
                 if (action != null)
                 {
                     actions.Add(action);

@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using COA.Mcp.Framework.Exceptions;
 using COA.Mcp.Framework.Interfaces;
 using COA.Mcp.Framework.Models;
+using COA.Mcp.Framework.Schema;
 using COA.Mcp.Framework.Utilities;
 using Microsoft.Extensions.Logging;
 
@@ -140,9 +141,15 @@ public abstract class McpToolBase<TParams, TResult> : IMcpTool<TParams, TResult>
     }
 
     /// <inheritdoc/>
-    public virtual object GetInputSchema()
+    public virtual JsonSchema<TParams> GetInputSchema()
     {
-        return JsonSchemaGenerator.GenerateSchema<TParams>();
+        return new JsonSchema<TParams>();
+    }
+
+    /// <inheritdoc/>
+    IJsonSchema IMcpTool.GetInputSchema()
+    {
+        return GetInputSchema();
     }
 
     /// <summary>

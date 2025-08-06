@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using COA.Mcp.Framework.Registration;
 using COA.Mcp.Framework.Resources;
+using COA.Mcp.Framework.Transport;
 using COA.Mcp.Protocol;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -25,23 +26,25 @@ public class McpServer : IHostedService
     private readonly JsonSerializerOptions _jsonOptions;
     private readonly ServerCapabilities _capabilities;
     private readonly Implementation _serverInfo;
-    private TextReader _input;
-    private TextWriter _output;
+    private readonly IMcpTransport _transport;
     private CancellationTokenSource? _cancellationTokenSource;
 
     /// <summary>
     /// Initializes a new instance of the McpServer class.
     /// </summary>
+    /// <param name="transport">The transport for communication.</param>
     /// <param name="toolRegistry">The tool registry for managing tools.</param>
     /// <param name="resourceRegistry">The resource registry for managing resources.</param>
     /// <param name="serverInfo">Information about this server implementation.</param>
     /// <param name="logger">Optional logger.</param>
     public McpServer(
+        IMcpTransport transport,
         McpToolRegistry toolRegistry,
         ResourceRegistry resourceRegistry,
         Implementation serverInfo,
         ILogger<McpServer>? logger = null)
     {
+        _transport = transport ?? throw new ArgumentNullException(nameof(transport));
         _toolRegistry = toolRegistry ?? throw new ArgumentNullException(nameof(toolRegistry));
         _resourceRegistry = resourceRegistry ?? throw new ArgumentNullException(nameof(resourceRegistry));
         _serverInfo = serverInfo ?? throw new ArgumentNullException(nameof(serverInfo));
@@ -62,18 +65,6 @@ public class McpServer : IHostedService
                 ListChanged = false
             }
         };
-
-        _input = Console.In;
-        _output = Console.Out;
-    }
-
-    /// <summary>
-    /// Sets custom input/output streams (for testing or special scenarios).
-    /// </summary>
-    public void SetStreams(TextReader input, TextWriter output)
-    {
-        _input = input ?? throw new ArgumentNullException(nameof(input));
-        _output = output ?? throw new ArgumentNullException(nameof(output));
     }
 
     /// <summary>
@@ -81,15 +72,19 @@ public class McpServer : IHostedService
     /// </summary>
     public async Task StartAsync(CancellationToken cancellationToken)
     {
-        _logger?.LogInformation("Starting MCP server '{ServerName}' v{Version}", 
-            _serverInfo.Name, _serverInfo.Version);
+        _logger?.LogInformation("Starting MCP server '{ServerName}' v{Version} with {Transport} transport", 
+            _serverInfo.Name, _serverInfo.Version, _transport.Type);
         
         _cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         
+        // Start the transport
+        await _transport.StartAsync(_cancellationTokenSource.Token);
+        
+        // Subscribe to transport disconnection
+        _transport.Disconnected += OnTransportDisconnected;
+        
         // Start processing messages
         _ = Task.Run(() => ProcessMessagesAsync(_cancellationTokenSource.Token), _cancellationTokenSource.Token);
-        
-        await Task.CompletedTask;
     }
 
     /// <summary>
@@ -101,7 +96,17 @@ public class McpServer : IHostedService
         
         _cancellationTokenSource?.Cancel();
         
-        await Task.CompletedTask;
+        // Unsubscribe from transport events
+        _transport.Disconnected -= OnTransportDisconnected;
+        
+        // Stop the transport
+        await _transport.StopAsync(cancellationToken);
+    }
+    
+    private void OnTransportDisconnected(object? sender, TransportDisconnectedEventArgs e)
+    {
+        _logger?.LogInformation("Transport disconnected: {Reason}", e.Reason);
+        _cancellationTokenSource?.Cancel();
     }
 
     /// <summary>
@@ -109,21 +114,22 @@ public class McpServer : IHostedService
     /// </summary>
     private async Task ProcessMessagesAsync(CancellationToken cancellationToken)
     {
-        while (!cancellationToken.IsCancellationRequested)
+        while (!cancellationToken.IsCancellationRequested && _transport.IsConnected)
         {
             try
             {
-                var line = await _input.ReadLineAsync();
-                if (line == null)
+                var transportMessage = await _transport.ReadMessageAsync(cancellationToken);
+                if (transportMessage == null)
                 {
-                    _logger?.LogDebug("End of input stream reached");
-                    break;
+                    continue;
                 }
 
-                if (string.IsNullOrWhiteSpace(line))
-                    continue;
-
-                await ProcessMessageAsync(line, cancellationToken);
+                await ProcessMessageAsync(transportMessage.Content, cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                // Expected when cancellation is requested
+                break;
             }
             catch (Exception ex)
             {
@@ -350,8 +356,12 @@ public class McpServer : IHostedService
         };
 
         var json = JsonSerializer.Serialize(response, _jsonOptions);
-        await _output.WriteLineAsync(json);
-        await _output.FlushAsync();
+        var transportMessage = new TransportMessage
+        {
+            Content = json,
+            Headers = { ["type"] = "response" }
+        };
+        await _transport.WriteMessageAsync(transportMessage);
     }
 
     private async Task SendErrorResponseAsync(JsonElement? id, int code, string message)
@@ -367,8 +377,12 @@ public class McpServer : IHostedService
         };
 
         var json = JsonSerializer.Serialize(response, _jsonOptions);
-        await _output.WriteLineAsync(json);
-        await _output.FlushAsync();
+        var transportMessage = new TransportMessage
+        {
+            Content = json,
+            Headers = { ["type"] = "error" }
+        };
+        await _transport.WriteMessageAsync(transportMessage);
     }
 
     /// <summary>

@@ -1,6 +1,7 @@
 using COA.Mcp.Framework;
 using COA.Mcp.Framework.Interfaces;
 using COA.Mcp.Framework.Registration;
+using COA.Mcp.Framework.Schema;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -152,13 +153,14 @@ namespace COA.Mcp.Framework.Testing.Mocks
             public Type ParameterType => typeof(object);
             public Type ResultType => typeof(object);
 
-            public object GetInputSchema()
+            public IJsonSchema GetInputSchema()
             {
-                return new
+                var schema = new Dictionary<string, object>
                 {
-                    type = "object",
-                    properties = new Dictionary<string, object>()
+                    ["type"] = "object",
+                    ["properties"] = new Dictionary<string, object>()
                 };
+                return new RuntimeJsonSchema(schema);
             }
 
             public Task<object?> ExecuteAsync(object? parameters, CancellationToken cancellationToken = default)

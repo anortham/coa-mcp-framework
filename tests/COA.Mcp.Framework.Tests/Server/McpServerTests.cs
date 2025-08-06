@@ -8,6 +8,7 @@ using COA.Mcp.Framework.Interfaces;
 using COA.Mcp.Framework.Registration;
 using COA.Mcp.Framework.Resources;
 using COA.Mcp.Framework.Server;
+using COA.Mcp.Framework.Transport;
 using COA.Mcp.Protocol;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
@@ -26,6 +27,7 @@ namespace COA.Mcp.Framework.Tests.Server
         private ResourceRegistry _resourceRegistry;
         private Implementation _serverInfo;
         private Mock<ILogger<McpServer>> _loggerMock;
+        private Mock<IMcpTransport> _transportMock;
         private McpServer _server;
 
         [SetUp]
@@ -45,8 +47,11 @@ namespace COA.Mcp.Framework.Tests.Server
                 Version = "1.0.0"
             };
             _loggerMock = new Mock<ILogger<McpServer>>();
+            _transportMock = new Mock<IMcpTransport>();
+            _transportMock.Setup(t => t.Type).Returns(TransportType.Stdio);
+            _transportMock.Setup(t => t.IsConnected).Returns(true);
             
-            _server = new McpServer(_toolRegistry, _resourceRegistry, _serverInfo, _loggerMock.Object);
+            _server = new McpServer(_transportMock.Object, _toolRegistry, _resourceRegistry, _serverInfo, _loggerMock.Object);
         }
 
         [TearDown]
@@ -56,10 +61,19 @@ namespace COA.Mcp.Framework.Tests.Server
         }
 
         [Test]
+        public void Constructor_WithNullTransport_ShouldThrow()
+        {
+            // Act & Assert
+            var act = () => new McpServer(null!, _toolRegistry, _resourceRegistry, _serverInfo, _loggerMock.Object);
+            act.Should().Throw<ArgumentNullException>()
+                .WithParameterName("transport");
+        }
+        
+        [Test]
         public void Constructor_WithNullToolRegistry_ShouldThrow()
         {
             // Act & Assert
-            var act = () => new McpServer(null!, _resourceRegistry, _serverInfo, _loggerMock.Object);
+            var act = () => new McpServer(_transportMock.Object, null!, _resourceRegistry, _serverInfo, _loggerMock.Object);
             act.Should().Throw<ArgumentNullException>()
                 .WithParameterName("toolRegistry");
         }
@@ -68,7 +82,7 @@ namespace COA.Mcp.Framework.Tests.Server
         public void Constructor_WithNullResourceRegistry_ShouldThrow()
         {
             // Act & Assert
-            var act = () => new McpServer(_toolRegistry, null!, _serverInfo, _loggerMock.Object);
+            var act = () => new McpServer(_transportMock.Object, _toolRegistry, null!, _serverInfo, _loggerMock.Object);
             act.Should().Throw<ArgumentNullException>()
                 .WithParameterName("resourceRegistry");
         }
@@ -77,7 +91,7 @@ namespace COA.Mcp.Framework.Tests.Server
         public void Constructor_WithNullServerInfo_ShouldThrow()
         {
             // Act & Assert
-            var act = () => new McpServer(_toolRegistry, _resourceRegistry, null!, _loggerMock.Object);
+            var act = () => new McpServer(_transportMock.Object, _toolRegistry, _resourceRegistry, null!, _loggerMock.Object);
             act.Should().Throw<ArgumentNullException>()
                 .WithParameterName("serverInfo");
         }
@@ -86,7 +100,7 @@ namespace COA.Mcp.Framework.Tests.Server
         public void Constructor_WithValidParameters_ShouldCreateServer()
         {
             // Act
-            var server = new McpServer(_toolRegistry, _resourceRegistry, _serverInfo, _loggerMock.Object);
+            var server = new McpServer(_transportMock.Object, _toolRegistry, _resourceRegistry, _serverInfo, _loggerMock.Object);
 
             // Assert
             server.Should().NotBeNull();
@@ -97,49 +111,14 @@ namespace COA.Mcp.Framework.Tests.Server
         public void Constructor_WithNullLogger_ShouldCreateServer()
         {
             // Act
-            var server = new McpServer(_toolRegistry, _resourceRegistry, _serverInfo, null);
+            var server = new McpServer(_transportMock.Object, _toolRegistry, _resourceRegistry, _serverInfo, null);
 
             // Assert
             server.Should().NotBeNull();
         }
 
-        [Test]
-        public void SetStreams_WithValidStreams_ShouldNotThrow()
-        {
-            // Arrange
-            var input = new StringReader("test");
-            var output = new StringWriter();
 
-            // Act
-            var act = () => _server.SetStreams(input, output);
 
-            // Assert
-            act.Should().NotThrow();
-        }
-
-        [Test]
-        public void SetStreams_WithNullInput_ShouldThrow()
-        {
-            // Arrange
-            var output = new StringWriter();
-
-            // Act & Assert
-            var act = () => _server.SetStreams(null!, output);
-            act.Should().Throw<ArgumentNullException>()
-                .WithParameterName("input");
-        }
-
-        [Test]
-        public void SetStreams_WithNullOutput_ShouldThrow()
-        {
-            // Arrange
-            var input = new StringReader("test");
-
-            // Act & Assert
-            var act = () => _server.SetStreams(input, null!);
-            act.Should().Throw<ArgumentNullException>()
-                .WithParameterName("output");
-        }
 
         [Test]
         public async Task StartAsync_ShouldStartServer()
@@ -239,18 +218,14 @@ namespace COA.Mcp.Framework.Tests.Server
         }
 
         [Test]
-        public void Server_WithCustomStreams_ShouldUseThemForCommunication()
+        public void Server_WithTransport_ShouldBeConfiguredProperly()
         {
-            // Arrange
-            var input = new StringReader("test input");
-            var output = new StringWriter();
-
-            // Act
-            _server.SetStreams(input, output);
-
-            // Assert - Streams are set (actual communication would require protocol testing)
-            // This is more of an integration test scenario
+            // Arrange & Act - server created in setup with transport mock
+            
+            // Assert
             _server.Should().NotBeNull();
+            _transportMock.Object.Type.Should().Be(TransportType.Stdio);
+            _transportMock.Object.IsConnected.Should().BeTrue();
         }
 
         // Test helper classes

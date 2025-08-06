@@ -1,6 +1,7 @@
 using COA.Mcp.Framework;
 using COA.Mcp.Framework.Attributes;
 using COA.Mcp.Framework.Interfaces;
+using COA.Mcp.Framework.Schema;
 using COA.Mcp.Framework.Testing.Assertions;
 using COA.Mcp.Framework.Testing.Base;
 using COA.Mcp.Framework.Testing.Builders;
@@ -152,18 +153,19 @@ namespace COA.Mcp.Framework.Testing.Tests.Examples
             _logger = logger;
         }
 
-        public object GetInputSchema()
+        public IJsonSchema GetInputSchema()
         {
-            return new
+            var schema = new Dictionary<string, object>
             {
-                type = "object",
-                properties = new
+                ["type"] = "object",
+                ["properties"] = new Dictionary<string, object>
                 {
-                    location = new { type = "string", description = "Location to get weather for" },
-                    forecastDays = new { type = "integer", description = "Number of forecast days" }
+                    ["location"] = new Dictionary<string, object> { ["type"] = "string", ["description"] = "Location to get weather for" },
+                    ["forecastDays"] = new Dictionary<string, object> { ["type"] = "integer", ["description"] = "Number of forecast days" }
                 },
-                required = new[] { "location" }
+                ["required"] = new[] { "location" }
             };
+            return new RuntimeJsonSchema(schema);
         }
 
         [McpServerTool("get_weather")]

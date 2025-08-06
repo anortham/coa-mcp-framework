@@ -64,19 +64,37 @@ namespace COA.Mcp.Framework.Tests.Server
         }
 
         [Test]
-        public void WithStreams_ShouldSetCustomStreams()
+        public void UseStdioTransport_ShouldConfigureStdioTransport()
         {
-            // Arrange
-            var input = new StringReader("test input");
-            var output = new StringWriter();
-
-            // Act
-            var result = _builder.WithStreams(input, output);
+            // Arrange & Act
+            var result = _builder.UseStdioTransport(options =>
+            {
+                options.Input = new StringReader("test input");
+                options.Output = new StringWriter();
+            });
 
             // Assert
             result.Should().BeSameAs(_builder);
             
-            // Build and verify streams are set
+            // Build and verify transport is configured
+            var server = _builder.Build();
+            server.Should().NotBeNull();
+        }
+        
+        [Test]
+        public void UseHttpTransport_ShouldConfigureHttpTransport()
+        {
+            // Arrange & Act
+            var result = _builder.UseHttpTransport(options =>
+            {
+                options.Port = 8080;
+                options.Host = "localhost";
+            });
+
+            // Assert
+            result.Should().BeSameAs(_builder);
+            
+            // Build and verify transport is configured
             var server = _builder.Build();
             server.Should().NotBeNull();
         }
