@@ -3,8 +3,8 @@
 A comprehensive .NET framework for building and consuming Model Context Protocol (MCP) servers with built-in token optimization, AI-friendly responses, strong typing, and developer-first design.
 
 [![NuGet Version](https://img.shields.io/nuget/v/COA.Mcp.Framework)](https://www.nuget.org/packages/COA.Mcp.Framework)
-[![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](https://github.com/coa/mcp-framework)
-[![Tests](https://img.shields.io/badge/tests-352%20passing-success)](https://github.com/coa/mcp-framework)
+[![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](https://github.com/anortham/coa-mcp-framework)
+[![Tests](https://img.shields.io/badge/tests-352%20passing-success)](https://github.com/anortham/coa-mcp-framework)
 [![.NET 9.0](https://img.shields.io/badge/.NET-9.0-blue)](https://dotnet.microsoft.com/download)
 
 ## 🚀 Quick Start
@@ -573,7 +573,7 @@ Built on experience from:
 **Ready to build your MCP server?** Clone the repo and check out the examples:
 
 ```bash
-git clone https://github.com/your-org/coa-mcp-framework.git
+git clone https://github.com/anortham/coa-mcp-framework.git
 cd coa-mcp-framework/examples/SimpleMcpServer
 dotnet run
 ```
