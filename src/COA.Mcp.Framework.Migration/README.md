@@ -23,19 +23,6 @@ Automated migration tools for converting existing MCP projects to use the COA MC
 
 ## Usage
 
-### Via CLI Tool
-
-```bash
-# Analyze a project
-coa-mcp migrate --project MyMcpServer.csproj --dry-run
-
-# Apply migrations
-coa-mcp migrate --project MyMcpServer.csproj
-
-# Skip backup creation (not recommended)
-coa-mcp migrate --project MyMcpServer.csproj --no-backup
-```
-
 ### Programmatic Usage
 
 ```csharp

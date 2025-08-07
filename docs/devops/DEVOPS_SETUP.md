@@ -15,12 +15,11 @@ This document outlines the complete DevOps setup for the COA MCP Framework, incl
   - NuGet package caching
 
 ### 2. NuGet Package Configuration
-- **All 6 packages** configured for publishing:
+- **All 5 packages** configured for publishing:
   - `COA.Mcp.Framework` - Core framework
   - `COA.Mcp.Framework.TokenOptimization` - Token management
   - `COA.Mcp.Framework.Testing` - Testing helpers
   - `COA.Mcp.Framework.Templates` - Project templates
-  - `COA.Mcp.Framework.CLI` - Command-line tools
   - `COA.Mcp.Framework.Migration` - Migration utilities
 
 ### 3. Version Management Strategy
