@@ -36,7 +36,7 @@ This document outlines the complete DevOps setup for the COA MCP Framework, incl
 - **Consistent metadata** across all packages:
   - Authors: COA Development Team
   - License: MIT
-  - Repository: https://github.com/coa/mcp-framework
+  - Repository: https://github.com/anortham/coa-mcp-framework
   - README inclusion in packages
 
 ### 5. Build Configuration

@@ -98,12 +98,12 @@ Update each .csproj file:
 ```xml
 <PropertyGroup>
     <PackageId>COA.Mcp.Framework</PackageId>
-    <Authors>City of Austin</Authors>
-    <Company>City of Austin</Company>
+    <Authors>COA Development Team</Authors>
+    <Company>COA Development Team</Company>
     <Description>Framework for building MCP (Model Context Protocol) servers</Description>
     <PackageTags>mcp;ai;llm;framework;anthropic</PackageTags>
-    <PackageProjectUrl>https://github.com/CityOfAustin/COA-MCP-Framework</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/CityOfAustin/COA-MCP-Framework</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/anortham/coa-mcp-framework</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/anortham/coa-mcp-framework</RepositoryUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageIcon>icon.png</PackageIcon>
     <PackageReadmeFile>README.md</PackageReadmeFile>
