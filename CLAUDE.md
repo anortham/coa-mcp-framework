@@ -46,7 +46,7 @@ COA.Mcp.Client/
 - **COA.Mcp.Protocol** (1.3.x) - Included as dependency
 - **COA.Mcp.Framework** (1.1.0) - Core framework with transport support
 - **COA.Mcp.Client** (1.0.0) - Strongly-typed C# client library
-- **Optional**: TokenOptimization, Testing, CLI packages
+- **Optional**: TokenOptimization, Testing, Migration packages
 
 ## 📝 Quick Reference
 

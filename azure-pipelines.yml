@@ -283,18 +283,6 @@ stages:
               versioningScheme: "off"
               arguments: "$(versionArguments) --no-restore"
 
-          # Pack CLI Tool
-          - task: DotNetCoreCLI@2
-            displayName: "Pack COA.Mcp.Framework.CLI"
-            inputs:
-              command: "pack"
-              packagesToPack: "src/COA.Mcp.Framework.CLI/COA.Mcp.Framework.CLI.csproj"
-              configuration: $(buildConfiguration)
-              packDirectory: "$(Build.ArtifactStagingDirectory)/packages"
-              nobuild: true
-              versioningScheme: "off"
-              arguments: "$(versionArguments) --no-restore"
-
           # Pack Migration Tool
           - task: DotNetCoreCLI@2
             displayName: "Pack COA.Mcp.Framework.Migration"
