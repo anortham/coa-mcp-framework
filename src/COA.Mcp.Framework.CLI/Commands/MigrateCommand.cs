@@ -242,22 +242,45 @@ public class MigrateCommand : Command
         // Simple transformation - in real implementation would use Roslyn properly
         var className = classDecl.Identifier.Text;
         var toolName = className.Replace("Tool", "").ToLowerInvariant();
+        var paramClassName = $"{className.Replace("Tool", "")}Params";
+        var resultClassName = $"{className.Replace("Tool", "")}Result";
         
-        return $@"[McpServerToolType]
-public class {className} : McpToolBase
+        // Note: Square brackets are escaped with [[ and ]] for Spectre.Console
+        return $@"// Updated to v1.1.0 pattern
+public class {className} : McpToolBase<{paramClassName}, {resultClassName}>
 {{
-    public override string ToolName => ""{toolName}"";
+    public override string Name => ""{toolName}"";
+    public override string Description => ""TODO: Add description"";
     public override ToolCategory Category => ToolCategory.Query;
     
-    // ... rest of the class implementation
+    protected override async Task<{resultClassName}> ExecuteInternalAsync(
+        {paramClassName} parameters,
+        CancellationToken cancellationToken)
+    {{
+        // TODO: Migrate existing logic here
+        throw new NotImplementedException();
+    }}
+}}
+
+public class {paramClassName}
+{{
+    // TODO: Add parameters from existing method
+}}
+
+public class {resultClassName} : ToolResultBase
+{{
+    // TODO: Add result properties
 }}";
     }
 
     private string AddToolAttribute(MethodDeclarationSyntax method)
     {
         var toolName = method.Identifier.Text.Replace("Async", "").ToLowerInvariant();
-        return $@"[McpServerTool(Name = ""{toolName}"")]
-[Description(""TODO: Add description"")]
+        // Note: This is for old-style tools, not used in v1.1.0 pattern
+        return $@"// Note: In v1.1.0, tools should inherit from McpToolBase<TParams, TResult>
+// This attribute-based approach is deprecated
+[[McpServerTool(Name = ""{toolName}"")]]
+[[Description(""TODO: Add description"")]]
 {method}";
     }
 
