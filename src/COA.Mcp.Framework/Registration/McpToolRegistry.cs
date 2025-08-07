@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Reflection;
+using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -11,6 +12,7 @@ using COA.Mcp.Framework.Attributes;
 using COA.Mcp.Framework.Base;
 using COA.Mcp.Framework.Exceptions;
 using COA.Mcp.Framework.Interfaces;
+using COA.Mcp.Framework.Models;
 using COA.Mcp.Framework.Schema;
 using COA.Mcp.Protocol;
 using Microsoft.Extensions.DependencyInjection;
@@ -220,11 +222,18 @@ public class McpToolRegistry
 
         try
         {
+            // Extract responseMode from arguments if present
+            string? responseMode = null;
+            if (arguments.HasValue && arguments.Value.TryGetProperty("responseMode", out var responseModeElement))
+            {
+                responseMode = responseModeElement.GetString();
+            }
+            
             // Execute the tool
             var result = await registeredTool.ToolInstance.ExecuteAsync(arguments, cancellationToken);
             
-            // Convert result to CallToolResult
-            return CreateSuccessResult(result);
+            // Convert result to CallToolResult with responseMode awareness
+            return CreateSuccessResult(result, responseMode);
         }
         catch (ValidationException ex)
         {
@@ -287,9 +296,11 @@ public class McpToolRegistry
         _logger?.LogInformation("Cleared all registered tools");
     }
 
-    private CallToolResult CreateSuccessResult(object? result)
+    private CallToolResult CreateSuccessResult(object? result, string? requestedResponseMode = null)
     {
         string content;
+        // Claude MCP only accepts "text" type, not "application/json"
+        // Even JSON content should be sent as type "text"
         string contentType = "text";
 
         if (result == null)
@@ -302,9 +313,70 @@ public class McpToolRegistry
         }
         else
         {
-            // Serialize complex objects as JSON
+            // Serialize complex objects as JSON but still use "text" type
             content = JsonSerializer.Serialize(result, _jsonOptions);
-            contentType = "application/json";
+            
+            // Token limits optimized for Claude
+            const int OPTIMAL_TOKENS = 3000;    // Best performance, instant responses
+            const int TARGET_TOKENS = 5000;     // Good balance, still fast
+            // const int WARNING_TOKENS = 10000;   // Getting slow, should switch to summary (currently unused)
+            const int CRITICAL_TOKENS = 20000;  // Must use resources or truncate
+            const int HARD_LIMIT = 24000;       // 1K safety buffer before Claude's 25K limit
+            const int CHARS_PER_TOKEN = 4;
+            
+            int estimatedTokens = content.Length / CHARS_PER_TOKEN;
+            
+            // Determine actual response mode based on size and request
+            var actualResponseMode = DetermineResponseMode(requestedResponseMode, estimatedTokens, result);
+            
+            // Handle based on token size and response mode
+            if (estimatedTokens > HARD_LIMIT)
+            {
+                // Always error if exceeding hard limit
+                _logger?.LogError("Tool result exceeds hard token limit. Estimated: {Tokens}, Max: {MaxTokens}, RequestedMode: {Mode}", 
+                    estimatedTokens, HARD_LIMIT, requestedResponseMode);
+                
+                return CreateTokenLimitError(estimatedTokens, HARD_LIMIT, result);
+            }
+            else if (estimatedTokens > CRITICAL_TOKENS)
+            {
+                if (actualResponseMode == "full")
+                {
+                    // User explicitly requested full mode but it's too large
+                    _logger?.LogError("Full mode requested but result exceeds safe limit. Tokens: {Tokens}, Limit: {Limit}", 
+                        estimatedTokens, CRITICAL_TOKENS);
+                    
+                    return CreateTokenLimitError(estimatedTokens, CRITICAL_TOKENS, result);
+                }
+                else
+                {
+                    // Auto-switch to summary
+                    _logger?.LogWarning("Auto-switching to summary mode due to size. Tokens: {Tokens}", estimatedTokens);
+                    content = CreateSummaryResponse(result, estimatedTokens);
+                }
+            }
+            else if (estimatedTokens > TARGET_TOKENS && actualResponseMode == "auto")
+            {
+                // Suggest summary mode but still return full if not too large
+                _logger?.LogInformation("Response size ({Tokens} tokens) exceeds target ({Target}). Consider using responseMode='summary'", 
+                    estimatedTokens, TARGET_TOKENS);
+                
+                // Optionally add metadata hint if result is ToolResultBase
+                if (result is ToolResultBase toolResult && toolResult.Meta != null)
+                {
+                    toolResult.Meta.Mode = "full";
+                    toolResult.Meta.Tokens = estimatedTokens;
+                    toolResult.Insights ??= new List<string>();
+                    toolResult.Insights.Add($"Response contains {estimatedTokens} tokens. Use responseMode='summary' for faster responses.");
+                    
+                    // Re-serialize with the metadata
+                    content = JsonSerializer.Serialize(result, _jsonOptions);
+                }
+            }
+            else if (estimatedTokens <= OPTIMAL_TOKENS)
+            {
+                _logger?.LogDebug("Response size optimal at {Tokens} tokens", estimatedTokens);
+            }
         }
 
         return new CallToolResult
@@ -319,6 +391,105 @@ public class McpToolRegistry
                 }
             }
         };
+    }
+
+    private string DetermineResponseMode(string? requestedMode, int estimatedTokens, object? result)
+    {
+        // If explicitly requested, use that (unless it would exceed limits)
+        if (!string.IsNullOrEmpty(requestedMode))
+        {
+            return requestedMode.ToLowerInvariant();
+        }
+        
+        // Check if result has its own mode preference
+        if (result is ToolResultBase toolResult && toolResult.Meta?.Mode != null)
+        {
+            return toolResult.Meta.Mode.ToLowerInvariant();
+        }
+        
+        // Default to auto
+        return "auto";
+    }
+
+    private CallToolResult CreateTokenLimitError(int estimatedTokens, int limit, object? result)
+    {
+        var errorMessage = new StringBuilder();
+        errorMessage.AppendLine($"Response too large: {estimatedTokens} tokens exceeds limit of {limit} tokens.");
+        errorMessage.AppendLine();
+        errorMessage.AppendLine("Available options:");
+        errorMessage.AppendLine("1. Use responseMode='summary' to get an overview");
+        errorMessage.AppendLine("2. Add maxResults parameter to limit data (e.g., maxResults=50)");
+        errorMessage.AppendLine("3. Use pagination with offset/limit parameters");
+        errorMessage.AppendLine("4. Apply filters to reduce the result set");
+        
+        // If result has a resourceUri, include it
+        if (result is ToolResultBase toolResult && !string.IsNullOrEmpty(toolResult.ResourceUri))
+        {
+            errorMessage.AppendLine($"5. Access full results via resource: {toolResult.ResourceUri}");
+        }
+        
+        return new CallToolResult
+        {
+            IsError = true,
+            Content = new List<ToolContent>
+            {
+                new ToolContent
+                {
+                    Type = "text",
+                    Text = errorMessage.ToString()
+                }
+            }
+        };
+    }
+
+    private string CreateSummaryResponse(object? result, int originalTokens)
+    {
+        // If the result is already a ToolResultBase with summary support
+        if (result is ToolResultBase toolResult)
+        {
+            var summary = new
+            {
+                success = toolResult.Success,
+                operation = toolResult.Operation,
+                message = toolResult.Message ?? "Response truncated due to size",
+                summary = toolResult.Meta?.Mode == "summary" ? result : new
+                {
+                    message = "Full response too large. Key information preserved.",
+                    originalTokens = originalTokens
+                },
+                insights = toolResult.Insights,
+                actions = toolResult.Actions,
+                resourceUri = toolResult.ResourceUri,
+                meta = new
+                {
+                    mode = "summary",
+                    truncated = true,
+                    originalTokens = originalTokens,
+                    message = "Use responseMode='full' to attempt full response, or access via resourceUri"
+                }
+            };
+            
+            return JsonSerializer.Serialize(summary, _jsonOptions);
+        }
+        
+        // Generic summary for non-ToolResultBase results
+        var genericSummary = new
+        {
+            message = "Response automatically summarized due to size",
+            summary = new
+            {
+                dataType = result?.GetType().Name ?? "Unknown",
+                originalTokens = originalTokens,
+                truncated = true
+            },
+            meta = new
+            {
+                mode = "summary",
+                message = "Original response too large. Use pagination or filtering parameters."
+            }
+        };
+        
+        return JsonSerializer.Serialize(genericSummary, _jsonOptions);
     }
 
     private CallToolResult CreateErrorResult(string errorCode, string message)
