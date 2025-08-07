@@ -4,6 +4,7 @@ using System.Reflection;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using COA.Mcp.Framework.Prompts;
 using COA.Mcp.Framework.Registration;
 using COA.Mcp.Framework.Resources;
 using COA.Mcp.Framework.Transport;
@@ -22,6 +23,7 @@ public class McpServer : IHostedService
 {
     private readonly McpToolRegistry _toolRegistry;
     private readonly ResourceRegistry _resourceRegistry;
+    private readonly IPromptRegistry _promptRegistry;
     private readonly ILogger<McpServer>? _logger;
     private readonly JsonSerializerOptions _jsonOptions;
     private readonly ServerCapabilities _capabilities;
@@ -35,18 +37,21 @@ public class McpServer : IHostedService
     /// <param name="transport">The transport for communication.</param>
     /// <param name="toolRegistry">The tool registry for managing tools.</param>
     /// <param name="resourceRegistry">The resource registry for managing resources.</param>
+    /// <param name="promptRegistry">The prompt registry for managing prompts.</param>
     /// <param name="serverInfo">Information about this server implementation.</param>
     /// <param name="logger">Optional logger.</param>
     public McpServer(
         IMcpTransport transport,
         McpToolRegistry toolRegistry,
         ResourceRegistry resourceRegistry,
+        IPromptRegistry promptRegistry,
         Implementation serverInfo,
         ILogger<McpServer>? logger = null)
     {
         _transport = transport ?? throw new ArgumentNullException(nameof(transport));
         _toolRegistry = toolRegistry ?? throw new ArgumentNullException(nameof(toolRegistry));
         _resourceRegistry = resourceRegistry ?? throw new ArgumentNullException(nameof(resourceRegistry));
+        _promptRegistry = promptRegistry ?? throw new ArgumentNullException(nameof(promptRegistry));
         _serverInfo = serverInfo ?? throw new ArgumentNullException(nameof(serverInfo));
         _logger = logger;
         
@@ -63,7 +68,8 @@ public class McpServer : IHostedService
             {
                 Subscribe = false,
                 ListChanged = false
-            }
+            },
+            Prompts = new { } // Empty object indicates prompt support
         };
     }
 
@@ -199,6 +205,14 @@ public class McpServer : IHostedService
                     
                 case "resources/read":
                     result = await HandleReadResourceAsync(parameters, cancellationToken);
+                    break;
+                    
+                case "prompts/list":
+                    result = await HandleListPromptsAsync(cancellationToken);
+                    break;
+                    
+                case "prompts/get":
+                    result = await HandleGetPromptAsync(parameters, cancellationToken);
                     break;
                     
                 default:
@@ -345,6 +359,36 @@ public class McpServer : IHostedService
         {
             Contents = new List<ResourceContent> { content }
         };
+    }
+
+    private async Task<ListPromptsResult> HandleListPromptsAsync(CancellationToken cancellationToken)
+    {
+        _logger?.LogDebug("Handling prompts/list request");
+        
+        var prompts = await _promptRegistry.ListPromptsAsync(cancellationToken);
+        
+        return new ListPromptsResult
+        {
+            Prompts = prompts
+        };
+    }
+
+    private async Task<GetPromptResult> HandleGetPromptAsync(JsonElement? parameters, CancellationToken cancellationToken)
+    {
+        if (parameters == null)
+        {
+            throw new InvalidOperationException("Missing parameters for prompts/get");
+        }
+
+        var request = JsonSerializer.Deserialize<GetPromptRequest>(parameters.Value.GetRawText(), _jsonOptions);
+        if (request == null || string.IsNullOrEmpty(request.Name))
+        {
+            throw new InvalidOperationException("Invalid prompt get request");
+        }
+
+        _logger?.LogDebug("Getting prompt '{Name}'", request.Name);
+        
+        return await _promptRegistry.GetPromptAsync(request.Name, request.Arguments, cancellationToken);
     }
 
     private async Task SendSuccessResponseAsync(JsonElement id, object? result)

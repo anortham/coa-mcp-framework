@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using COA.Mcp.Framework;
 using COA.Mcp.Framework.Base;
 using COA.Mcp.Framework.Interfaces;
+using COA.Mcp.Framework.Prompts;
 using COA.Mcp.Framework.Registration;
 using COA.Mcp.Framework.Resources;
 using COA.Mcp.Framework.Server;
@@ -25,6 +26,7 @@ namespace COA.Mcp.Framework.Tests.Server
         private ServiceProvider _serviceProvider;
         private McpToolRegistry _toolRegistry;
         private ResourceRegistry _resourceRegistry;
+        private IPromptRegistry _promptRegistry;
         private Implementation _serverInfo;
         private Mock<ILogger<McpServer>> _loggerMock;
         private Mock<IMcpTransport> _transportMock;
@@ -37,10 +39,12 @@ namespace COA.Mcp.Framework.Tests.Server
             services.AddLogging(); // Add logging to fix dependency issues
             services.AddSingleton<McpToolRegistry>();
             services.AddSingleton<ResourceRegistry>();
+            services.AddSingleton<IPromptRegistry, PromptRegistry>();
             _serviceProvider = services.BuildServiceProvider();
             
             _toolRegistry = _serviceProvider.GetRequiredService<McpToolRegistry>();
             _resourceRegistry = _serviceProvider.GetRequiredService<ResourceRegistry>();
+            _promptRegistry = _serviceProvider.GetRequiredService<IPromptRegistry>();
             _serverInfo = new Implementation
             {
                 Name = "TestServer",
@@ -51,7 +55,7 @@ namespace COA.Mcp.Framework.Tests.Server
             _transportMock.Setup(t => t.Type).Returns(TransportType.Stdio);
             _transportMock.Setup(t => t.IsConnected).Returns(true);
             
-            _server = new McpServer(_transportMock.Object, _toolRegistry, _resourceRegistry, _serverInfo, _loggerMock.Object);
+            _server = new McpServer(_transportMock.Object, _toolRegistry, _resourceRegistry, _promptRegistry, _serverInfo, _loggerMock.Object);
         }
 
         [TearDown]
@@ -64,7 +68,7 @@ namespace COA.Mcp.Framework.Tests.Server
         public void Constructor_WithNullTransport_ShouldThrow()
         {
             // Act & Assert
-            var act = () => new McpServer(null!, _toolRegistry, _resourceRegistry, _serverInfo, _loggerMock.Object);
+            var act = () => new McpServer(null!, _toolRegistry, _resourceRegistry, _promptRegistry, _serverInfo, _loggerMock.Object);
             act.Should().Throw<ArgumentNullException>()
                 .WithParameterName("transport");
         }
@@ -73,7 +77,7 @@ namespace COA.Mcp.Framework.Tests.Server
         public void Constructor_WithNullToolRegistry_ShouldThrow()
         {
             // Act & Assert
-            var act = () => new McpServer(_transportMock.Object, null!, _resourceRegistry, _serverInfo, _loggerMock.Object);
+            var act = () => new McpServer(_transportMock.Object, null!, _resourceRegistry, _promptRegistry, _serverInfo, _loggerMock.Object);
             act.Should().Throw<ArgumentNullException>()
                 .WithParameterName("toolRegistry");
         }
@@ -82,16 +86,25 @@ namespace COA.Mcp.Framework.Tests.Server
         public void Constructor_WithNullResourceRegistry_ShouldThrow()
         {
             // Act & Assert
-            var act = () => new McpServer(_transportMock.Object, _toolRegistry, null!, _serverInfo, _loggerMock.Object);
+            var act = () => new McpServer(_transportMock.Object, _toolRegistry, null!, _promptRegistry, _serverInfo, _loggerMock.Object);
             act.Should().Throw<ArgumentNullException>()
                 .WithParameterName("resourceRegistry");
+        }
+
+        [Test]
+        public void Constructor_WithNullPromptRegistry_ShouldThrow()
+        {
+            // Act & Assert
+            var act = () => new McpServer(_transportMock.Object, _toolRegistry, _resourceRegistry, null!, _serverInfo, _loggerMock.Object);
+            act.Should().Throw<ArgumentNullException>()
+                .WithParameterName("promptRegistry");
         }
 
         [Test]
         public void Constructor_WithNullServerInfo_ShouldThrow()
         {
             // Act & Assert
-            var act = () => new McpServer(_transportMock.Object, _toolRegistry, _resourceRegistry, null!, _loggerMock.Object);
+            var act = () => new McpServer(_transportMock.Object, _toolRegistry, _resourceRegistry, _promptRegistry, null!, _loggerMock.Object);
             act.Should().Throw<ArgumentNullException>()
                 .WithParameterName("serverInfo");
         }
@@ -100,7 +113,7 @@ namespace COA.Mcp.Framework.Tests.Server
         public void Constructor_WithValidParameters_ShouldCreateServer()
         {
             // Act
-            var server = new McpServer(_transportMock.Object, _toolRegistry, _resourceRegistry, _serverInfo, _loggerMock.Object);
+            var server = new McpServer(_transportMock.Object, _toolRegistry, _resourceRegistry, _promptRegistry, _serverInfo, _loggerMock.Object);
 
             // Assert
             server.Should().NotBeNull();
@@ -111,7 +124,7 @@ namespace COA.Mcp.Framework.Tests.Server
         public void Constructor_WithNullLogger_ShouldCreateServer()
         {
             // Act
-            var server = new McpServer(_transportMock.Object, _toolRegistry, _resourceRegistry, _serverInfo, null);
+            var server = new McpServer(_transportMock.Object, _toolRegistry, _resourceRegistry, _promptRegistry, _serverInfo, null);
 
             // Assert
             server.Should().NotBeNull();

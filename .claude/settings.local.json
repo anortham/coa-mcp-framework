@@ -23,7 +23,8 @@
       "mcp__codenav__csharp_symbol_search",
       "mcp__codenav__csharp_goto_definition",
       "mcp__codesearch__store_memory",
-      "Bash(dotnet clean:*)"
+      "Bash(dotnet clean:*)",
+      "Bash(dotnet --version)"
     ],
     "deny": []
   }

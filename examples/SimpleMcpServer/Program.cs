@@ -1,6 +1,7 @@
 using COA.Mcp.Framework.Server;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using SimpleMcpServer.Prompts;
 using SimpleMcpServer.Tools;
 
 // Build and run the MCP server
@@ -21,6 +22,10 @@ builder.RegisterToolType<CalculatorTool>();
 builder.RegisterToolType<StringManipulationTool>();
 builder.RegisterToolType<DataStoreTool>();
 builder.RegisterToolType<SystemInfoTool>();
+
+// Register prompts
+builder.RegisterPromptType<GreetingPrompt>();
+builder.RegisterPromptType<CodeGeneratorPrompt>();
 
 // Build and run
 await builder.RunAsync();

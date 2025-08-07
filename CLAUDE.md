@@ -17,13 +17,18 @@
 COA.Mcp.Framework/
 ├── Base/McpToolBase.Generic.cs     # Generic base: McpToolBase<TParams, TResult>
 ├── Server/
-│   ├── McpServer.cs                # Server with transport support
-│   └── McpServerBuilder.cs         # Fluent builder API
+│   ├── McpServer.cs                # Server with transport support & prompt handlers
+│   └── McpServerBuilder.cs         # Fluent builder API with prompts support
 ├── Transport/
 │   ├── IMcpTransport.cs            # Transport abstraction
 │   ├── StdioTransport.cs           # Console I/O (default)
 │   ├── HttpTransport.cs            # HTTP/HTTPS with WebSocket
 │   └── WebSocketTransport.cs       # Pure WebSocket
+├── Prompts/
+│   ├── IPrompt.cs                  # Prompt interface with validation
+│   ├── PromptBase.cs               # Base class with helper methods
+│   ├── IPromptRegistry.cs          # Registry interface for prompts
+│   └── PromptRegistry.cs           # DI-enabled prompt registry
 ├── Schema/
 │   ├── IJsonSchema.cs              # Type-safe schema interface
 │   ├── JsonSchema<T>.cs            # Generic schema implementation
@@ -67,6 +72,42 @@ public class MyTool : McpToolBase<MyParams, MyResult>
 }
 ```
 
+### Creating a Prompt
+```csharp
+public class MyPrompt : PromptBase
+{
+    public override string Name => "my_prompt";
+    public override string Description => "Prompt description";
+    
+    public override List<PromptArgument> Arguments => new()
+    {
+        new PromptArgument 
+        { 
+            Name = "topic", 
+            Description = "The topic to discuss",
+            Required = true 
+        }
+    };
+    
+    public override async Task<GetPromptResult> RenderAsync(
+        Dictionary<string, object>? arguments = null,
+        CancellationToken cancellationToken = default)
+    {
+        var topic = GetRequiredArgument<string>(arguments, "topic");
+        
+        return new GetPromptResult
+        {
+            Description = $"Discussion about {topic}",
+            Messages = new List<PromptMessage>
+            {
+                CreateSystemMessage($"You are an expert on {topic}"),
+                CreateUserMessage($"Tell me about {topic}")
+            }
+        };
+    }
+}
+```
+
 ### Server Setup
 ```csharp
 var builder = new McpServerBuilder()
@@ -76,6 +117,10 @@ var builder = new McpServerBuilder()
 // Register tools
 builder.RegisterToolType<MyTool>();  // Manual
 builder.DiscoverTools(assembly);     // Auto-discovery
+
+// Register prompts  
+builder.RegisterPromptType<MyPrompt>();  // Manual
+builder.DiscoverPrompts(assembly);       // Auto-discovery
 
 await builder.RunAsync();
 ```
@@ -123,14 +168,16 @@ return new MyResult
 - ✅ McpServerBuilder with fluent API
 - ✅ Manual tool registration (RegisterToolType<T>)
 - ✅ Tool discovery (DiscoverTools)
+- ✅ Interactive prompts support (IPrompt, PromptBase)
+- ✅ Prompt registration and discovery
 - ✅ Error models with recovery steps
 - ✅ Multiple transport types (Stdio, HTTP, WebSocket)
 - ✅ Strongly-typed C# client library with fluent API
 - ✅ Type-safe schema system (IJsonSchema, JsonSchema<T>)
-- ✅ SimpleMcpServer example (4 working tools)
+- ✅ SimpleMcpServer example (4 tools + 2 prompts)
 - ✅ HttpMcpServer example with web client
 - ✅ McpClientExample demonstrating client usage
-- ✅ 341 tests passing across all projects
+- ✅ 448 tests passing across all projects (20 new prompt tests)
 
 ### Not Yet Implemented
 - ❌ AddMcpFramework service extension
@@ -166,7 +213,7 @@ dotnet run
 ## 📊 Quality Standards
 
 - Build: 0 warnings, 0 errors
-- Tests: 100% passing (currently 230/230)
+- Tests: 100% passing (currently 448/448)
 - Coverage: Target ≥85%
 - Performance: <5% framework overhead
 
@@ -181,10 +228,11 @@ dotnet run
 
 ## 📁 Key Files
 
-- `examples/SimpleMcpServer/` - Working example with 4 tools
+- `examples/SimpleMcpServer/` - Working example with 4 tools and 2 prompts
 - `src/COA.Mcp.Framework/Base/McpToolBase.Generic.cs` - Tool base class
-- `src/COA.Mcp.Framework/Server/McpServerBuilder.cs` - Server builder
-- `tests/COA.Mcp.Framework.Tests/` - Unit tests
+- `src/COA.Mcp.Framework/Prompts/PromptBase.cs` - Prompt base class
+- `src/COA.Mcp.Framework/Server/McpServerBuilder.cs` - Server builder with prompts
+- `tests/COA.Mcp.Framework.Tests/` - Unit tests including prompt tests
 
 ---
 

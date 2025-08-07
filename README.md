@@ -134,6 +134,12 @@ Your MCP server is ready! 🎉
 - Progressive reduction for large datasets
 - Smart truncation with resource URIs
 
+### 💬 **Interactive Prompts**
+- Guide users through complex operations with prompt templates
+- Customizable arguments with validation
+- Built-in message builders for system/user/assistant roles
+- Variable substitution in templates
+
 ### 🚄 **Rapid Development**
 - Minimal boilerplate code
 - Built-in validation helpers
@@ -192,6 +198,81 @@ if (weather.Success)
 {
     Console.WriteLine($"Temperature: {weather.Temperature}°");
 }
+```
+
+## 📝 Interactive Prompts
+
+### Creating Custom Prompts
+
+Prompts provide interactive templates to guide users through complex operations:
+
+```csharp
+// Define a prompt to help users generate code
+public class CodeGeneratorPrompt : PromptBase
+{
+    public override string Name => "code-generator";
+    public override string Description => 
+        "Generate code snippets based on requirements";
+
+    public override List<PromptArgument> Arguments => new()
+    {
+        new PromptArgument
+        {
+            Name = "language",
+            Description = "Programming language (csharp, python, js)",
+            Required = true
+        },
+        new PromptArgument
+        {
+            Name = "type",
+            Description = "Type of code (class, function, interface)",
+            Required = true
+        },
+        new PromptArgument
+        {
+            Name = "name",
+            Description = "Name of the component",
+            Required = true
+        }
+    };
+
+    public override async Task<GetPromptResult> RenderAsync(
+        Dictionary<string, object>? arguments = null,
+        CancellationToken cancellationToken = default)
+    {
+        var language = GetRequiredArgument<string>(arguments, "language");
+        var type = GetRequiredArgument<string>(arguments, "type");
+        var name = GetRequiredArgument<string>(arguments, "name");
+        
+        return new GetPromptResult
+        {
+            Description = $"Generate {language} {type}: {name}",
+            Messages = new List<PromptMessage>
+            {
+                CreateSystemMessage($"You are an expert {language} developer."),
+                CreateUserMessage($"Generate a {type} named '{name}' in {language}."),
+                CreateAssistantMessage("I'll help you create that component...")
+            }
+        };
+    }
+}
+
+// Register prompts in your server
+builder.RegisterPromptType<CodeGeneratorPrompt>();
+```
+
+### Variable Substitution
+
+Use the built-in variable substitution for dynamic templates:
+
+```csharp
+var template = "Hello {{name}}, your project {{project}} is ready!";
+var result = SubstituteVariables(template, new Dictionary<string, object>
+{
+    ["name"] = "Developer",
+    ["project"] = "MCP Server"
+});
+// Result: "Hello Developer, your project MCP Server is ready!"
 ```
 
 ## 🏁 Getting Started

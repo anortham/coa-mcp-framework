@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Reflection;
 using COA.Mcp.Framework.Interfaces;
+using COA.Mcp.Framework.Prompts;
 using COA.Mcp.Framework.Registration;
 using COA.Mcp.Framework.Resources;
 using COA.Mcp.Framework.Transport;
@@ -22,7 +23,9 @@ public class McpServerBuilder
     private readonly ServerConfiguration _configuration;
     private Action<McpToolRegistry>? _toolConfiguration;
     private Action<ResourceRegistry>? _resourceConfiguration;
+    private Action<IPromptRegistry>? _promptConfiguration;
     private Assembly? _toolAssembly;
+    private Assembly? _promptAssembly;
     private IMcpTransport? _transport;
 
     /// <summary>
@@ -163,6 +166,53 @@ public class McpServerBuilder
     }
 
     /// <summary>
+    /// Configures prompts for the server.
+    /// </summary>
+    /// <param name="configure">Action to configure the prompt registry.</param>
+    /// <returns>The builder for chaining.</returns>
+    public McpServerBuilder ConfigurePrompts(Action<IPromptRegistry> configure)
+    {
+        _promptConfiguration += configure;
+        return this;
+    }
+
+    /// <summary>
+    /// Discovers and registers prompts from the specified assembly.
+    /// </summary>
+    /// <param name="assembly">The assembly to scan for prompts (defaults to calling assembly).</param>
+    /// <returns>The builder for chaining.</returns>
+    public McpServerBuilder DiscoverPrompts(Assembly? assembly = null)
+    {
+        _promptAssembly = assembly ?? Assembly.GetCallingAssembly();
+        return this;
+    }
+
+    /// <summary>
+    /// Registers a specific prompt instance.
+    /// </summary>
+    /// <param name="prompt">The prompt instance to register.</param>
+    /// <returns>The builder for chaining.</returns>
+    public McpServerBuilder RegisterPrompt(IPrompt prompt)
+    {
+        _services.AddSingleton(prompt);
+        _promptConfiguration += registry => registry.RegisterPrompt(prompt);
+        return this;
+    }
+
+    /// <summary>
+    /// Registers a prompt type for dependency injection.
+    /// </summary>
+    /// <typeparam name="TPrompt">The prompt type to register.</typeparam>
+    /// <returns>The builder for chaining.</returns>
+    public McpServerBuilder RegisterPromptType<TPrompt>()
+        where TPrompt : class, IPrompt
+    {
+        _services.AddScoped<TPrompt>();
+        _promptConfiguration += registry => registry.RegisterPromptType<TPrompt>();
+        return this;
+    }
+
+    /// <summary>
     /// Configures logging for the server.
     /// </summary>
     /// <param name="configure">Action to configure logging.</param>
@@ -218,6 +268,7 @@ public class McpServerBuilder
         // Get registries
         var toolRegistry = serviceProvider.GetRequiredService<McpToolRegistry>();
         var resourceRegistry = serviceProvider.GetRequiredService<ResourceRegistry>();
+        var promptRegistry = serviceProvider.GetRequiredService<IPromptRegistry>();
         
         // Configure tools
         if (_toolAssembly != null)
@@ -230,6 +281,14 @@ public class McpServerBuilder
         // Configure resources
         _resourceConfiguration?.Invoke(resourceRegistry);
         
+        // Configure prompts
+        if (_promptAssembly != null)
+        {
+            DiscoverAndRegisterPrompts(promptRegistry, _promptAssembly);
+        }
+        
+        _promptConfiguration?.Invoke(promptRegistry);
+        
         // Create server
         var serverInfo = new Implementation
         {
@@ -239,7 +298,7 @@ public class McpServerBuilder
         
         var logger = serviceProvider.GetService<ILogger<McpServer>>();
         var transport = serviceProvider.GetRequiredService<IMcpTransport>();
-        var server = new McpServer(transport, toolRegistry, resourceRegistry, serverInfo, logger);
+        var server = new McpServer(transport, toolRegistry, resourceRegistry, promptRegistry, serverInfo, logger);
         
         return server;
     }
@@ -277,6 +336,7 @@ public class McpServerBuilder
         // Add framework services
         _services.AddSingleton<McpToolRegistry>();
         _services.AddSingleton<ResourceRegistry>();
+        _services.AddSingleton<IPromptRegistry, PromptRegistry>();
         
         // Add default logging
         _services.AddLogging(builder =>
@@ -288,6 +348,28 @@ public class McpServerBuilder
                 options.LogToStandardErrorThreshold = LogLevel.Trace;
             });
         });
+    }
+
+    private void DiscoverAndRegisterPrompts(IPromptRegistry registry, Assembly assembly)
+    {
+        var promptTypes = assembly.GetTypes()
+            .Where(t => t.IsClass && !t.IsAbstract && typeof(IPrompt).IsAssignableFrom(t))
+            .ToList();
+
+        foreach (var promptType in promptTypes)
+        {
+            try
+            {
+                // Create instance using DI
+                var prompt = (IPrompt)ActivatorUtilities.CreateInstance(_services.BuildServiceProvider(), promptType);
+                registry.RegisterPrompt(prompt);
+            }
+            catch (Exception ex)
+            {
+                var logger = _services.BuildServiceProvider().GetService<ILogger<McpServerBuilder>>();
+                logger?.LogWarning(ex, "Failed to register prompt type {PromptType}", promptType.Name);
+            }
+        }
     }
 
     /// <summary>
