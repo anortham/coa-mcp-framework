@@ -156,8 +156,18 @@ namespace COA.Mcp.Framework.Transport
                         // Check if this is a WebSocket request
                         if (context.Request.IsWebSocketRequest)
                         {
-                            // Process WebSocket upgrade asynchronously
-                            _ = Task.Run(() => HandleWebSocketConnection(context, cancellationToken), cancellationToken);
+                            // Process WebSocket upgrade asynchronously with error handling
+                            _ = Task.Run(async () =>
+                            {
+                                try
+                                {
+                                    await HandleWebSocketConnection(context, cancellationToken);
+                                }
+                                catch (Exception ex)
+                                {
+                                    _logger?.LogError(ex, "Failed to handle WebSocket connection");
+                                }
+                            }, cancellationToken);
                         }
                         else
                         {

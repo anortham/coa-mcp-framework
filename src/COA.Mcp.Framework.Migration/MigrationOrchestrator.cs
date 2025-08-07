@@ -215,7 +215,8 @@ public class MigrationOrchestrator
         }
 
         // Find the ItemGroup with PackageReference elements
-        var lines = projectContent.Split('\n').ToList();
+        var lineArray = projectContent.Split('\n');
+        var lines = new List<string>(lineArray); // Pre-allocate with exact size
         var packageGroupIndex = -1;
         
         for (int i = 0; i < lines.Count; i++)

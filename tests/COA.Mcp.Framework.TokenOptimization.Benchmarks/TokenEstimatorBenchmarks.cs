@@ -83,13 +83,13 @@ public class TokenEstimatorBenchmarks
     [Benchmark]
     public int CalculateBudgetDefault()
     {
-        return TokenEstimator.CalculateTokenBudget(200000, 5000);
+        return TokenEstimator.CalculateTokenBudget(200000, 5000, TokenSafetyMode.Default);
     }
     
     [Benchmark]
     public int CalculateBudgetConservative()
     {
-        return TokenEstimator.CalculateTokenBudget(200000, TokenEstimator.CONSERVATIVE_SAFETY_LIMIT);
+        return TokenEstimator.CalculateTokenBudget(200000, 5000, TokenSafetyMode.Conservative);
     }
     
     private class ComplexObject

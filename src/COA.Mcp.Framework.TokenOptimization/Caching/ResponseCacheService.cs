@@ -12,25 +12,38 @@ public class ResponseCacheService : IResponseCacheService, IDisposable
 {
     private readonly ConcurrentDictionary<string, CacheEntry> _cache = new();
     private readonly ICacheEvictionPolicy _evictionPolicy;
-    private readonly JsonSerializerOptions _jsonOptions;
     private readonly Timer _cleanupTimer;
     private long _totalRequests;
     private long _cacheHits;
     private long _cacheMisses;
     private DateTime _lastCleanup = DateTime.UtcNow;
     
+    // Shared static instance to avoid repeated allocations
+    private static readonly JsonSerializerOptions _jsonOptions = new JsonSerializerOptions
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        WriteIndented = false
+    };
+    
     public ResponseCacheService(ICacheEvictionPolicy? evictionPolicy = null)
     {
         _evictionPolicy = evictionPolicy ?? new LruEvictionPolicy();
-        _jsonOptions = new JsonSerializerOptions
-        {
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-            WriteIndented = false
-        };
         
         // Run cleanup every 5 minutes
         _cleanupTimer = new Timer(
-            _ => Task.Run(CleanupExpiredAsync),
+            async _ =>
+            {
+                try
+                {
+                    await CleanupExpiredAsync();
+                }
+                catch (Exception ex)
+                {
+                    // Log error if logger is available
+                    // In production, inject ILogger<ResponseCacheService>
+                    System.Diagnostics.Debug.WriteLine($"Cache cleanup failed: {ex.Message}");
+                }
+            },
             null,
             TimeSpan.FromMinutes(5),
             TimeSpan.FromMinutes(5));
@@ -73,7 +86,7 @@ public class ResponseCacheService : IResponseCacheService, IDisposable
         return Task.FromResult<T?>(null);
     }
     
-    public Task SetAsync<T>(string key, T value, CacheEntryOptions? options = null) where T : class
+    public async Task SetAsync<T>(string key, T value, CacheEntryOptions? options = null) where T : class
     {
         options ??= new CacheEntryOptions();
         
@@ -109,13 +122,24 @@ public class ResponseCacheService : IResponseCacheService, IDisposable
         _cache[key] = entry;
         
         // Check if we need to evict
-        var stats = GetStatisticsAsync().Result;
+        var stats = await GetStatisticsAsync();
         if (_evictionPolicy.ShouldEvict(entry, stats))
         {
-            Task.Run(PerformEvictionAsync);
+            // Fire and forget with proper error handling
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await PerformEvictionAsync();
+                }
+                catch (Exception ex)
+                {
+                    // Log error if logger is available
+                    // In production, inject ILogger<ResponseCacheService>
+                    System.Diagnostics.Debug.WriteLine($"Cache eviction failed: {ex.Message}");
+                }
+            });
         }
-        
-        return Task.CompletedTask;
     }
     
     public Task<bool> ExistsAsync(string key)
@@ -167,28 +191,43 @@ public class ResponseCacheService : IResponseCacheService, IDisposable
     private async Task CleanupExpiredAsync()
     {
         var now = DateTime.UtcNow;
-        var expiredKeys = _cache
-            .Where(kvp => kvp.Value.ExpiresAt.HasValue && kvp.Value.ExpiresAt.Value <= now)
-            .Select(kvp => kvp.Key)
-            .ToList();
-            
-        foreach (var key in expiredKeys)
+        var removedCount = 0;
+        const int maxRemovals = 100; // Limit removals per cleanup cycle
+        
+        // Process expired items lazily without materializing all at once
+        foreach (var kvp in _cache)
         {
-            _cache.TryRemove(key, out _);
+            if (kvp.Value.ExpiresAt.HasValue && kvp.Value.ExpiresAt.Value <= now)
+            {
+                if (_cache.TryRemove(kvp.Key, out _))
+                {
+                    removedCount++;
+                    if (removedCount >= maxRemovals)
+                    {
+                        break; // Limit removals to prevent long cleanup cycles
+                    }
+                }
+            }
         }
         
         _lastCleanup = now;
         
-        // Also perform eviction if needed
-        var stats = await GetStatisticsAsync();
-        var entries = _cache.Values.ToList();
-        
-        foreach (var entry in entries)
+        // Only check eviction if we have enough items
+        if (_cache.Count > 100)
         {
-            if (_evictionPolicy.ShouldEvict(entry, stats))
+            var stats = await GetStatisticsAsync();
+            
+            // Check a sample of entries instead of all
+            var sampleSize = Math.Min(10, _cache.Count);
+            var sample = _cache.Values.Take(sampleSize);
+            
+            foreach (var entry in sample)
             {
-                await PerformEvictionAsync();
-                break;
+                if (_evictionPolicy.ShouldEvict(entry, stats))
+                {
+                    await PerformEvictionAsync();
+                    break;
+                }
             }
         }
     }

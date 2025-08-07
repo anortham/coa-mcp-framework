@@ -227,8 +227,13 @@ namespace COA.Mcp.Framework.Testing.Builders
                 results.Add(generator(results.Count));
             }
             
-            // Shuffle the results
-            return results.OrderBy(x => _random.Next()).ToList();
+            // Shuffle the results in-place to avoid extra allocation
+            for (int i = results.Count - 1; i > 0; i--)
+            {
+                int j = _random.Next(i + 1);
+                (results[i], results[j]) = (results[j], results[i]);
+            }
+            return results;
         }
 
         #endregion
@@ -256,25 +261,38 @@ namespace COA.Mcp.Framework.Testing.Builders
         private List<object> GenerateDuplicatePattern(int count)
         {
             var unique = _random.Next(1, Math.Max(2, count / 5));
-            var values = Enumerable.Range(0, unique).Select(i => (object)$"Value{i}").ToList();
+            var values = new List<object>(unique);
+            for (int i = 0; i < unique; i++)
+            {
+                values.Add($"Value{i}");
+            }
             
-            return Enumerable.Range(0, count)
-                .Select(_ => values[_random.Next(values.Count)])
-                .ToList();
+            var result = new List<object>(count);
+            for (int i = 0; i < count; i++)
+            {
+                result.Add(values[_random.Next(values.Count)]);
+            }
+            return result;
         }
 
         private List<object> GenerateSequentialPattern(int count)
         {
-            return Enumerable.Range(0, count)
-                .Select(i => (object)$"Item{i:D4}")
-                .ToList();
+            var result = new List<object>(count);
+            for (int i = 0; i < count; i++)
+            {
+                result.Add($"Item{i:D4}");
+            }
+            return result;
         }
 
         private List<object> GenerateAlternatingPattern(int count)
         {
-            return Enumerable.Range(0, count)
-                .Select(i => (object)(i % 2 == 0 ? $"Even{i}" : $"Odd{i}"))
-                .ToList();
+            var result = new List<object>(count);
+            for (int i = 0; i < count; i++)
+            {
+                result.Add(i % 2 == 0 ? $"Even{i}" : $"Odd{i}");
+            }
+            return result;
         }
 
         private List<object> GenerateClusteredPattern(int count)
@@ -296,9 +314,12 @@ namespace COA.Mcp.Framework.Testing.Builders
 
         private List<object> GenerateRandomPattern(int count)
         {
-            return Enumerable.Range(0, count)
-                .Select(_ => (object)GenerateString(10))
-                .ToList();
+            var result = new List<object>(count);
+            for (int i = 0; i < count; i++)
+            {
+                result.Add(GenerateString(10));
+            }
+            return result;
         }
 
         #endregion

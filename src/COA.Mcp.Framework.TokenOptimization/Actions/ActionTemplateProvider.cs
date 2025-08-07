@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 
@@ -9,12 +10,12 @@ namespace COA.Mcp.Framework.TokenOptimization.Actions
     /// <summary>
     /// Default implementation of action template provider
     /// </summary>
-    public class ActionTemplateProvider : IActionTemplateProvider
+    public class ActionTemplateProvider : IActionTemplateProvider, IDisposable
     {
         private readonly Dictionary<Type, List<IActionTemplate>> _templatesByType;
         private readonly List<IActionTemplate> _universalTemplates;
         private readonly ILogger<ActionTemplateProvider> _logger;
-        private readonly object _lock = new object();
+        private readonly ReaderWriterLockSlim _lock = new ReaderWriterLockSlim();
 
         public ActionTemplateProvider(ILogger<ActionTemplateProvider> logger)
         {
@@ -32,7 +33,8 @@ namespace COA.Mcp.Framework.TokenOptimization.Actions
 
             var templates = new List<IActionTemplate>();
 
-            lock (_lock)
+            _lock.EnterReadLock();
+            try
             {
                 // Add type-specific templates
                 if (_templatesByType.TryGetValue(dataType, out var typeTemplates))
@@ -51,6 +53,10 @@ namespace COA.Mcp.Framework.TokenOptimization.Actions
 
                 // Add universal templates
                 templates.AddRange(_universalTemplates);
+            }
+            finally
+            {
+                _lock.ExitReadLock();
             }
 
             // Filter by applicability and remove duplicates
@@ -71,7 +77,8 @@ namespace COA.Mcp.Framework.TokenOptimization.Actions
         {
             if (dataType == null) return false;
 
-            lock (_lock)
+            _lock.EnterReadLock();
+            try
             {
                 if (_templatesByType.ContainsKey(dataType) || _universalTemplates.Any())
                     return true;
@@ -80,13 +87,18 @@ namespace COA.Mcp.Framework.TokenOptimization.Actions
                 return GetBaseTypesAndInterfaces(dataType)
                     .Any(t => _templatesByType.ContainsKey(t));
             }
+            finally
+            {
+                _lock.ExitReadLock();
+            }
         }
 
         public void RegisterTemplate(IActionTemplate template)
         {
             if (template == null) throw new ArgumentNullException(nameof(template));
 
-            lock (_lock)
+            _lock.EnterWriteLock();
+            try
             {
                 foreach (var type in template.SupportedTypes)
                 {
@@ -113,6 +125,10 @@ namespace COA.Mcp.Framework.TokenOptimization.Actions
                     }
                 }
             }
+            finally
+            {
+                _lock.ExitWriteLock();
+            }
         }
 
         public void RegisterTemplates(Type dataType, params IActionTemplate[] templates)
@@ -120,7 +136,8 @@ namespace COA.Mcp.Framework.TokenOptimization.Actions
             if (dataType == null) throw new ArgumentNullException(nameof(dataType));
             if (templates == null) throw new ArgumentNullException(nameof(templates));
 
-            lock (_lock)
+            _lock.EnterWriteLock();
+            try
             {
                 if (!_templatesByType.TryGetValue(dataType, out var typeTemplates))
                 {
@@ -137,6 +154,10 @@ namespace COA.Mcp.Framework.TokenOptimization.Actions
                             template.Name, dataType.Name);
                     }
                 }
+            }
+            finally
+            {
+                _lock.ExitWriteLock();
             }
         }
 
@@ -174,6 +195,11 @@ namespace COA.Mcp.Framework.TokenOptimization.Actions
             }
 
             return types;
+        }
+
+        public void Dispose()
+        {
+            _lock?.Dispose();
         }
     }
 }

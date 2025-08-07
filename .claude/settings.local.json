@@ -24,7 +24,8 @@
       "mcp__codenav__csharp_goto_definition",
       "mcp__codesearch__store_memory",
       "Bash(dotnet clean:*)",
-      "Bash(dotnet --version)"
+      "Bash(dotnet --version)",
+      "mcp__codesearch__batch_operations"
     ],
     "deny": []
   }

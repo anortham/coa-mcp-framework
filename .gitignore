@@ -363,3 +363,6 @@ FodyWeavers.xsd
 .codesearch
 .codenav
 .claude/settings.local.json
+
+# Performance analysis and benchmarks (local only)
+docs/performance/

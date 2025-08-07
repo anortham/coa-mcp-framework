@@ -206,9 +206,9 @@ public class MigrationAnalyzer
         return EffortLevel.VeryHigh;
     }
 
-    public async Task<string> GenerateReportAsync(MigrationReport report, ReportFormat format = ReportFormat.Markdown)
+    public Task<string> GenerateReportAsync(MigrationReport report, ReportFormat format = ReportFormat.Markdown)
     {
-        return format switch
+        var result = format switch
         {
             ReportFormat.Json => JsonSerializer.Serialize(report, new JsonSerializerOptions 
             { 
@@ -218,6 +218,8 @@ public class MigrationAnalyzer
             ReportFormat.Markdown => GenerateMarkdownReport(report),
             _ => throw new NotSupportedException($"Report format {format} is not supported")
         };
+        
+        return Task.FromResult(result);
     }
 
     private string GenerateMarkdownReport(MigrationReport report)
