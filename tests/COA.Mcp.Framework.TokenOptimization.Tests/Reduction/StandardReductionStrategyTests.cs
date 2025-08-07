@@ -83,8 +83,9 @@ public class StandardReductionStrategyTests
         var result = _strategy.Reduce(items, s => 10, 600, context);
         
         // Assert
-        result.Items.Should().HaveCount(25); // 25% fits within token limit
-        result.Metadata["percentage_retained"].Should().Be(25);
+        // With more accurate token estimation, 50% now fits within the limit
+        result.Items.Should().HaveCount(50); // 50% fits within token limit
+        result.Metadata["percentage_retained"].Should().Be(50);
     }
     
     [Test]

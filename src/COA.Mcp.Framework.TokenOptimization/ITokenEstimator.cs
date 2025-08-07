@@ -61,6 +61,23 @@ namespace COA.Mcp.Framework.TokenOptimization
             int totalLimit,
             int currentUsage,
             TokenSafetyMode safetyMode = TokenSafetyMode.Default);
+        
+        /// <summary>
+        /// Calculates token budget using a percentage-based safety buffer.
+        /// This overload adapts better to different model sizes.
+        /// </summary>
+        /// <param name="totalLimit">Total token limit (e.g., model context window).</param>
+        /// <param name="currentUsage">Current token usage.</param>
+        /// <param name="safetyPercent">Safety buffer as percentage of total limit (default: 5%).</param>
+        /// <param name="minAbsoluteBuffer">Minimum absolute buffer in tokens (default: 1000).</param>
+        /// <param name="maxAbsoluteBuffer">Maximum absolute buffer in tokens (default: 10000).</param>
+        /// <returns>Available token budget.</returns>
+        int CalculateTokenBudget(
+            int totalLimit,
+            int currentUsage,
+            double? safetyPercent = 0.05,
+            int? minAbsoluteBuffer = 1000,
+            int? maxAbsoluteBuffer = 10000);
     }
 
     /// <summary>
@@ -91,6 +108,11 @@ namespace COA.Mcp.Framework.TokenOptimization
         public int CalculateTokenBudget(int totalLimit, int currentUsage, TokenSafetyMode safetyMode = TokenSafetyMode.Default)
         {
             return TokenEstimator.CalculateTokenBudget(totalLimit, currentUsage, safetyMode);
+        }
+        
+        public int CalculateTokenBudget(int totalLimit, int currentUsage, double? safetyPercent = 0.05, int? minAbsoluteBuffer = 1000, int? maxAbsoluteBuffer = 10000)
+        {
+            return TokenEstimator.CalculateTokenBudget(totalLimit, currentUsage, safetyPercent, minAbsoluteBuffer, maxAbsoluteBuffer);
         }
     }
 }

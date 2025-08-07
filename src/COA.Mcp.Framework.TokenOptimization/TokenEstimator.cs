@@ -31,6 +31,11 @@ public static class TokenEstimator
     private const double CHARS_PER_TOKEN = 4.0;
     
     /// <summary>
+    /// Average characters per token for CJK languages.
+    /// </summary>
+    private const double CJK_CHARS_PER_TOKEN = 2.0;
+    
+    /// <summary>
     /// Token overhead for JSON structure (brackets, quotes, etc.).
     /// </summary>
     private const int JSON_STRUCTURE_OVERHEAD = 50;
@@ -41,6 +46,17 @@ public static class TokenEstimator
     private const int MAX_SAMPLE_SIZE = 10;
     
     private static readonly Regex WhitespaceRegex = new(@"\s+", RegexOptions.Compiled);
+    
+    /// <summary>
+    /// Converts JSON structure character overhead to estimated tokens.
+    /// </summary>
+    /// <param name="structureChars">Number of structure characters (brackets, commas, etc.)</param>
+    /// <returns>Estimated token count for the structure.</returns>
+    private static int ApproxStructureTokensForJson(int structureChars)
+    {
+        // Convert punctuation/structure char overhead into tokens
+        return (int)Math.Ceiling(structureChars / CHARS_PER_TOKEN);
+    }
     
     /// <summary>
     /// Estimates the number of tokens in a string.
@@ -55,15 +71,79 @@ public static class TokenEstimator
         // Normalize whitespace for more accurate estimation
         var normalized = WhitespaceRegex.Replace(text, " ");
         
-        // Calculate based on character count and average token length
         var charCount = normalized.Length;
-        var wordCount = normalized.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length;
+        var wordCount = ApproxWordCount(normalized);
         
-        // Use weighted average of character and word-based estimates
-        var charBasedEstimate = (int)Math.Ceiling(charCount / CHARS_PER_TOKEN);
-        var wordBasedEstimate = (int)(wordCount * 1.3); // Words are roughly 1.3 tokens
+        // Detect if text contains CJK characters or is code/URL-like (low space density)
+        var useCjkRate = ContainsCjk(normalized) || IsLowSpaceDensity(normalized);
+        var charsPerToken = useCjkRate ? CJK_CHARS_PER_TOKEN : CHARS_PER_TOKEN;
         
-        return (charBasedEstimate + wordBasedEstimate) / 2;
+        var charBasedEstimate = (int)Math.Ceiling(charCount / charsPerToken);
+        var wordBasedEstimate = (int)Math.Ceiling(wordCount * 1.3); // Words are roughly 1.3 tokens
+        
+        // Slightly favor char-based estimate as it generalizes better
+        return (int)Math.Round(charBasedEstimate * 0.6 + wordBasedEstimate * 0.4);
+    }
+    
+    /// <summary>
+    /// Approximates word count without allocating a string array.
+    /// </summary>
+    private static int ApproxWordCount(string text)
+    {
+        int words = 0;
+        bool inWord = false;
+        
+        foreach (var ch in text)
+        {
+            var isSpace = ch == ' ';
+            if (!isSpace && !inWord)
+            {
+                inWord = true;
+                words++;
+            }
+            else if (isSpace && inWord)
+            {
+                inWord = false;
+            }
+        }
+        
+        return words;
+    }
+    
+    /// <summary>
+    /// Checks if text has low space density (likely code or URLs).
+    /// </summary>
+    private static bool IsLowSpaceDensity(string text)
+    {
+        if (text.Length < 24) return false;
+        
+        int spaces = 0;
+        foreach (var ch in text)
+        {
+            if (ch == ' ') spaces++;
+        }
+        
+        return ((double)spaces / text.Length) < 0.05; // Less than 5% spaces
+    }
+    
+    /// <summary>
+    /// Detects if text contains CJK (Chinese, Japanese, Korean) characters.
+    /// </summary>
+    private static bool ContainsCjk(string text)
+    {
+        foreach (var ch in text)
+        {
+            var u = (int)ch;
+            if ((u >= 0x4E00 && u <= 0x9FFF) || // CJK Unified Ideographs
+                (u >= 0x3400 && u <= 0x4DBF) || // CJK Extension A
+                (u >= 0x3040 && u <= 0x30FF) || // Hiragana and Katakana
+                (u >= 0xAC00 && u <= 0xD7AF))   // Hangul Syllables
+            {
+                return true;
+            }
+        }
+        
+        return false;
     }
     
     /// <summary>
@@ -83,25 +163,47 @@ public static class TokenEstimator
             if (obj is string str)
                 return EstimateString(str);
             
-            if (obj.GetType().IsPrimitive || obj is decimal || obj is DateTime || obj is DateTimeOffset || obj is Guid)
+            var type = obj.GetType();
+            if (type.IsPrimitive || obj is decimal || obj is DateTime || obj is DateTimeOffset || obj is Guid)
                 return EstimateString(obj.ToString());
             
-            // For complex objects, serialize and estimate
-            options ??= new JsonSerializerOptions
+            // Handle dictionaries efficiently
+            if (obj is IDictionary dict)
             {
-                WriteIndented = false,
-                DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
-            };
+                var list = new List<KeyValuePair<object?, object?>>(dict.Count);
+                foreach (DictionaryEntry entry in dict)
+                {
+                    list.Add(new KeyValuePair<object?, object?>(entry.Key, entry.Value));
+                }
+                
+                return EstimateCollection(list, kv => 
+                    EstimateObject(kv.Key) + EstimateObject(kv.Value));
+            }
             
+            // Handle collections efficiently without full serialization
+            if (obj is IEnumerable enumerable && !(obj is string))
+            {
+                var list = enumerable.Cast<object?>().ToList();
+                return EstimateCollection(list, item => EstimateObject(item));
+            }
+            
+            // For complex objects, serialize and estimate
+            options ??= DefaultJsonOptions;
             var json = JsonSerializer.Serialize(obj, options);
-            return EstimateString(json) + JSON_STRUCTURE_OVERHEAD;
+            return EstimateString(json) + ApproxStructureTokensForJson(16);
         }
         catch
         {
             // Fallback for objects that can't be serialized
-            return EstimateString(obj.ToString()) + JSON_STRUCTURE_OVERHEAD;
+            return EstimateString(obj.ToString()) + ApproxStructureTokensForJson(16);
         }
     }
+    
+    private static readonly JsonSerializerOptions DefaultJsonOptions = new()
+    {
+        WriteIndented = false,
+        DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+    };
     
     /// <summary>
     /// Estimates the number of tokens for a collection using sampling.
@@ -121,27 +223,37 @@ public static class TokenEstimator
         
         var itemsList = items as IList<T> ?? items.ToList();
         if (itemsList.Count == 0)
-            return JSON_STRUCTURE_OVERHEAD; // Empty array
+            return ApproxStructureTokensForJson(2); // "[]"
         
         itemEstimator ??= item => EstimateObject(item);
+        
+        // JSON array punctuation overhead: "[" + "]" + commas between items
+        var structureChars = 2 + Math.Max(0, itemsList.Count - 1);
+        var structureTokens = ApproxStructureTokensForJson(structureChars);
         
         // For small collections, estimate all items
         if (itemsList.Count <= sampleSize)
         {
-            var total = itemsList.Sum(itemEstimator);
-            return total + JSON_STRUCTURE_OVERHEAD + (itemsList.Count * 5); // Commas and spacing
+            var total = 0;
+            foreach (var item in itemsList)
+            {
+                total += itemEstimator(item);
+            }
+            return total + structureTokens;
         }
         
-        // For large collections, use sampling
-        var sampleIndices = GetSampleIndices(itemsList.Count, sampleSize);
-        var sampleSum = sampleIndices.Sum(i => itemEstimator(itemsList[i]));
-        var averageTokensPerItem = sampleSum / sampleSize;
+        // For large collections, use deterministic sampling
+        var indices = GetSampleIndicesDeterministic(itemsList.Count, sampleSize);
+        var sampleSum = 0;
+        foreach (var i in indices)
+        {
+            sampleSum += itemEstimator(itemsList[i]);
+        }
         
-        // Extrapolate to full collection with overhead
-        var estimatedTotal = averageTokensPerItem * itemsList.Count;
-        var structureOverhead = JSON_STRUCTURE_OVERHEAD + (itemsList.Count * 5);
+        var averageTokensPerItem = (double)sampleSum / indices.Count;
+        var estimatedItemsTokens = (int)Math.Round(averageTokensPerItem * itemsList.Count);
         
-        return estimatedTotal + structureOverhead;
+        return estimatedItemsTokens + structureTokens;
     }
     
     /// <summary>
@@ -203,25 +315,75 @@ public static class TokenEstimator
     }
     
     /// <summary>
-    /// Gets sample indices for collection estimation using stratified sampling.
+    /// Calculates token budget using a percentage-based safety buffer.
+    /// This overload adapts better to different model sizes.
     /// </summary>
-    private static List<int> GetSampleIndices(int collectionSize, int sampleSize)
+    /// <param name="totalLimit">Total token limit (e.g., model context window).</param>
+    /// <param name="currentUsage">Current token usage.</param>
+    /// <param name="safetyPercent">Safety buffer as percentage of total limit (default: 5%).</param>
+    /// <param name="minAbsoluteBuffer">Minimum absolute buffer in tokens (default: 1000).</param>
+    /// <param name="maxAbsoluteBuffer">Maximum absolute buffer in tokens (default: 10000).</param>
+    /// <returns>Available token budget.</returns>
+    public static int CalculateTokenBudget(
+        int totalLimit,
+        int currentUsage,
+        double? safetyPercent = 0.05,
+        int? minAbsoluteBuffer = 1000,
+        int? maxAbsoluteBuffer = 10000)
+    {
+        // Clamp percentage to reasonable range (0-50%)
+        var pct = Math.Clamp(safetyPercent ?? 0.05, 0.0, 0.5);
+        
+        // Calculate buffer based on percentage of total limit
+        var bufferFromPercent = (int)Math.Ceiling(totalLimit * pct);
+        
+        // Apply min/max constraints
+        var buffer = bufferFromPercent;
+        if (minAbsoluteBuffer.HasValue)
+            buffer = Math.Max(buffer, minAbsoluteBuffer.Value);
+        if (maxAbsoluteBuffer.HasValue)
+            buffer = Math.Min(buffer, maxAbsoluteBuffer.Value);
+        
+        var availableTokens = totalLimit - currentUsage - buffer;
+        return Math.Max(0, availableTokens);
+    }
+    
+    /// <summary>
+    /// Gets sample indices for collection estimation using deterministic, even-coverage sampling.
+    /// Ensures first and last elements are included and provides uniform distribution.
+    /// </summary>
+    private static List<int> GetSampleIndicesDeterministic(int collectionSize, int sampleSize)
     {
         if (collectionSize <= sampleSize)
             return Enumerable.Range(0, collectionSize).ToList();
         
-        var indices = new List<int>();
-        var step = collectionSize / sampleSize;
+        var result = new HashSet<int>();
+        var step = (double)collectionSize / sampleSize;
         
-        // Stratified sampling - take evenly distributed samples
+        // Take evenly spaced samples from the middle of each bucket
         for (int i = 0; i < sampleSize; i++)
         {
-            var index = i * step + (step / 2); // Middle of each stratum
-            if (index < collectionSize)
-                indices.Add(index);
+            var idx = (int)Math.Floor(i * step + step / 2.0);
+            if (idx >= collectionSize)
+                idx = collectionSize - 1;
+            result.Add(idx);
         }
         
-        return indices;
+        // Ensure we always include first and last elements for better coverage
+        result.Add(0);
+        result.Add(collectionSize - 1);
+        
+        // Return sorted indices, limited to requested sample size
+        return result.OrderBy(x => x).Take(sampleSize).ToList();
+    }
+    
+    /// <summary>
+    /// Gets sample indices for collection estimation using stratified sampling.
+    /// Kept for backward compatibility if needed.
+    /// </summary>
+    private static List<int> GetSampleIndices(int collectionSize, int sampleSize)
+    {
+        return GetSampleIndicesDeterministic(collectionSize, sampleSize);
     }
 }
 

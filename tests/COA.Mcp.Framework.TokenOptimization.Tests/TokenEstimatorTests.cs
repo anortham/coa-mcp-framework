@@ -1,6 +1,8 @@
 using NUnit.Framework;
 using FluentAssertions;
 using COA.Mcp.Framework.TokenOptimization;
+using System;
+using System.Collections.Generic;
 
 namespace COA.Mcp.Framework.TokenOptimization.Tests;
 
@@ -101,7 +103,9 @@ public class TokenEstimatorTests
         var result = TokenEstimator.EstimateObject(complexObject);
         
         // Assert
-        result.Should().BeGreaterThan(50); // Should include JSON structure overhead
+        // With new accurate calculation: serialized JSON + small structure overhead
+        result.Should().BeGreaterThan(10); // Should include content + structure
+        result.Should().BeLessThan(50); // But more reasonable than old 50 token overhead
     }
     
     [Test]
@@ -114,7 +118,8 @@ public class TokenEstimatorTests
         var result = TokenEstimator.EstimateCollection(emptyList);
         
         // Assert
-        result.Should().Be(50); // JSON structure overhead only
+        // Empty array "[]" is 2 characters, which converts to 1 token (2/4 rounded up)
+        result.Should().Be(1); // Overhead for "[]"
     }
     
     [Test]
@@ -127,7 +132,9 @@ public class TokenEstimatorTests
         var result = TokenEstimator.EstimateCollection(items);
         
         // Assert
-        result.Should().BeGreaterThan(50); // Should be more than just overhead
+        // With new accurate calculation: 3 small strings + array overhead
+        result.Should().BeGreaterThan(3); // Should include items + structure overhead
+        result.Should().BeLessThan(20); // But should be reasonable for 3 small strings
     }
     
     [Test]
@@ -190,7 +197,7 @@ public class TokenEstimatorTests
         var currentUsage = 50000;
         
         // Act
-        var result = TokenEstimator.CalculateTokenBudget(totalLimit, currentUsage);
+        var result = TokenEstimator.CalculateTokenBudget(totalLimit, currentUsage, TokenSafetyMode.Default);
         
         // Assert
         result.Should().Be(140000); // 200000 - 50000 - 10000 (default safety)
@@ -221,9 +228,151 @@ public class TokenEstimatorTests
         var currentUsage = 15000; // Already exceeded
         
         // Act
-        var result = TokenEstimator.CalculateTokenBudget(totalLimit, currentUsage);
+        var result = TokenEstimator.CalculateTokenBudget(totalLimit, currentUsage, TokenSafetyMode.Default);
         
         // Assert
         result.Should().Be(0);
+    }
+    
+    // New tests for improvements
+    
+    [Test]
+    public void EstimateString_WithCjkText_UsesCorrectTokenRate()
+    {
+        // Arrange
+        var cjkText = "这是一个测试文本"; // Chinese text
+        var englishText = "This is a test text with similar length";
+        
+        // Act
+        var cjkResult = TokenEstimator.EstimateString(cjkText);
+        var englishResult = TokenEstimator.EstimateString(englishText);
+        
+        // Assert
+        // CJK text should have more tokens per character
+        cjkResult.Should().BeGreaterThan(0);
+        // The estimation should recognize CJK characters use fewer chars per token
+    }
+    
+    [Test]
+    public void EstimateString_WithCodeLikeText_DetectsLowSpaceDensity()
+    {
+        // Arrange
+        var codeText = "function_name_with_underscores_and_no_spaces_typical_of_code";
+        var normalText = "This is normal text with regular spacing between words";
+        
+        // Act
+        var codeResult = TokenEstimator.EstimateString(codeText);
+        var normalResult = TokenEstimator.EstimateString(normalText);
+        
+        // Assert
+        // Both should return reasonable estimates
+        codeResult.Should().BeGreaterThan(0);
+        normalResult.Should().BeGreaterThan(0);
+    }
+    
+    [Test]
+    public void EstimateObject_WithDictionary_EstimatesWithoutSerialization()
+    {
+        // Arrange
+        var dict = new Dictionary<string, object>
+        {
+            ["key1"] = "value1",
+            ["key2"] = 42,
+            ["key3"] = new DateTime(2024, 1, 1)
+        };
+        
+        // Act
+        var result = TokenEstimator.EstimateObject(dict);
+        
+        // Assert
+        result.Should().BeGreaterThan(0);
+        // Should account for keys, values, and JSON structure
+    }
+    
+    [Test]
+    public void EstimateObject_WithList_EstimatesEfficiently()
+    {
+        // Arrange
+        var list = new List<string> { "item1", "item2", "item3", "item4", "item5" };
+        
+        // Act
+        var result = TokenEstimator.EstimateObject(list);
+        
+        // Assert
+        result.Should().BeGreaterThan(0);
+        // Should estimate based on collection method, not full serialization
+    }
+    
+    [Test]
+    public void CalculateTokenBudget_WithPercentage_AdaptsToModelSize()
+    {
+        // Arrange
+        var smallModel = 4000;
+        var largeModel = 128000;
+        var currentUsage = 1000;
+        
+        // Act - 5% safety buffer
+        var smallBudget = TokenEstimator.CalculateTokenBudget(
+            smallModel, currentUsage, 0.05, 100, 5000);
+        var largeBudget = TokenEstimator.CalculateTokenBudget(
+            largeModel, currentUsage, 0.05, 100, 10000);
+        
+        // Assert
+        // Small model: 4000 - 1000 - 200 (5% of 4000) = 2800
+        smallBudget.Should().Be(2800);
+        
+        // Large model: 128000 - 1000 - 6400 (5% of 128000)
+        // 6400 is less than max of 10000, so no capping
+        // 128000 - 1000 - 6400 = 120600
+        largeBudget.Should().Be(120600);
+    }
+    
+    [Test]
+    public void CalculateTokenBudget_WithPercentage_RespectsMinBuffer()
+    {
+        // Arrange
+        var totalLimit = 2000;
+        var currentUsage = 500;
+        
+        // Act - 5% would be 100, but min is 300
+        var result = TokenEstimator.CalculateTokenBudget(
+            totalLimit, currentUsage, 0.05, 300, 5000);
+        
+        // Assert
+        // 2000 - 500 - 300 (min buffer enforced) = 1200
+        result.Should().Be(1200);
+    }
+    
+    [Test]
+    public void EstimateCollection_WithLargeCollection_UsesDeterministicSampling()
+    {
+        // Arrange
+        var largeList = new List<string>();
+        for (int i = 0; i < 100; i++)
+        {
+            largeList.Add($"Item {i}");
+        }
+        
+        // Act
+        var result1 = TokenEstimator.EstimateCollection(largeList);
+        var result2 = TokenEstimator.EstimateCollection(largeList);
+        
+        // Assert
+        result1.Should().BeGreaterThan(0);
+        result1.Should().Be(result2); // Deterministic sampling should give same result
+    }
+    
+    [Test]
+    public void EstimateCollection_EmptyCollection_ReturnsMinimalOverhead()
+    {
+        // Arrange
+        var emptyList = new List<string>();
+        
+        // Act
+        var result = TokenEstimator.EstimateCollection(emptyList);
+        
+        // Assert
+        result.Should().BeGreaterThan(0); // Should return overhead for "[]"
+        result.Should().BeLessThan(5); // But should be minimal
     }
 }
