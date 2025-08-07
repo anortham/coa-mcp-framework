@@ -6,6 +6,10 @@
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
+    
+    <!-- Suppress warnings in tests -->
+    <NoWarn>$(NoWarn);CS8600;CS8602;CS8603;CS8604;CS8618;CS8620;CS8625;CS1998</NoWarn>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
   </PropertyGroup>
 
   <ItemGroup>

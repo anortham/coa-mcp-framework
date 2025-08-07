@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RunSettings>
+  <RunConfiguration>
+    <EnvironmentVariables>
+      <DOTNET_ENVIRONMENT>Test</DOTNET_ENVIRONMENT>
+    </EnvironmentVariables>
+  </RunConfiguration>
+  <NUnit>
+    <DefaultTestNamePattern>{C}.{m}</DefaultTestNamePattern>
+    <DisplayName>FullName</DisplayName>
+    <DefaultTimeout>30000</DefaultTimeout>
+    <StopOnError>false</StopOnError>
+    <ConsoleOut>0</ConsoleOut>
+  </NUnit>
+  <LoggerRunSettings>
+    <Loggers>
+      <Logger friendlyName="console" enabled="true">
+        <Configuration>
+          <Verbosity>Minimal</Verbosity>
+        </Configuration>
+      </Logger>
+    </Loggers>
+  </LoggerRunSettings>
+</RunSettings>

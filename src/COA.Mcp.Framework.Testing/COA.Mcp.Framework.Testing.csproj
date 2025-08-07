@@ -6,6 +6,10 @@
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
     
+    <!-- Suppress warnings in testing library -->
+    <NoWarn>$(NoWarn);CS8600;CS8602;CS8603;CS8604;CS8618;CS8620;CS8625;CS1998</NoWarn>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    
     <!-- NuGet Package Metadata -->
     <IsPackable>true</IsPackable>
     <PackageId>COA.Mcp.Framework.Testing</PackageId>
