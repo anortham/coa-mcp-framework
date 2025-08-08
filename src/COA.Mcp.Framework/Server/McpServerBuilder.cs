@@ -1,10 +1,12 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using COA.Mcp.Framework.Interfaces;
 using COA.Mcp.Framework.Prompts;
 using COA.Mcp.Framework.Registration;
 using COA.Mcp.Framework.Resources;
+using COA.Mcp.Framework.Server.Services;
 using COA.Mcp.Framework.Transport;
 using COA.Mcp.Framework.Transport.Configuration;
 using COA.Mcp.Protocol;
@@ -248,6 +250,52 @@ public class McpServerBuilder
         where TService : class
     {
         _services.AddSingleton(instance);
+        return this;
+    }
+
+    /// <summary>
+    /// Configures an auto-started service that runs alongside the MCP server.
+    /// </summary>
+    /// <param name="configure">Action to configure the service.</param>
+    /// <returns>The builder for chaining.</returns>
+    public McpServerBuilder UseAutoService(Action<ServiceConfiguration> configure)
+    {
+        if (configure == null)
+            throw new ArgumentNullException(nameof(configure));
+
+        var config = new ServiceConfiguration();
+        configure(config);
+
+        // Add ServiceManager if not already registered
+        if (!_services.Any(sd => sd.ServiceType == typeof(IServiceManager)))
+        {
+            _services.AddSingleton<IServiceManager, ServiceManager>();
+            _services.AddHostedService<ServiceManager>(provider => 
+                (ServiceManager)provider.GetRequiredService<IServiceManager>());
+        }
+
+        // Add ServiceLifecycleHost for this specific service
+        _services.AddHostedService(provider =>
+        {
+            var serviceManager = provider.GetRequiredService<IServiceManager>();
+            var logger = provider.GetService<ILogger<ServiceLifecycleHost>>();
+            return new ServiceLifecycleHost(serviceManager, config, logger);
+        });
+
+        return this;
+    }
+
+    /// <summary>
+    /// Configures multiple auto-started services.
+    /// </summary>
+    /// <param name="configurations">The service configurations.</param>
+    /// <returns>The builder for chaining.</returns>
+    public McpServerBuilder UseAutoServices(params Action<ServiceConfiguration>[] configurations)
+    {
+        foreach (var configure in configurations)
+        {
+            UseAutoService(configure);
+        }
         return this;
     }
 

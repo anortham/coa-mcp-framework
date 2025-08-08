@@ -55,6 +55,7 @@ dotnet pack -c Release -o ./nupkg  # Create NuGet package
 - Tests: 448 passing (100%)
 - Build warnings: 0
 - Examples: SimpleMcpServer (4 tools + 2 prompts)
+- Test Framework: NUnit (not xUnit)
 
 ## 🛑 Common Issues & Solutions
 

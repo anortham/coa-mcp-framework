@@ -140,6 +140,12 @@ Your MCP server is ready! 🎉
 - Built-in message builders for system/user/assistant roles
 - Variable substitution in templates
 
+### 🚀 **Auto-Service Management** (New)
+- Automatic startup of background services
+- Health monitoring and auto-restart capabilities
+- Port conflict detection
+- Support for multiple managed services
+
 ### 🚄 **Rapid Development**
 - Minimal boilerplate code
 - Built-in validation helpers
@@ -387,6 +393,101 @@ var builder = new McpServerBuilder()
     });
 ```
 
+### 🚀 Auto-Service Management (New in v1.1.0)
+
+The framework now supports automatic service startup, enabling dual-mode architectures where an MCP server can act as both a STDIO client and an HTTP service provider:
+
+```csharp
+// Configure auto-started services alongside your MCP server
+var builder = new McpServerBuilder()
+    .WithServerInfo("My MCP Server", "1.0.0")
+    .UseStdioTransport()  // Primary transport for Claude
+    .UseAutoService(config =>
+    {
+        config.ServiceId = "my-http-api";
+        config.ExecutablePath = Assembly.GetExecutingAssembly().Location;
+        config.Arguments = new[] { "--mode", "http", "--port", "5100" };
+        config.Port = 5100;
+        config.HealthEndpoint = "http://localhost:5100/health";
+        config.AutoRestart = true;
+        config.MaxRestartAttempts = 3;
+    });
+
+await builder.RunAsync();
+```
+
+#### Key Features:
+- **Automatic Startup**: Services start automatically when the MCP server launches
+- **Health Monitoring**: Periodic health checks with configurable intervals
+- **Auto-Restart**: Automatic recovery from service failures with retry limits
+- **Port Detection**: Checks if ports are already in use before starting
+- **Graceful Shutdown**: Clean service termination when MCP server stops
+- **Multiple Services**: Support for multiple auto-started services
+
+#### Configuration Options:
+
+```csharp
+public class ServiceConfiguration
+{
+    public string ServiceId { get; set; }              // Unique service identifier
+    public string ExecutablePath { get; set; }         // Path to executable
+    public string[] Arguments { get; set; }            // Command-line arguments
+    public int Port { get; set; }                      // Service port
+    public string HealthEndpoint { get; set; }         // Health check URL
+    public int StartupTimeoutSeconds { get; set; }     // Startup timeout (default: 30)
+    public int HealthCheckIntervalSeconds { get; set; } // Health check interval (default: 60)
+    public bool AutoRestart { get; set; }              // Enable auto-restart (default: true)
+    public int MaxRestartAttempts { get; set; }        // Max restart attempts (default: 3)
+    public Dictionary<string, string> EnvironmentVariables { get; set; } // Environment vars
+}
+```
+
+#### Multiple Services Example:
+
+```csharp
+var builder = new McpServerBuilder()
+    .WithServerInfo("Multi-Service MCP", "1.0.0")
+    .UseStdioTransport()
+    .UseAutoServices(
+        config =>
+        {
+            config.ServiceId = "api-service";
+            config.ExecutablePath = "api.exe";
+            config.Port = 5100;
+            config.HealthEndpoint = "http://localhost:5100/health";
+        },
+        config =>
+        {
+            config.ServiceId = "worker-service";
+            config.ExecutablePath = "worker.exe";
+            config.Port = 5200;
+            config.HealthEndpoint = "http://localhost:5200/health";
+        }
+    );
+```
+
+#### Custom Health Checks:
+
+```csharp
+// Register a custom health check for advanced scenarios
+var serviceProvider = builder.Services.BuildServiceProvider();
+var serviceManager = serviceProvider.GetRequiredService<IServiceManager>();
+
+serviceManager.RegisterHealthCheck("my-service", async () =>
+{
+    // Custom health check logic
+    var client = new HttpClient();
+    var response = await client.GetAsync("http://localhost:5100/custom-health");
+    return response.IsSuccessStatusCode;
+});
+```
+
+This feature is ideal for:
+- **Dual-mode architectures**: MCP servers that need to expose HTTP APIs
+- **Microservice coordination**: Managing related services together
+- **Development environments**: Simplified local development setup
+- **Federation scenarios**: MCP servers that communicate with each other
+
 ## 🔥 Advanced Features
 
 ### Error Handling with Recovery Steps
@@ -592,7 +693,11 @@ COA.Mcp.Framework/
 │   └── McpToolBase.Generic.cs    # Generic base class for tools
 ├── Server/
 │   ├── McpServer.cs              # Main server implementation
-│   └── McpServerBuilder.cs       # Fluent builder API
+│   ├── McpServerBuilder.cs       # Fluent builder API
+│   └── Services/                 # Auto-service management
+│       ├── ServiceManager.cs     # Service lifecycle management
+│       ├── ServiceConfiguration.cs # Service config model
+│       └── ServiceLifecycleHost.cs # IHostedService integration
 ├── Registration/
 │   └── McpToolRegistry.cs        # Unified tool registry
 ├── Interfaces/
