@@ -4,6 +4,30 @@
         <name>COA.Mcp.Protocol</name>
     </assembly>
     <members>
+        <member name="T:COA.Mcp.Protocol.ToolsCapabilityMarker">
+            <summary>
+            Marker type indicating tool capability support.
+            Per MCP specification, this should serialize as an empty object {}.
+            </summary>
+        </member>
+        <member name="T:COA.Mcp.Protocol.PromptsCapabilityMarker">
+            <summary>
+            Marker type indicating prompts capability support.
+            Per MCP specification, this should serialize as an empty object {}.
+            </summary>
+        </member>
+        <member name="T:COA.Mcp.Protocol.SamplingCapabilityMarker">
+            <summary>
+            Marker type indicating sampling capability support.
+            Per MCP specification, this should serialize as an empty object {}.
+            </summary>
+        </member>
+        <member name="T:COA.Mcp.Protocol.CapabilityMarkerConverter`1">
+            <summary>
+            Custom JSON converter that ensures capability markers serialize to empty objects.
+            This maintains backward compatibility with existing code using anonymous objects.
+            </summary>
+        </member>
         <member name="T:COA.Mcp.Protocol.InvalidParametersException">
             <summary>
             Exception thrown when tool parameters are invalid.

@@ -119,14 +119,19 @@ public abstract class McpToolBase<TParams, TResult> : IMcpTool<TParams, TResult>
             }
             else if (parameters is JsonElement jsonElement)
             {
-                var json = jsonElement.GetRawText();
-                typedParams = JsonSerializer.Deserialize<TParams>(json, _jsonOptions);
+                // Direct deserialization from JsonElement - more efficient
+                typedParams = jsonElement.Deserialize<TParams>(_jsonOptions);
+            }
+            else if (parameters is JsonDocument jsonDocument)
+            {
+                // Direct deserialization from JsonDocument
+                typedParams = jsonDocument.Deserialize<TParams>(_jsonOptions);
             }
             else
             {
-                // Try to serialize and deserialize to handle object -> TParams conversion
-                var json = JsonSerializer.Serialize(parameters, _jsonOptions);
-                typedParams = JsonSerializer.Deserialize<TParams>(json, _jsonOptions);
+                // Only as last resort - use UTF8 bytes to avoid string allocation
+                var bytes = JsonSerializer.SerializeToUtf8Bytes(parameters, _jsonOptions);
+                typedParams = JsonSerializer.Deserialize<TParams>(bytes, _jsonOptions);
             }
         }
         

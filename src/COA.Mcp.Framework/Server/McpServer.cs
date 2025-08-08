@@ -63,13 +63,13 @@ public class McpServer : IHostedService
 
         _capabilities = new ServerCapabilities
         {
-            Tools = new { }, // Empty object indicates tool support
+            Tools = new ToolsCapabilityMarker(), // Type-safe marker for tool support
             Resources = new ResourceCapabilities
             {
                 Subscribe = false,
                 ListChanged = false
             },
-            Prompts = new { } // Empty object indicates prompt support
+            Prompts = new PromptsCapabilityMarker() // Type-safe marker for prompt support
         };
     }
 
@@ -316,10 +316,14 @@ public class McpServer : IHostedService
             {
                 args = element;
             }
+            else if (request.Arguments is JsonDocument document)
+            {
+                args = document.RootElement.Clone();
+            }
             else
             {
-                var json = JsonSerializer.Serialize(request.Arguments, _jsonOptions);
-                args = JsonSerializer.Deserialize<JsonElement>(json, _jsonOptions);
+                // More efficient: serialize directly to JsonElement
+                args = JsonSerializer.SerializeToElement(request.Arguments, _jsonOptions);
             }
         }
         
