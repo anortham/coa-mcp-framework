@@ -39,7 +39,7 @@ variables:
   protocolMajorVersion: 1
   protocolMinorVersion: 3
   # Use a separate counter for protocol to continue from existing version
-  protocolPatchVersion: $[counter(format('protocol-{0}.{1}', variables['protocolMajorVersion'], variables['protocolMinorVersion']), 177)]
+  protocolPatchVersion: $[counter(format('protocol-{0}.{1}', variables['protocolMajorVersion'], variables['protocolMinorVersion']), 178)]
   protocolVersion: "$(protocolMajorVersion).$(protocolMinorVersion).$(protocolPatchVersion)"
   # Windows-specific settings
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
