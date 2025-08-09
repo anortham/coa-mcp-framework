@@ -1,110 +1,100 @@
-using COA.Mcp.Framework.Testing;
-using COA.Mcp.Framework.Testing.Assertions;
-using COA.Mcp.Framework.Testing.Builders;
 using FluentAssertions;
-using Microsoft.Extensions.Logging;
-using Moq;
 using NUnit.Framework;
 using McpServerTemplate.Tools;
 
 namespace McpServerTemplate.Tests;
 
 [TestFixture]
-public class HelloWorldToolTests : ToolTestBase<HelloWorldTool>
+public class HelloWorldToolTests
 {
-    protected override HelloWorldTool CreateTool()
+    private HelloWorldTool _tool = null!;
+
+    [SetUp]
+    public void Setup()
     {
-        return new HelloWorldTool(Logger);
+        _tool = new HelloWorldTool();
     }
 
     [Test]
     public async Task HelloWorld_WithName_ReturnsPersonalizedGreeting()
     {
         // Arrange
-        var parameters = new ToolParameterBuilder<HelloWorldParams>()
-            .With(p => p.Name, "Alice")
-            .Build();
+        var parameters = new HelloWorldParameters
+        {
+            Name = "Alice"
+        };
 
         // Act
-        var result = await Tool.ExecuteAsync(parameters);
+        var result = await _tool.ExecuteAsync(parameters);
 
         // Assert
-        result.Should().BeSuccessful()
-            .And.HaveProperty("Message", "Hello, Alice!");
+        result.Should().NotBeNull();
+        result.Greeting.Should().Be("Hello, Alice!");
     }
 
     [Test]
     public async Task HelloWorld_WithoutName_ReturnsDefaultGreeting()
     {
         // Arrange
-        var parameters = new HelloWorldParams();
+        var parameters = new HelloWorldParameters();
 
         // Act
-        var result = await Tool.ExecuteAsync(parameters);
+        var result = await _tool.ExecuteAsync(parameters);
 
         // Assert
-        result.Should().BeSuccessful()
-            .And.HaveProperty("Message", "Hello, World!");
+        result.Should().NotBeNull();
+        result.Greeting.Should().Be("Hello, World!");
     }
 
     [Test]
     public async Task HelloWorld_WithTime_IncludesTimeInResponse()
     {
         // Arrange
-        var parameters = new ToolParameterBuilder<HelloWorldParams>()
-            .With(p => p.Name, "Bob")
-            .With(p => p.IncludeTime, true)
-            .Build();
+        var parameters = new HelloWorldParameters
+        {
+            Name = "Bob",
+            IncludeTime = true
+        };
 
         // Act
-        var result = await Tool.ExecuteAsync(parameters);
+        var result = await _tool.ExecuteAsync(parameters);
 
         // Assert
-        result.Should().BeSuccessful();
-        
-        var message = result.GetPropertyValue<string>("Message");
-        message.Should().Contain("Bob")
+        result.Should().NotBeNull();
+        result.Greeting.Should().Contain("Bob")
             .And.Contain("UTC");
     }
 
     [Test]
-    public async Task HelloWorld_Always_ReturnsInsightsAndActions()
+    public async Task HelloWorld_Always_IncludesTimestamp()
     {
         // Arrange
-        var parameters = new HelloWorldParams { Name = "Test" };
+        var parameters = new HelloWorldParameters();
+        var timeBefore = DateTime.UtcNow;
 
         // Act
-        var result = await Tool.ExecuteAsync(parameters);
+        var result = await _tool.ExecuteAsync(parameters);
+        var timeAfter = DateTime.UtcNow;
 
         // Assert
-        result.Should().BeSuccessful()
-            .And.HaveInsights()
-            .And.HaveActions();
-
-        var insights = result.GetPropertyValue<string[]>("Insights");
-        insights.Should().HaveCount(3)
-            .And.Contain(i => i.Contains("Greeted Test successfully"));
-
-        var actions = result.GetPropertyValue<dynamic[]>("Actions");
-        actions.Should().HaveCountGreaterThan(0);
+        result.Should().NotBeNull();
+        result.Timestamp.Should().BeAfter(timeBefore.AddSeconds(-1))
+            .And.BeBefore(timeAfter.AddSeconds(1));
     }
 
     [Test]
-    public async Task HelloWorld_Always_IncludesExecutionMetadata()
+    public async Task HelloWorld_GetDisplayText_ReturnsGreeting()
     {
         // Arrange
-        var parameters = new HelloWorldParams();
+        var parameters = new HelloWorldParameters
+        {
+            Name = "Test"
+        };
 
         // Act
-        var result = await Tool.ExecuteAsync(parameters);
+        var result = await _tool.ExecuteAsync(parameters);
 
         // Assert
-        result.Should().BeSuccessful()
-            .And.HaveMetadata();
-
-        var meta = result.GetPropertyValue<dynamic>("Meta");
-        ((object)meta).Should().HaveProperty("ExecutionTime")
-            .And.HaveProperty("TokensEstimated")
-            .And.HaveProperty("ToolVersion", "1.0.0");
+        result.GetDisplayText().Should().Be("Hello, Test!");
     }
 }

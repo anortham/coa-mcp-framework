@@ -5,18 +5,19 @@
     <TargetFramework>net9.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
     <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
   </PropertyGroup>
 
   <ItemGroup>
     <!-- Framework packages will be added when template is instantiated -->
     <!--#if (IncludeFramework)
-    <PackageReference Include="COA.Mcp.Framework" Version="1.0.0" />
-    <PackageReference Include="COA.Mcp.Framework.TokenOptimization" Version="1.0.0" />
+    <PackageReference Include="COA.Mcp.Framework" Version="1.4.0" />
+    <PackageReference Include="COA.Mcp.Framework.TokenOptimization" Version="1.4.0" />
     #endif-->
-    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="8.0.0" />
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="9.0.8" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.8" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="9.0.8" />
     <!--#if (EnableDocker)
     <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.19.5" />
     #endif-->
