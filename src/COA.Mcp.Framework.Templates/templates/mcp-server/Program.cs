@@ -49,13 +49,44 @@ builder.Services.AddOpenTelemetry()
 // builder.Services.AddSingleton<IMyService, MyService>();
 
 #if (IncludeExampleTools)
-// Register example tools
+// Register example tools using the recommended pattern
 builder.RegisterToolType<HelloWorldTool>();
 builder.RegisterToolType<SystemInfoTool>();
 #endif
 
-// Register your custom tools here
+// ==================== TOOL REGISTRATION PATTERNS ====================
+// The COA MCP Framework supports three patterns for registering tools:
+//
+// PATTERN 1: McpToolBase + Manual Registration (RECOMMENDED)
+// - Inherit from McpToolBase<TParams, TResult>
+// - Provides built-in validation, error handling, and token management
+// - Register explicitly with RegisterToolType<T>()
+// - Best for production code with full framework features
+// Example:
 // builder.RegisterToolType<MyCustomTool>();
+//
+// PATTERN 2: Interface Implementation + Auto-Discovery
+// - Implement IMcpTool<TParams, TResult> interface directly
+// - Auto-discovered when calling DiscoverTools()
+// - Good for bulk registration of many tools
+// Example:
+// builder.DiscoverTools(typeof(Program).Assembly);
+//
+// PATTERN 3: Attribute-Based (Legacy but supported)
+// - Mark class with [McpServerToolType]
+// - Mark methods with [McpServerTool("tool_name")]
+// - Auto-discovered when calling DiscoverTools()
+// - Legacy pattern, maintained for backward compatibility
+// Example:
+// [McpServerToolType]
+// public class MyToolClass
+// {
+//     [McpServerTool("my_tool")]
+//     public async Task<object> ExecuteAsync(MyParams parameters) { ... }
+// }
+// =====================================================================
+
+// Register your custom tools here using your preferred pattern:
 
 // Register prompts if needed
 // builder.RegisterPromptType<MyCustomPrompt>();

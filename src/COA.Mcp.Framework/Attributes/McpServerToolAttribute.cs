@@ -5,6 +5,29 @@ namespace COA.Mcp.Framework.Attributes;
 /// <summary>
 /// Marks a method as an MCP server tool. The method must be public and return a Task&lt;object&gt;.
 /// </summary>
+/// <remarks>
+/// This is a legacy pattern maintained for backward compatibility.
+/// For new implementations, prefer inheriting from McpToolBase&lt;TParams, TResult&gt;
+/// for better type safety, validation, and framework integration.
+/// 
+/// Methods marked with this attribute are automatically discovered when the containing
+/// class is marked with [McpServerToolType] and builder.DiscoverTools() is called.
+/// </remarks>
+/// <example>
+/// <code>
+/// [McpServerToolType]
+/// public class MyToolService
+/// {
+///     [McpServerTool("calculate")]
+///     [Description("Performs calculations")]
+///     public async Task&lt;object&gt; CalculateAsync(CalculateParams parameters)
+///     {
+///         // Implementation
+///         return new { result = 42 };
+///     }
+/// }
+/// </code>
+/// </example>
 [AttributeUsage(AttributeTargets.Method, Inherited = false)]
 public sealed class McpServerToolAttribute : Attribute
 {
