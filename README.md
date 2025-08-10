@@ -4,7 +4,7 @@ A comprehensive .NET framework for building and consuming Model Context Protocol
 
 [![NuGet Version](https://img.shields.io/nuget/v/COA.Mcp.Framework)](https://www.nuget.org/packages/COA.Mcp.Framework)
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](https://github.com/anortham/COA-Mcp-Framework)
-[![Tests](https://img.shields.io/badge/tests-489%20passing-success)](https://github.com/anortham/COA-Mcp-Framework)
+[![Tests](https://img.shields.io/badge/tests-492%20passing-success)](https://github.com/anortham/COA-Mcp-Framework)
 [![.NET 9.0](https://img.shields.io/badge/.NET-9.0-blue)](https://dotnet.microsoft.com/download)
 
 ## 🚀 Quick Start
@@ -733,7 +733,7 @@ The framework powers production MCP servers:
 | Metric | Target | Actual |
 |--------|--------|--------|
 | Build Time | <3s | 2.46s |
-| Test Suite | 100% pass | 448/448 ✓ |
+| Test Suite | 100% pass | 492/492 ✓ |
 | Warnings | 0 | 0 ✓ |
 | Framework Overhead | <5% | ~3% |
 
@@ -757,6 +757,10 @@ Built on experience from:
 - The MCP community - Feedback and ideas
 
 ---
+
+## 📖 Documentation
+
+For comprehensive documentation, guides, and examples, see the **[Documentation Hub](docs/README.md)**.
 
 **Ready to build your MCP server?** Clone the repo and check out the examples:
 

@@ -52,7 +52,7 @@ dotnet pack -c Release -o ./nupkg  # Create NuGet package
 
 ## 📊 Current Status
 - Version: 1.1.0
-- Tests: 448 passing (100%)
+- Tests: 492 passing (100%)
 - Build warnings: 0
 - Examples: SimpleMcpServer (4 tools + 2 prompts)
 - Test Framework: NUnit (not xUnit)

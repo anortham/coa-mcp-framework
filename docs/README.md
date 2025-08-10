@@ -53,15 +53,9 @@ Welcome to the comprehensive documentation for the COA MCP Framework - a complet
   - Pattern analysis and migration
   - Breaking change detection
 
-### Technical Documentation (Internal)
-- [Token Optimization Strategies](technical/TOKEN_OPTIMIZATION_STRATEGIES.md) - Comprehensive token management guide
+### Technical Documentation
+- [Token Optimization Strategies](technical/TOKEN_OPTIMIZATION_STRATEGIES.md) - Comprehensive token management guide  
 - [Migration Example](technical/MIGRATION_EXAMPLE.md) - Step-by-step migration guide with updated patterns
-- [Type System Analysis](technical/TYPE_SYSTEM_ANALYSIS.md) - Type safety design decisions
-- [Type Improvements Plan](technical/TYPE_IMPROVEMENTS_PLAN.md) - Future type system enhancements
-
-### DevOps & Deployment
-- [DevOps Setup](devops/DEVOPS_SETUP.md) - Azure DevOps CI/CD pipeline configuration
-- [Publishing Plan](devops/DEVOPS_PUBLISHING_PLAN.md) - Strategy for NuGet and GitHub publishing
 
 ### Performance
 - [Performance Analysis](performance/PERFORMANCE_ANALYSIS.md) - Benchmarks and metrics
@@ -87,12 +81,11 @@ Welcome to the comprehensive documentation for the COA MCP Framework - a complet
 ### 🧪 For QA/Testing
 1. [Testing Framework](../src/COA.Mcp.Framework.Testing/README.md)
 2. [Performance Benchmarks](performance/)
-3. [Test Examples](../examples/SimpleMcpServer/SimpleMcpServer.Tests/)
+3. [Test Examples](../src/COA.Mcp.Framework.Testing/README.md#testing-a-tool)
 
 ### 🚀 For DevOps
 1. [Docker Support](../src/COA.Mcp.Framework.Templates/README.md#dockerfile)
-2. [CI/CD Setup](devops/)
-3. [Deployment Guide](devops/DEVOPS_SETUP.md)
+2. [Deployment Templates](../src/COA.Mcp.Framework.Templates/README.md)
 
 ## Version Information
 
@@ -119,7 +112,6 @@ A: See [Templates README](../src/COA.Mcp.Framework.Templates/README.md#dockerfil
 ### Additional Resources
 - [Main README](../README.md) - Project overview and getting started
 - [CLAUDE.md](../CLAUDE.md) - Claude AI assistant guide and development practices
-- [DOCUMENTATION_STATUS.md](../DOCUMENTATION_STATUS.md) - Documentation roadmap and status
 
 ---
 
