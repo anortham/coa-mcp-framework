@@ -4,7 +4,7 @@ A comprehensive .NET framework for building and consuming Model Context Protocol
 
 [![NuGet Version](https://img.shields.io/nuget/v/COA.Mcp.Framework)](https://www.nuget.org/packages/COA.Mcp.Framework)
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](https://github.com/anortham/COA-Mcp-Framework)
-[![Tests](https://img.shields.io/badge/tests-492%20passing-success)](https://github.com/anortham/COA-Mcp-Framework)
+[![Tests](https://img.shields.io/badge/tests-542%20passing-success)](https://github.com/anortham/COA-Mcp-Framework)
 [![.NET 9.0](https://img.shields.io/badge/.NET-9.0-blue)](https://dotnet.microsoft.com/download)
 
 ## 🚀 Quick Start
@@ -13,7 +13,7 @@ A comprehensive .NET framework for building and consuming Model Context Protocol
 
 ```xml
 <!-- Add to your .csproj file -->
-<PackageReference Include="COA.Mcp.Framework" Version="1.4.7" />
+<PackageReference Include="COA.Mcp.Framework" Version="1.5.0" />
 ```
 
 ### Create Your First MCP Server
@@ -96,6 +96,14 @@ builder.Services.AddSingleton<IWeatherService, WeatherService>();
 // Register tools
 builder.RegisterToolType<WeatherTool>();
 
+// Optional: Configure token budgets for tools
+builder.ConfigureTokenBudgets(budgets =>
+{
+    budgets.ForTool<WeatherTool>().MaxTokens(5000).Apply();
+    budgets.ForCategory(ToolCategory.Analysis).MaxTokens(15000).Apply();
+    budgets.Default().MaxTokens(10000).Apply();
+});
+
 // Build and run
 await builder.RunAsync();
 ```
@@ -106,13 +114,13 @@ Your MCP server is ready! 🎉
 
 | Package | Version | Description |
 |---------|---------|-------------|
-| **COA.Mcp.Framework** | 1.4.7 | Core framework with MCP protocol included |
-| **COA.Mcp.Protocol** | 1.4.7 | Low-level protocol types and JSON-RPC |
-| **COA.Mcp.Client** | 1.4.7 | Strongly-typed C# client for MCP servers |
-| **COA.Mcp.Framework.TokenOptimization** | 1.4.7 | Advanced token management and AI response optimization |
-| **COA.Mcp.Framework.Testing** | 1.4.7 | Testing helpers, assertions, and benchmarks |
-| **COA.Mcp.Framework.Templates** | 1.4.7 | Project templates for quick starts |
-| **COA.Mcp.Framework.Migration** | 1.4.7 | Migration tools for updating from older versions |
+| **COA.Mcp.Framework** | 1.5.0 | Core framework with MCP protocol included |
+| **COA.Mcp.Protocol** | 1.5.0 | Low-level protocol types and JSON-RPC |
+| **COA.Mcp.Client** | 1.5.0 | Strongly-typed C# client for MCP servers |
+| **COA.Mcp.Framework.TokenOptimization** | 1.5.0 | Advanced token management and AI response optimization |
+| **COA.Mcp.Framework.Testing** | 1.5.0 | Testing helpers, assertions, and benchmarks |
+| **COA.Mcp.Framework.Templates** | 1.5.0 | Project templates for quick starts |
+| **COA.Mcp.Framework.Migration** | 1.5.0 | Migration tools for updating from older versions |
 
 ## ✨ Key Features
 
@@ -132,11 +140,14 @@ Your MCP server is ready! 🎉
 - Standardized error models with `ErrorInfo` and `RecoveryInfo`
 - AI-friendly error messages with recovery steps
 - Built-in validation helpers
+- **Customizable error messages** - Override `ErrorMessages` property for tool-specific guidance
 
-### 🧠 **Token Optimization** (Optional)
+### 🧠 **Token Management**
 - Pre-estimation to prevent context overflow
 - Progressive reduction for large datasets
 - Smart truncation with resource URIs
+- **Per-tool token budgets** - Configure limits via `ConfigureTokenBudgets()` in server builder
+- **Hierarchical configuration** - Tool-specific, category, and default budget settings
 
 ### 💬 **Interactive Prompts**
 - Guide users through complex operations with prompt templates
@@ -495,6 +506,120 @@ This feature is ideal for:
 
 ## 🔥 Advanced Features
 
+### Customizable Error Messages
+
+Override the `ErrorMessages` property in your tools to provide context-specific error messages and recovery guidance:
+
+```csharp
+public class DatabaseTool : McpToolBase<DbParams, DbResult>
+{
+    // Custom error message provider
+    protected override ErrorMessageProvider ErrorMessages => new DatabaseErrorMessageProvider();
+    
+    // ... tool implementation
+}
+
+public class DatabaseErrorMessageProvider : ErrorMessageProvider
+{
+    public override string ToolExecutionFailed(string toolName, string details)
+    {
+        return $"Database operation '{toolName}' failed: {details}. Check connection status.";
+    }
+    
+    public override RecoveryInfo GetRecoveryInfo(string errorCode, string? context = null, Exception? exception = null)
+    {
+        return errorCode switch
+        {
+            "CONNECTION_FAILED" => new RecoveryInfo
+            {
+                Steps = new[]
+                {
+                    "Verify database connection string",
+                    "Check network connectivity",
+                    "Ensure database server is running"
+                },
+                SuggestedActions = new[]
+                {
+                    new SuggestedAction
+                    {
+                        Tool = "test_connection",
+                        Description = "Test database connectivity",
+                        Parameters = new { timeout = 30 }
+                    }
+                }
+            },
+            _ => base.GetRecoveryInfo(errorCode, context, exception)
+        };
+    }
+}
+```
+
+### Token Budget Configuration
+
+Configure token limits per tool, category, or globally using the server builder:
+
+```csharp
+var builder = new McpServerBuilder()
+    .WithServerInfo("My Server", "1.0.0")
+    .ConfigureTokenBudgets(budgets =>
+    {
+        // Tool-specific limits (highest priority)
+        budgets.ForTool<LargeDataTool>()
+            .MaxTokens(20000)
+            .WarningThreshold(16000)
+            .WithStrategy(TokenLimitStrategy.Truncate)
+            .Apply();
+            
+        budgets.ForTool<SearchTool>()
+            .MaxTokens(5000)
+            .WithStrategy(TokenLimitStrategy.Throw)
+            .Apply();
+        
+        // Category-based limits (medium priority)
+        budgets.ForCategory(ToolCategory.Analysis)
+            .MaxTokens(15000)
+            .WarningThreshold(12000)
+            .Apply();
+            
+        budgets.ForCategory(ToolCategory.Query)
+            .MaxTokens(8000)
+            .Apply();
+        
+        // Default limits (lowest priority)
+        budgets.Default()
+            .MaxTokens(10000)
+            .WarningThreshold(8000)
+            .WithStrategy(TokenLimitStrategy.Warn)
+            .EstimationMultiplier(1.2) // Conservative estimates
+            .Apply();
+    });
+```
+
+#### Token Budget Strategies
+
+- **Warn**: Log warning and continue (default)
+- **Throw**: Throw exception to prevent execution
+- **Truncate**: Truncate output to stay within limits
+- **Ignore**: No token limit enforcement
+
+#### Per-Tool Token Budget Override
+
+```csharp
+public class HighVolumeAnalysisTool : McpToolBase<AnalysisParams, AnalysisResult>
+{
+    // Override the default token budget for this specific tool
+    protected override TokenBudgetConfiguration TokenBudget => new()
+    {
+        MaxTokens = 50000,
+        WarningThreshold = 40000,
+        Strategy = TokenLimitStrategy.Truncate,
+        EstimationMultiplier = 1.5
+    };
+    
+    // ... tool implementation
+}
+```
+
 ### Error Handling with Recovery Steps
 
 ```csharp
@@ -782,7 +907,7 @@ The framework powers production MCP servers:
 | Metric | Target | Actual |
 |--------|--------|--------|
 | Build Time | <3s | 2.46s |
-| Test Suite | 100% pass | 492/492 ✓ |
+| Test Suite | 100% pass | 542/542 ✓ |
 | Warnings | 0 | 0 ✓ |
 | Framework Overhead | <5% | ~3% |
 

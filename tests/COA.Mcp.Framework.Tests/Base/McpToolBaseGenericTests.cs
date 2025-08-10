@@ -105,7 +105,7 @@ namespace COA.Mcp.Framework.Tests.Base
             // Act & Assert
             Func<Task> act = async () => await throwingTool.ExecuteAsync(new TestParameters());
             var exception = await act.Should().ThrowAsync<ToolExecutionException>()
-                .WithMessage("*Tool execution failed*");
+                .WithMessage("*Tool 'throwing_tool' execution failed*");
             exception.And.InnerException.Should().BeOfType<InvalidOperationException>();
         }
 
@@ -345,7 +345,7 @@ namespace COA.Mcp.Framework.Tests.Base
                 x => x.Log(
                     LogLevel.Warning,
                     It.IsAny<EventId>(),
-                    It.Is<It.IsAnyType>((v, t) => v.ToString().Contains("exceed token limit")),
+                    It.Is<It.IsAnyType>((v, t) => v.ToString().Contains("exceeds token budget")),
                     It.IsAny<Exception>(),
                     It.IsAny<Func<It.IsAnyType, Exception, string>>()),
                 Times.Once);

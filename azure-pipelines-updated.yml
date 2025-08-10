@@ -27,9 +27,9 @@ pool:
 variables:
   buildConfiguration: "Release"
   dotnetSdkVersion: "9.x"
-  # Base version for Framework packages - v1.4.0
+  # Base version for Framework packages - v1.5.0
   majorVersion: 1
-  minorVersion: 4
+  minorVersion: 5
   # Auto-incrementing patch version - increments on every build
   # The counter is keyed by major.minor version, so it resets when those change
   patchVersion: $[counter(format('{0}.{1}', variables['majorVersion'], variables['minorVersion']), 0)]
@@ -37,7 +37,7 @@ variables:
   versionSuffix: ""
   # Protocol package version - unified versioning with framework
   protocolMajorVersion: 1
-  protocolMinorVersion: 4
+  protocolMinorVersion: 5
   # Use same counter pattern as framework packages
   protocolPatchVersion: $[counter(format('protocol-{0}.{1}', variables['protocolMajorVersion'], variables['protocolMinorVersion']), 0)]
   protocolVersion: "$(protocolMajorVersion).$(protocolMinorVersion).$(protocolPatchVersion)"

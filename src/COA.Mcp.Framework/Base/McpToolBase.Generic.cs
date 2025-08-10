@@ -6,6 +6,7 @@ using System.Reflection;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using COA.Mcp.Framework.Configuration;
 using COA.Mcp.Framework.Exceptions;
 using COA.Mcp.Framework.Interfaces;
 using COA.Mcp.Framework.Models;
@@ -25,6 +26,8 @@ public abstract class McpToolBase<TParams, TResult> : IMcpTool<TParams, TResult>
 {
     private readonly ILogger? _logger;
     private readonly JsonSerializerOptions _jsonOptions;
+    private ErrorMessageProvider? _errorMessageProvider;
+    private TokenBudgetConfiguration? _tokenBudgetConfiguration;
 
     /// <summary>
     /// Initializes a new instance of the McpToolBase class.
@@ -39,6 +42,20 @@ public abstract class McpToolBase<TParams, TResult> : IMcpTool<TParams, TResult>
             WriteIndented = false
         };
     }
+
+    /// <summary>
+    /// Gets the error message provider for this tool.
+    /// Override to provide custom error messages and recovery information.
+    /// </summary>
+    protected virtual ErrorMessageProvider ErrorMessages => 
+        _errorMessageProvider ??= new DefaultErrorMessageProvider();
+
+    /// <summary>
+    /// Gets the token budget configuration for this tool.
+    /// Override to customize token limits and strategies.
+    /// </summary>
+    protected virtual TokenBudgetConfiguration TokenBudget =>
+        _tokenBudgetConfiguration ??= new TokenBudgetConfiguration();
 
     /// <inheritdoc/>
     public abstract string Name { get; }
@@ -95,13 +112,15 @@ public abstract class McpToolBase<TParams, TResult> : IMcpTool<TParams, TResult>
         catch (ValidationException ex)
         {
             _logger?.LogError(ex, "Validation failed for tool '{ToolName}'", Name);
-            throw new ToolExecutionException(Name, $"Validation failed: {ex.Message}", ex);
+            var message = ErrorMessages.ValidationFailed("parameters", ex.Message);
+            throw new ToolExecutionException(Name, message, ex);
         }
         catch (Exception ex)
         {
             _logger?.LogError(ex, "Tool '{ToolName}' failed after {ElapsedMs}ms", 
                 Name, stopwatch.ElapsedMilliseconds);
-            throw new ToolExecutionException(Name, $"Tool execution failed: {ex.Message}", ex);
+            var message = ErrorMessages.ToolExecutionFailed(Name, ex.Message);
+            throw new ToolExecutionException(Name, message, ex);
         }
     }
 
@@ -165,7 +184,7 @@ public abstract class McpToolBase<TParams, TResult> : IMcpTool<TParams, TResult>
     {
         if (parameters == null && typeof(TParams) != typeof(EmptyParameters))
         {
-            throw new ValidationException($"Parameters are required for tool '{Name}'");
+            throw new ValidationException(ErrorMessages.ParameterRequired("parameters"));
         }
 
         if (parameters != null)
@@ -188,13 +207,31 @@ public abstract class McpToolBase<TParams, TResult> : IMcpTool<TParams, TResult>
         Func<Task<T>> operation, 
         CancellationToken cancellationToken = default)
     {
-        // Token estimation could be added here if needed
         var tokenEstimate = EstimateTokenUsage();
+        var budget = TokenBudget;
         
-        if (tokenEstimate > TokenLimits.DefaultMaxTokens)
+        // Check token budget
+        if (tokenEstimate > budget.MaxTokens)
         {
-            _logger?.LogWarning("Tool '{ToolName}' may exceed token limit. Estimated: {Tokens}", 
-                Name, tokenEstimate);
+            switch (budget.Strategy)
+            {
+                case TokenLimitStrategy.Throw:
+                    throw new InvalidOperationException(
+                        $"Tool '{Name}' estimated tokens ({tokenEstimate}) exceeds budget ({budget.MaxTokens})");
+                case TokenLimitStrategy.Warn:
+                    _logger?.LogWarning("Tool '{ToolName}' exceeds token budget. Estimated: {Tokens}, Max: {MaxTokens}", 
+                        Name, tokenEstimate, budget.MaxTokens);
+                    break;
+                case TokenLimitStrategy.Truncate:
+                    _logger?.LogInformation("Tool '{ToolName}' may truncate output to stay within {MaxTokens} token budget", 
+                        Name, budget.MaxTokens);
+                    break;
+            }
+        }
+        else if (tokenEstimate > budget.WarningThreshold)
+        {
+            _logger?.LogWarning("Tool '{ToolName}' approaching token limit. Estimated: {Tokens}, Warning: {Threshold}", 
+                Name, tokenEstimate, budget.WarningThreshold);
         }
         
         return await operation();
@@ -219,7 +256,7 @@ public abstract class McpToolBase<TParams, TResult> : IMcpTool<TParams, TResult>
     {
         if (value == null || (value is string str && string.IsNullOrWhiteSpace(str)))
         {
-            throw new ValidationException($"Parameter '{parameterName}' is required");
+            throw new ValidationException(ErrorMessages.ParameterRequired(parameterName));
         }
         return value;
     }
@@ -231,7 +268,7 @@ public abstract class McpToolBase<TParams, TResult> : IMcpTool<TParams, TResult>
     {
         if (value <= 0)
         {
-            throw new ValidationException($"Parameter '{parameterName}' must be positive");
+            throw new ValidationException(ErrorMessages.MustBePositive(parameterName));
         }
         return value;
     }
@@ -243,7 +280,7 @@ public abstract class McpToolBase<TParams, TResult> : IMcpTool<TParams, TResult>
     {
         if (value < min || value > max)
         {
-            throw new ValidationException($"Parameter '{parameterName}' must be between {min} and {max}");
+            throw new ValidationException(ErrorMessages.RangeValidationFailed(parameterName, min, max));
         }
         return value;
     }
@@ -255,7 +292,7 @@ public abstract class McpToolBase<TParams, TResult> : IMcpTool<TParams, TResult>
     {
         if (collection == null || collection.Count == 0)
         {
-            throw new ValidationException($"Parameter '{parameterName}' cannot be empty");
+            throw new ValidationException(ErrorMessages.CannotBeEmpty(parameterName));
         }
         return collection;
     }
@@ -273,7 +310,9 @@ public abstract class McpToolBase<TParams, TResult> : IMcpTool<TParams, TResult>
         {
             Code = "TOOL_ERROR",
             Message = error,
-            Recovery = recoveryStep != null ? new RecoveryInfo { Steps = new[] { recoveryStep } } : null
+            Recovery = recoveryStep != null 
+                ? new RecoveryInfo { Steps = new[] { recoveryStep } } 
+                : ErrorMessages.GetRecoveryInfo("TOOL_ERROR", error)
         };
     }
 
@@ -285,11 +324,8 @@ public abstract class McpToolBase<TParams, TResult> : IMcpTool<TParams, TResult>
         return new ErrorInfo
         {
             Code = "VALIDATION_ERROR",
-            Message = $"Parameter '{paramName}' validation failed: {requirement}",
-            Recovery = new RecoveryInfo 
-            { 
-                Steps = new[] { $"Provide a valid value for '{paramName}' that {requirement}" } 
-            }
+            Message = ErrorMessages.ValidationFailed(paramName, requirement),
+            Recovery = ErrorMessages.GetRecoveryInfo("VALIDATION_ERROR", $"{paramName}: {requirement}")
         };
     }
 

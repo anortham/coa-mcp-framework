@@ -25,7 +25,8 @@
       "mcp__codesearch__store_memory",
       "Bash(dotnet clean:*)",
       "Bash(dotnet --version)",
-      "mcp__codesearch__batch_operations"
+      "mcp__codesearch__batch_operations",
+      "mcp__projectknowledge__save_checkpoint"
     ],
     "deny": []
   }

@@ -45,6 +45,8 @@ dotnet pack -c Release -o ./nupkg  # Create NuGet package
 - Use `ValidateRequired()`, `ValidateRange()` helpers
 - Return `ToolResultBase`-derived types
 - Implement `DisposeManagedResourcesAsync()` for resource cleanup
+- Override `ErrorMessages` property for custom error messages and recovery info
+- Override `TokenBudget` property for per-tool token limits
 
 ### When helping with prompt development:
 - Prompts inherit from `PromptBase`
@@ -53,12 +55,12 @@ dotnet pack -c Release -o ./nupkg  # Create NuGet package
 - Support variable substitution with `{{variable}}` syntax
 
 ## 📊 Current Status
-- Version: 1.1.0
-- Tests: 524 passing (100%)
+- Version: 1.5.0
+- Tests: 542 passing (100%)
 - Build warnings: 0
 - Examples: SimpleMcpServer (4 tools + 2 prompts)
 - Test Framework: NUnit (not xUnit)
-- Features: IAsyncDisposable support for resource management
+- Features: IAsyncDisposable support, Customizable error messages, Token budget configuration
 
 ## 🛑 Common Issues & Solutions
 
@@ -67,7 +69,8 @@ dotnet pack -c Release -o ./nupkg  # Create NuGet package
 | Changes not reflected | Rebuild, repack, update package reference |
 | Tool not found | Verify inheritance from McpToolBase |
 | Validation errors | Use built-in validation helpers |
-| Token limits | Add TokenOptimization package |
+| Token limits | Configure TokenBudgets in server builder |
+| Custom error messages | Override ErrorMessages property in tool |
 
 ## 📍 Important Files
 

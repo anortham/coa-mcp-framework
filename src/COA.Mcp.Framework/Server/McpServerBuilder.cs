@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using COA.Mcp.Framework.Configuration;
 using COA.Mcp.Framework.Interfaces;
 using COA.Mcp.Framework.Prompts;
 using COA.Mcp.Framework.Registration;
@@ -273,6 +274,19 @@ public class McpServerBuilder
         where TService : class
     {
         _services.AddSingleton(instance);
+        return this;
+    }
+
+    /// <summary>
+    /// Configures token budgets for tools.
+    /// </summary>
+    /// <param name="configure">Action to configure token budgets.</param>
+    /// <returns>The builder for chaining.</returns>
+    public McpServerBuilder ConfigureTokenBudgets(Action<TokenBudgetRegistry> configure)
+    {
+        var registry = new TokenBudgetRegistry();
+        configure(registry);
+        _services.AddSingleton(registry);
         return this;
     }
 
