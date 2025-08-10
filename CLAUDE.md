@@ -39,10 +39,12 @@ dotnet pack -c Release -o ./nupkg  # Create NuGet package
 ```
 
 ### When helping with tool development:
-- Tools inherit from `McpToolBase<TParams, TResult>`
+- Tools inherit from `McpToolBase<TParams, TResult>` 
+- For tools with resources (DB connections, files), use `DisposableToolBase<TParams, TResult>`
 - Parameters are validated automatically
 - Use `ValidateRequired()`, `ValidateRange()` helpers
 - Return `ToolResultBase`-derived types
+- Implement `DisposeManagedResourcesAsync()` for resource cleanup
 
 ### When helping with prompt development:
 - Prompts inherit from `PromptBase`
@@ -52,10 +54,11 @@ dotnet pack -c Release -o ./nupkg  # Create NuGet package
 
 ## 📊 Current Status
 - Version: 1.1.0
-- Tests: 492 passing (100%)
+- Tests: 524 passing (100%)
 - Build warnings: 0
 - Examples: SimpleMcpServer (4 tools + 2 prompts)
 - Test Framework: NUnit (not xUnit)
+- Features: IAsyncDisposable support for resource management
 
 ## 🛑 Common Issues & Solutions
 

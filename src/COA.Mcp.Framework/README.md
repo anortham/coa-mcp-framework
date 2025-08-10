@@ -186,6 +186,41 @@ public class MyParams
 }
 ```
 
+### Resource Management
+
+For tools that manage resources like database connections, use `DisposableToolBase`:
+
+```csharp
+using COA.Mcp.Framework.Base;
+
+public class DatabaseTool : DisposableToolBase<DbParams, DbResult>
+{
+    private SqlConnection _connection;
+    
+    public override string Name => "database_query";
+    public override string Description => "Executes database queries";
+    
+    protected override async Task<DbResult> ExecuteInternalAsync(
+        DbParams parameters,
+        CancellationToken cancellationToken)
+    {
+        _connection = new SqlConnection(parameters.ConnectionString);
+        await _connection.OpenAsync(cancellationToken);
+        
+        // Execute query...
+        return new DbResult { /* ... */ };
+    }
+    
+    protected override async ValueTask DisposeManagedResourcesAsync()
+    {
+        if (_connection != null)
+        {
+            await _connection.DisposeAsync();
+        }
+    }
+}
+```
+
 ### Error Handling
 
 Framework provides structured error responses with recovery steps:

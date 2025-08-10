@@ -5,6 +5,14 @@ All notable changes to the COA MCP Framework will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **IAsyncDisposable Support**: Tools can now properly manage resources like database connections
+- **DisposableToolBase Class**: Base class for tools requiring resource cleanup
+- **IDisposableTool Interface**: Marker interface for disposable tools
+- **Automatic Tool Disposal**: McpToolRegistry automatically disposes tools on shutdown
+
 ## [1.1.0] - 2025-01-06
 
 ### Added

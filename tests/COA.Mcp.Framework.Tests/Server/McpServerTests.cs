@@ -37,12 +37,11 @@ namespace COA.Mcp.Framework.Tests.Server
         {
             var services = new ServiceCollection();
             services.AddLogging(); // Add logging to fix dependency issues
-            services.AddSingleton<McpToolRegistry>();
             services.AddSingleton<ResourceRegistry>();
             services.AddSingleton<IPromptRegistry, PromptRegistry>();
             _serviceProvider = services.BuildServiceProvider();
             
-            _toolRegistry = _serviceProvider.GetRequiredService<McpToolRegistry>();
+            _toolRegistry = new McpToolRegistry(_serviceProvider);
             _resourceRegistry = _serviceProvider.GetRequiredService<ResourceRegistry>();
             _promptRegistry = _serviceProvider.GetRequiredService<IPromptRegistry>();
             _serverInfo = new Implementation
@@ -59,8 +58,12 @@ namespace COA.Mcp.Framework.Tests.Server
         }
 
         [TearDown]
-        public void TearDown()
+        public async Task TearDown()
         {
+            if (_toolRegistry != null)
+            {
+                await _toolRegistry.DisposeAsync();
+            }
             _serviceProvider?.Dispose();
         }
 

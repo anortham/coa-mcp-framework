@@ -64,7 +64,7 @@ public abstract class McpToolBase<TParams, TResult> : IMcpTool<TParams, TResult>
     protected abstract Task<TResult> ExecuteInternalAsync(TParams parameters, CancellationToken cancellationToken);
 
     /// <inheritdoc/>
-    public async Task<TResult> ExecuteAsync(TParams parameters, CancellationToken cancellationToken = default)
+    public virtual async Task<TResult> ExecuteAsync(TParams parameters, CancellationToken cancellationToken = default)
     {
         var stopwatch = Stopwatch.StartNew();
         

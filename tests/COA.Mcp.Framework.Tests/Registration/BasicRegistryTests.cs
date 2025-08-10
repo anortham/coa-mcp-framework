@@ -22,14 +22,18 @@ namespace COA.Mcp.Framework.Tests.Registration
         public void SetUp()
         {
             var services = new ServiceCollection();
-            services.AddSingleton<McpToolRegistry>();
+            services.AddLogging();
             _serviceProvider = services.BuildServiceProvider();
-            _registry = _serviceProvider.GetRequiredService<McpToolRegistry>();
+            _registry = new McpToolRegistry(_serviceProvider);
         }
 
         [TearDown]
-        public void TearDown()
+        public async Task TearDown()
         {
+            if (_registry != null)
+            {
+                await _registry.DisposeAsync();
+            }
             _serviceProvider?.Dispose();
         }
 

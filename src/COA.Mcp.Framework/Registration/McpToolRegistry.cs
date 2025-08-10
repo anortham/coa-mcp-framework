@@ -23,8 +23,9 @@ namespace COA.Mcp.Framework.Registration;
 /// <summary>
 /// Unified registry for MCP tools with type-safe registration and protocol integration.
 /// This is the single registry that handles both framework tool management and MCP protocol serving.
+/// Implements IAsyncDisposable to properly clean up registered tools.
 /// </summary>
-public class McpToolRegistry
+public class McpToolRegistry : IAsyncDisposable
 {
     private readonly ConcurrentDictionary<string, RegisteredTool> _tools;
     private readonly IServiceProvider _serviceProvider;
@@ -279,9 +280,23 @@ public class McpToolRegistry
     /// </summary>
     public bool UnregisterTool(string toolName)
     {
-        var removed = _tools.TryRemove(toolName, out _);
+        var removed = _tools.TryRemove(toolName, out var registration);
         if (removed)
         {
+            // Dispose if the tool implements IAsyncDisposable
+            if (registration?.ToolInstance is IAsyncDisposable disposableTool)
+            {
+                try
+                {
+                    disposableTool.DisposeAsync().AsTask().GetAwaiter().GetResult();
+                    _logger?.LogDebug("Disposed tool '{ToolName}'", toolName);
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogError(ex, "Error disposing tool '{ToolName}'", toolName);
+                }
+            }
+            
             _logger?.LogInformation("Unregistered tool '{ToolName}'", toolName);
         }
         return removed;
@@ -292,6 +307,23 @@ public class McpToolRegistry
     /// </summary>
     public void Clear()
     {
+        // Dispose all disposable tools before clearing
+        foreach (var kvp in _tools)
+        {
+            if (kvp.Value.ToolInstance is IAsyncDisposable disposableTool)
+            {
+                try
+                {
+                    disposableTool.DisposeAsync().AsTask().GetAwaiter().GetResult();
+                    _logger?.LogDebug("Disposed tool '{ToolName}' during clear", kvp.Key);
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogError(ex, "Error disposing tool '{ToolName}' during clear", kvp.Key);
+                }
+            }
+        }
+        
         _tools.Clear();
         _logger?.LogInformation("Cleared all registered tools");
     }
@@ -608,4 +640,58 @@ public class McpToolRegistry
             return result;
         }
     }
+    
+    #region IAsyncDisposable Implementation
+    
+    private bool _disposed;
+    
+    /// <summary>
+    /// Disposes all registered tools that implement IAsyncDisposable.
+    /// </summary>
+    public async ValueTask DisposeAsync()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+        
+        _logger?.LogInformation("Disposing McpToolRegistry and all registered tools");
+        
+        // Dispose all disposable tools
+        var disposalTasks = new List<Task>();
+        
+        foreach (var kvp in _tools)
+        {
+            if (kvp.Value.ToolInstance is IAsyncDisposable disposableTool)
+            {
+                disposalTasks.Add(Task.Run(async () =>
+                {
+                    try
+                    {
+                        await disposableTool.DisposeAsync();
+                        _logger?.LogDebug("Disposed tool '{ToolName}'", kvp.Key);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger?.LogError(ex, "Error disposing tool '{ToolName}'", kvp.Key);
+                    }
+                }));
+            }
+        }
+        
+        // Wait for all disposals to complete
+        if (disposalTasks.Count > 0)
+        {
+            await Task.WhenAll(disposalTasks);
+            _logger?.LogInformation("Disposed {Count} disposable tools", disposalTasks.Count);
+        }
+        
+        // Clear the registry
+        _tools.Clear();
+        _disposed = true;
+        
+        GC.SuppressFinalize(this);
+    }
+    
+    #endregion
 }

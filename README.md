@@ -122,10 +122,11 @@ Your MCP server is ready! 🎉
 - No manual JSON parsing required
 
 ### 🏗️ **Clean Architecture**
-- Single unified tool registry
+- Single unified tool registry with automatic disposal
 - Fluent server builder API
 - Dependency injection support
 - Clear separation of concerns
+- IAsyncDisposable support for resource management
 
 ### 🛡️ **Comprehensive Error Handling**
 - Standardized error models with `ErrorInfo` and `RecoveryInfo`
