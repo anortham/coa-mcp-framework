@@ -411,12 +411,19 @@ public class ServiceManager : IServiceManager, IHostedService, IDisposable
                 // Try graceful shutdown first
                 service.Process.CloseMainWindow();
                 
-                if (!service.Process.WaitForExit(5000))
+                // Use async WaitForExitAsync for better async behavior
+                var gracefulExitTask = service.Process.WaitForExitAsync();
+                var gracefulTimeoutTask = Task.Delay(5000);
+                
+                if (await Task.WhenAny(gracefulExitTask, gracefulTimeoutTask) == gracefulTimeoutTask)
                 {
                     _logger?.LogWarning("Service {ServiceId} did not stop gracefully, forcing termination",
                         service.Config.ServiceId);
                     service.Process.Kill();
-                    service.Process.WaitForExit(2000);
+                    
+                    var forceExitTask = service.Process.WaitForExitAsync();
+                    var forceTimeoutTask = Task.Delay(2000);
+                    await Task.WhenAny(forceExitTask, forceTimeoutTask);
                 }
 
                 _logger?.LogInformation("Service {ServiceId} stopped", service.Config.ServiceId);

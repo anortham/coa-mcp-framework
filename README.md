@@ -13,7 +13,7 @@ A comprehensive .NET framework for building and consuming Model Context Protocol
 
 ```xml
 <!-- Add to your .csproj file -->
-<PackageReference Include="COA.Mcp.Framework" Version="1.4.0" />
+<PackageReference Include="COA.Mcp.Framework" Version="1.4.7" />
 ```
 
 ### Create Your First MCP Server
@@ -106,13 +106,13 @@ Your MCP server is ready! 🎉
 
 | Package | Version | Description |
 |---------|---------|-------------|
-| **COA.Mcp.Framework** | 1.4.0 | Core framework with MCP protocol included |
-| **COA.Mcp.Protocol** | 1.4.0 | Low-level protocol types and JSON-RPC |
-| **COA.Mcp.Client** | 1.4.0 | Strongly-typed C# client for MCP servers |
-| **COA.Mcp.Framework.TokenOptimization** | 1.4.0 | Advanced token management and AI response optimization |
-| **COA.Mcp.Framework.Testing** | 1.4.0 | Testing helpers, assertions, and benchmarks |
-| **COA.Mcp.Framework.Templates** | 1.4.0 | Project templates for quick starts |
-| **COA.Mcp.Framework.Migration** | 1.4.0 | Migration tools for updating from older versions |
+| **COA.Mcp.Framework** | 1.4.7 | Core framework with MCP protocol included |
+| **COA.Mcp.Protocol** | 1.4.7 | Low-level protocol types and JSON-RPC |
+| **COA.Mcp.Client** | 1.4.7 | Strongly-typed C# client for MCP servers |
+| **COA.Mcp.Framework.TokenOptimization** | 1.4.7 | Advanced token management and AI response optimization |
+| **COA.Mcp.Framework.Testing** | 1.4.7 | Testing helpers, assertions, and benchmarks |
+| **COA.Mcp.Framework.Templates** | 1.4.7 | Project templates for quick starts |
+| **COA.Mcp.Framework.Migration** | 1.4.7 | Migration tools for updating from older versions |
 
 ## ✨ Key Features
 
@@ -392,7 +392,8 @@ var builder = new McpServerBuilder()
     .UseWebSocketTransport(options =>
     {
         options.Port = 8080;
-        options.Path = "/mcp";
+        options.Host = "localhost";
+        options.UseHttps = false;
     });
 ```
 

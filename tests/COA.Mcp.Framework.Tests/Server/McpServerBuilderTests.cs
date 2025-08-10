@@ -100,6 +100,25 @@ namespace COA.Mcp.Framework.Tests.Server
         }
 
         [Test]
+        public void UseWebSocketTransport_ShouldConfigureWebSocketTransport()
+        {
+            // Arrange & Act
+            var result = _builder.UseWebSocketTransport(options =>
+            {
+                options.Port = 8081;
+                options.Host = "localhost";
+                options.UseHttps = false;
+            });
+
+            // Assert
+            result.Should().BeSameAs(_builder);
+            
+            // Build and verify transport is configured
+            var server = _builder.Build();
+            server.Should().NotBeNull();
+        }
+
+        [Test]
         public void RegisterTool_ShouldAddToolToRegistry()
         {
             // Arrange

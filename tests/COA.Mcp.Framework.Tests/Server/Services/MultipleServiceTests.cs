@@ -101,7 +101,7 @@ public class MultipleServiceTests
         await _serviceManager.StopAsync(CancellationToken.None);
 
         // Assert - should complete without exceptions
-        Assert.That(true, Is.True);
+        Assert.Pass("Test completed without throwing");
     }
 
     [Test]
@@ -191,10 +191,10 @@ public class MultipleServiceTests
 
         public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
         {
-            TestContext.WriteLine($"[{logLevel}] {formatter(state, exception)}");
+            Console.WriteLine($"[{logLevel}] {formatter(state, exception)}");
             if (exception != null)
             {
-                TestContext.WriteLine(exception.ToString());
+                Console.WriteLine(exception.ToString());
             }
         }
 

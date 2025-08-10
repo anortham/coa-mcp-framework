@@ -74,7 +74,7 @@ public class ServiceLifecycleHostTests
         await _host.StartAsync(CancellationToken.None);
 
         // Assert - should complete without throwing
-        Assert.That(true, Is.True);
+        Assert.Pass("Test completed without throwing");
     }
 
     [Test]
@@ -135,16 +135,16 @@ public class ServiceLifecycleHostTests
         {
         }
 
-        public IDisposable BeginScope<TState>(TState state) => new NoopDisposable();
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => new NoopDisposable();
 
         public bool IsEnabled(LogLevel logLevel) => true;
 
         public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
         {
-            TestContext.WriteLine($"[{logLevel}] {formatter(state, exception)}");
+            Console.WriteLine($"[{logLevel}] {formatter(state, exception)}");
             if (exception != null)
             {
-                TestContext.WriteLine(exception.ToString());
+                Console.WriteLine(exception.ToString());
             }
         }
 

@@ -96,6 +96,27 @@ public class McpServerBuilder
     }
     
     /// <summary>
+    /// Configures the server to use WebSocket transport for bidirectional real-time communication.
+    /// </summary>
+    /// <param name="configure">Action to configure WebSocket options.</param>
+    /// <returns>The builder for chaining.</returns>
+    public McpServerBuilder UseWebSocketTransport(Action<HttpTransportOptions> configure)
+    {
+        var options = new HttpTransportOptions();
+        configure?.Invoke(options);
+        
+        // Ensure WebSocket is enabled in the options
+        options.EnableWebSocket = true;
+        
+        var logger = _services.BuildServiceProvider().GetService<ILogger<WebSocketTransport>>();
+        _transport = new WebSocketTransport(options, logger);
+        _services.AddSingleton(_transport);
+        _services.AddSingleton(options);
+        
+        return this;
+    }
+    
+    /// <summary>
     /// Configures the server to use a custom transport.
     /// </summary>
     /// <param name="transport">The transport implementation to use.</param>

@@ -260,35 +260,73 @@ public class CodeReviewPrompt : PromptBase
 
 ## Transport Options
 
+The framework supports multiple transport mechanisms for different use cases:
+
 ### Stdio Transport (Default)
-For command-line integration:
+For command-line integration and process communication:
 
 ```csharp
+// Using McpServerBuilder (Recommended)
+var builder = new McpServerBuilder()
+    .UseStdioTransport(options =>
+    {
+        options.Input = Console.OpenStandardInput();
+        options.Output = Console.OpenStandardOutput();
+    });
+
+// Or with DI
 services.AddSingleton<IMcpTransport, StdioTransport>();
 ```
 
 ### HTTP Transport
-For REST API access:
+For REST API access with optional WebSocket upgrade:
 
 ```csharp
+// Using McpServerBuilder
+var builder = new McpServerBuilder()
+    .UseHttpTransport(options =>
+    {
+        options.Port = 5000;
+        options.Host = "localhost";
+        options.EnableWebSocket = true;  // Enable WebSocket upgrade
+        options.EnableCors = true;
+        options.UseHttps = false;
+    });
+
+// Or with DI
 services.Configure<HttpTransportOptions>(options =>
 {
-    options.Port = 3000;
+    options.Port = 5000;
     options.BasePath = "/mcp";
 });
 services.AddSingleton<IMcpTransport, HttpTransport>();
 ```
 
 ### WebSocket Transport
-For real-time bidirectional communication:
+For dedicated real-time bidirectional communication:
 
 ```csharp
-services.Configure<WebSocketTransportOptions>(options =>
+// Using McpServerBuilder
+var builder = new McpServerBuilder()
+    .UseWebSocketTransport(options =>
+    {
+        options.Port = 5001;
+        options.Host = "localhost";
+        options.UseHttps = false;
+    });
+
+// Or manually with DI
+var options = new HttpTransportOptions
 {
-    options.Port = 3001;
-    options.Path = "/ws";
+    Port = 5001,
+    Host = "localhost",
+    EnableWebSocket = true
+};
+services.AddSingleton<IMcpTransport>(provider =>
+{
+    var logger = provider.GetService<ILogger<WebSocketTransport>>();
+    return new WebSocketTransport(options, logger);
 });
-services.AddSingleton<IMcpTransport, WebSocketTransport>();
 ```
 
 ## Service Management
