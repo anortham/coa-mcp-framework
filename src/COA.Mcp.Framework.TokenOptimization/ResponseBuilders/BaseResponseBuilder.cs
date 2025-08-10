@@ -6,10 +6,23 @@ using Microsoft.Extensions.Logging;
 namespace COA.Mcp.Framework.TokenOptimization.ResponseBuilders;
 
 /// <summary>
-/// Base class for building token-aware responses with automatic optimization.
+/// Non-generic interface for response builders (backward compatibility).
 /// </summary>
-/// <typeparam name="TData">The type of data being returned.</typeparam>
-public abstract class BaseResponseBuilder<TData>
+public interface IResponseBuilder
+{
+    /// <summary>
+    /// Builds a response with token optimization.
+    /// </summary>
+    Task<object> BuildResponseAsync(object data, ResponseContext context);
+}
+
+/// <summary>
+/// Base class for building token-aware responses with automatic optimization and strong typing.
+/// </summary>
+/// <typeparam name="TInput">The type of input data being processed.</typeparam>
+/// <typeparam name="TResult">The type of result being returned.</typeparam>
+public abstract class BaseResponseBuilder<TInput, TResult> : IResponseBuilder
+    where TResult : new()
 {
     /// <summary>
     /// Default token budget for summary responses.
@@ -25,7 +38,7 @@ public abstract class BaseResponseBuilder<TData>
     protected readonly ProgressiveReductionEngine _reductionEngine;
     
     /// <summary>
-    /// Initializes a new instance of the <see cref="BaseResponseBuilder{TData}"/> class.
+    /// Initializes a new instance of the <see cref="BaseResponseBuilder{TInput,TResult}"/> class.
     /// </summary>
     /// <param name="logger">Optional logger.</param>
     /// <param name="reductionEngine">Optional reduction engine (creates default if not provided).</param>
@@ -42,8 +55,20 @@ public abstract class BaseResponseBuilder<TData>
     /// </summary>
     /// <param name="data">The data to include in the response.</param>
     /// <param name="context">The response building context.</param>
-    /// <returns>An optimized response.</returns>
-    public abstract Task<object> BuildResponseAsync(TData data, ResponseContext context);
+    /// <returns>A strongly typed optimized response.</returns>
+    public abstract Task<TResult> BuildResponseAsync(TInput data, ResponseContext context);
+    
+    /// <summary>
+    /// Non-generic version for backward compatibility.
+    /// </summary>
+    async Task<object> IResponseBuilder.BuildResponseAsync(object data, ResponseContext context)
+    {
+        if (data is TInput typedData)
+        {
+            return await BuildResponseAsync(typedData, context);
+        }
+        throw new ArgumentException($"Expected data of type {typeof(TInput).Name}, got {data?.GetType().Name ?? "null"}");
+    }
     
     /// <summary>
     /// Generates insights for the given data.
@@ -51,7 +76,7 @@ public abstract class BaseResponseBuilder<TData>
     /// <param name="data">The data to analyze.</param>
     /// <param name="responseMode">The response mode (summary/full).</param>
     /// <returns>List of insights.</returns>
-    protected abstract List<string> GenerateInsights(TData data, string responseMode);
+    protected abstract List<string> GenerateInsights(TInput data, string responseMode);
     
     /// <summary>
     /// Generates suggested actions based on the data.
@@ -59,7 +84,7 @@ public abstract class BaseResponseBuilder<TData>
     /// <param name="data">The data to analyze.</param>
     /// <param name="tokenBudget">Available token budget for actions.</param>
     /// <returns>List of suggested actions.</returns>
-    protected abstract List<AIAction> GenerateActions(TData data, int tokenBudget);
+    protected abstract List<AIAction> GenerateActions(TInput data, int tokenBudget);
     
     /// <summary>
     /// Calculates the token budget based on response mode and context.
@@ -152,6 +177,26 @@ public abstract class BaseResponseBuilder<TData>
             context);
         
         return result.Items;
+    }
+}
+
+/// <summary>
+/// Non-generic base class for backward compatibility.
+/// Uses object types for both input and output.
+/// </summary>
+/// <typeparam name="TData">The type of data being processed.</typeparam>
+public abstract class BaseResponseBuilder<TData> : BaseResponseBuilder<TData, object>
+{
+    /// <summary>
+    /// Initializes a new instance of the <see cref="BaseResponseBuilder{TData}"/> class.
+    /// </summary>
+    /// <param name="logger">Optional logger.</param>
+    /// <param name="reductionEngine">Optional reduction engine.</param>
+    protected BaseResponseBuilder(
+        ILogger? logger = null,
+        ProgressiveReductionEngine? reductionEngine = null)
+        : base(logger, reductionEngine)
+    {
     }
 }
 

@@ -3,7 +3,30 @@ using System.Collections.Generic;
 namespace COA.Mcp.Framework.Interfaces;
 
 /// <summary>
-/// Service for validating tool parameters.
+/// Generic service for validating tool parameters with strong typing.
+/// </summary>
+/// <typeparam name="TParams">The type of parameters to validate.</typeparam>
+public interface IParameterValidator<TParams> where TParams : class
+{
+    /// <summary>
+    /// Validates parameters for a tool with strong typing.
+    /// </summary>
+    /// <param name="parameters">The parameters to validate.</param>
+    /// <returns>Validation result.</returns>
+    ValidationResult Validate(TParams parameters);
+
+    /// <summary>
+    /// Validates a single parameter value.
+    /// </summary>
+    /// <param name="value">The value to validate.</param>
+    /// <param name="parameterName">The parameter name.</param>
+    /// <param name="validationAttributes">Validation attributes to apply.</param>
+    /// <returns>Validation result.</returns>
+    ValidationResult ValidateParameter(object? value, string parameterName, IEnumerable<Attributes.ParameterValidationAttribute> validationAttributes);
+}
+
+/// <summary>
+/// Service for validating tool parameters (non-generic for backward compatibility).
 /// </summary>
 public interface IParameterValidator
 {

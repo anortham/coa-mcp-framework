@@ -33,6 +33,81 @@ public abstract class ToolResultBase
 }
 
 /// <summary>
+/// Generic tool result with strongly typed data.
+/// </summary>
+/// <typeparam name="T">The type of the result data.</typeparam>
+public class ToolResult<T> : ToolResultBase
+{
+    /// <summary>
+    /// Gets or sets the strongly typed result data.
+    /// </summary>
+    [JsonPropertyName("data")]
+    public T? Data { get; set; }
+    
+    /// <inheritdoc/>
+    public override string Operation => "tool-result";
+    
+    /// <summary>
+    /// Creates a successful result with data.
+    /// </summary>
+    /// <param name="data">The result data.</param>
+    /// <param name="message">Optional success message.</param>
+    /// <returns>A successful tool result.</returns>
+    public static ToolResult<T> CreateSuccess(T data, string? message = null)
+    {
+        return new ToolResult<T>
+        {
+            Success = true,
+            Data = data,
+            Message = message ?? "Operation completed successfully"
+        };
+    }
+    
+    /// <summary>
+    /// Creates a failed result with error information.
+    /// </summary>
+    /// <param name="error">The error information.</param>
+    /// <param name="message">Optional error message.</param>
+    /// <returns>A failed tool result.</returns>
+    public static ToolResult<T> CreateError(ErrorInfo error, string? message = null)
+    {
+        return new ToolResult<T>
+        {
+            Success = false,
+            Error = error,
+            Message = message ?? error.Message
+        };
+    }
+    
+    /// <summary>
+    /// Creates a failed result with error message.
+    /// </summary>
+    /// <param name="errorMessage">The error message.</param>
+    /// <param name="errorCode">Optional error code.</param>
+    /// <returns>A failed tool result.</returns>
+    public static ToolResult<T> CreateError(string errorMessage, string errorCode = "TOOL_ERROR")
+    {
+        return new ToolResult<T>
+        {
+            Success = false,
+            Error = new ErrorInfo
+            {
+                Code = errorCode,
+                Message = errorMessage
+            },
+            Message = errorMessage
+        };
+    }
+}
+
+/// <summary>
+/// Non-generic tool result for backward compatibility.
+/// </summary>
+public class ToolResult : ToolResult<object>
+{
+}
+
+/// <summary>
 /// Metadata about the tool execution
 /// </summary>
 public class ToolExecutionMetadata

@@ -3,25 +3,25 @@ using COA.Mcp.Protocol;
 namespace COA.Mcp.Framework.Interfaces;
 
 /// <summary>
-/// Provides a singleton cache service for resource providers to store and retrieve resources.
-/// Resolves the lifetime mismatch between scoped providers and singleton registry.
+/// Generic cache service for storing and retrieving typed resources.
 /// </summary>
-public interface IResourceCache
+/// <typeparam name="TResource">The type of resource to cache.</typeparam>
+public interface IResourceCache<TResource> where TResource : class
 {
     /// <summary>
     /// Gets a cached resource by URI.
     /// </summary>
     /// <param name="uri">The resource URI.</param>
-    /// <returns>The cached resource result, or null if not found or expired.</returns>
-    Task<ReadResourceResult?> GetAsync(string uri);
+    /// <returns>The cached resource, or null if not found or expired.</returns>
+    Task<TResource?> GetAsync(string uri);
 
     /// <summary>
     /// Sets a resource in the cache with optional expiration.
     /// </summary>
     /// <param name="uri">The resource URI.</param>
-    /// <param name="result">The resource result to cache.</param>
+    /// <param name="resource">The resource to cache.</param>
     /// <param name="expiry">Optional expiration time. If null, uses default expiration.</param>
-    Task SetAsync(string uri, ReadResourceResult result, TimeSpan? expiry = null);
+    Task SetAsync(string uri, TResource resource, TimeSpan? expiry = null);
 
     /// <summary>
     /// Checks if a resource exists in the cache and is not expired.
@@ -46,6 +46,17 @@ public interface IResourceCache
     /// </summary>
     /// <returns>Cache statistics including hit rate, size, and item count.</returns>
     Task<CacheStatistics> GetStatisticsAsync();
+}
+
+/// <summary>
+/// Provides a singleton cache service for resource providers to store and retrieve resources.
+/// Resolves the lifetime mismatch between scoped providers and singleton registry.
+/// Non-generic version for backward compatibility.
+/// </summary>
+public interface IResourceCache : IResourceCache<ReadResourceResult>
+{
+    // All methods are inherited from IResourceCache<ReadResourceResult>
+    // This interface exists for backward compatibility
 }
 
 /// <summary>

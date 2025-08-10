@@ -4,10 +4,11 @@ using COA.Mcp.Framework.Models;
 namespace COA.Mcp.Framework.TokenOptimization.Models;
 
 /// <summary>
-/// AI-optimized response format from CodeSearch implementation.
+/// Generic AI-optimized response format with strongly typed results.
 /// Provides structured data with insights and suggested actions.
 /// </summary>
-public class AIOptimizedResponse
+/// <typeparam name="T">The type of the results data.</typeparam>
+public class AIOptimizedResponse<T> : ToolResultBase
 {
     /// <summary>
     /// Gets or sets the response format identifier.
@@ -16,34 +17,76 @@ public class AIOptimizedResponse
     public string Format { get; set; } = "ai-optimized";
     
     /// <summary>
-    /// Gets or sets the main response data.
+    /// Gets or sets the main response data with typed results.
     /// </summary>
     [JsonPropertyName("data")]
-    public AIResponseData Data { get; set; } = new();
+    public AIResponseData<T> Data { get; set; } = new();
     
     /// <summary>
     /// Gets or sets the list of insights about the data.
     /// </summary>
     [JsonPropertyName("insights")]
-    public List<string> Insights { get; set; } = new();
+    public new List<string> Insights { get; set; } = new();
     
     /// <summary>
     /// Gets or sets the suggested next actions.
     /// </summary>
     [JsonPropertyName("actions")]
-    public List<AIAction> Actions { get; set; } = new();
+    public new List<AIAction> Actions { get; set; } = new();
     
     /// <summary>
     /// Gets or sets the response metadata.
     /// </summary>
-    [JsonPropertyName("meta")]
-    public AIResponseMeta Meta { get; set; } = new();
+    [JsonPropertyName("responseMeta")]
+    public AIResponseMeta ResponseMeta { get; set; } = new();
+    
+    /// <summary>
+    /// Gets or sets the response metadata (backward compatibility alias).
+    /// </summary>
+    [JsonIgnore]
+    public new AIResponseMeta Meta 
+    { 
+        get => ResponseMeta; 
+        set => ResponseMeta = value; 
+    }
+    
+    /// <inheritdoc/>
+    public override string Operation => "ai-optimized-response";
 }
 
 /// <summary>
-/// Container for the main response data.
+/// Non-generic AI-optimized response for backward compatibility.
+/// Provides structured data with insights and suggested actions.
 /// </summary>
-public class AIResponseData
+public class AIOptimizedResponse : AIOptimizedResponse<object>
+{
+    /// <summary>
+    /// Creates a generic version of this response with typed results.
+    /// </summary>
+    /// <typeparam name="T">The type to convert the results to.</typeparam>
+    /// <returns>A generic AIOptimizedResponse with typed results.</returns>
+    public AIOptimizedResponse<T> ToGeneric<T>() where T : class
+    {
+        return new AIOptimizedResponse<T>
+        {
+            Format = Format,
+            Data = Data.ToGeneric<T>(),
+            Insights = new List<string>(Insights),
+            Actions = new List<AIAction>(Actions),
+            ResponseMeta = ResponseMeta,
+            Success = Success,
+            Message = Message,
+            Error = Error,
+            ResourceUri = ResourceUri
+        };
+    }
+}
+
+/// <summary>
+/// Generic container for the main response data with typed results.
+/// </summary>
+/// <typeparam name="T">The type of the results.</typeparam>
+public class AIResponseData<T>
 {
     /// <summary>
     /// Gets or sets the response summary.
@@ -52,10 +95,10 @@ public class AIResponseData
     public string? Summary { get; set; }
     
     /// <summary>
-    /// Gets or sets the main results.
+    /// Gets or sets the main results with strong typing.
     /// </summary>
     [JsonPropertyName("results")]
-    public object? Results { get; set; }
+    public T? Results { get; set; }
     
     /// <summary>
     /// Gets or sets the result count.
@@ -68,6 +111,27 @@ public class AIResponseData
     /// </summary>
     [JsonExtensionData]
     public Dictionary<string, object>? ExtensionData { get; set; }
+    
+    /// <summary>
+    /// Creates a generic version with different result type.
+    /// </summary>
+    internal AIResponseData<TNew> ToGeneric<TNew>() where TNew : class
+    {
+        return new AIResponseData<TNew>
+        {
+            Summary = Summary,
+            Results = Results as TNew,
+            Count = Count,
+            ExtensionData = ExtensionData
+        };
+    }
+}
+
+/// <summary>
+/// Non-generic container for backward compatibility.
+/// </summary>
+public class AIResponseData : AIResponseData<object>
+{
 }
 
 /// <summary>

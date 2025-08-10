@@ -4,7 +4,7 @@ A comprehensive .NET framework for building and consuming Model Context Protocol
 
 [![NuGet Version](https://img.shields.io/nuget/v/COA.Mcp.Framework)](https://www.nuget.org/packages/COA.Mcp.Framework)
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](https://github.com/anortham/COA-Mcp-Framework)
-[![Tests](https://img.shields.io/badge/tests-538%20passing-success)](https://github.com/anortham/COA-Mcp-Framework)
+[![Tests](https://img.shields.io/badge/tests-562%20passing-success)](https://github.com/anortham/COA-Mcp-Framework)
 [![.NET 9.0](https://img.shields.io/badge/.NET-9.0-blue)](https://dotnet.microsoft.com/download)
 
 ## 🚀 Quick Start
@@ -13,7 +13,7 @@ A comprehensive .NET framework for building and consuming Model Context Protocol
 
 ```xml
 <!-- Add to your .csproj file -->
-<PackageReference Include="COA.Mcp.Framework" Version="1.5.0" />
+<PackageReference Include="COA.Mcp.Framework" Version="1.5.1" />
 ```
 
 ### Create Your First MCP Server
@@ -114,13 +114,13 @@ Your MCP server is ready! 🎉
 
 | Package | Version | Description |
 |---------|---------|-------------|
-| **COA.Mcp.Framework** | 1.5.0 | Core framework with MCP protocol included |
-| **COA.Mcp.Protocol** | 1.5.0 | Low-level protocol types and JSON-RPC |
-| **COA.Mcp.Client** | 1.5.0 | Strongly-typed C# client for MCP servers |
-| **COA.Mcp.Framework.TokenOptimization** | 1.5.0 | Advanced token management and AI response optimization |
-| **COA.Mcp.Framework.Testing** | 1.5.0 | Testing helpers, assertions, and benchmarks |
-| **COA.Mcp.Framework.Templates** | 1.5.0 | Project templates for quick starts |
-| **COA.Mcp.Framework.Migration** | 1.5.0 | Migration tools for updating from older versions |
+| **COA.Mcp.Framework** | 1.5.1 | Core framework with MCP protocol included |
+| **COA.Mcp.Protocol** | 1.5.1 | Low-level protocol types and JSON-RPC |
+| **COA.Mcp.Client** | 1.5.1 | Strongly-typed C# client for MCP servers |
+| **COA.Mcp.Framework.TokenOptimization** | 1.5.1 | Advanced token management and AI response optimization |
+| **COA.Mcp.Framework.Testing** | 1.5.1 | Testing helpers, assertions, and benchmarks |
+| **COA.Mcp.Framework.Templates** | 1.5.1 | Project templates for quick starts |
+| **COA.Mcp.Framework.Migration** | 1.5.1 | Migration tools for updating from older versions |
 
 ## ✨ Key Features
 
@@ -141,6 +141,12 @@ Your MCP server is ready! 🎉
 - AI-friendly error messages with recovery steps
 - Built-in validation helpers
 - **Customizable error messages** - Override `ErrorMessages` property for tool-specific guidance
+
+### 🎯 **Generic Type Safety**
+- **Generic Parameter Validation**: `IParameterValidator<TParams>` eliminates casting with strongly-typed validation
+- **Generic Resource Caching**: `IResourceCache<TResource>` supports any resource type with compile-time safety
+- **Generic Response Building**: `BaseResponseBuilder<TInput, TResult>` and `AIOptimizedResponse<T>` prevent object casting
+- **Backward Compatible**: All generic interfaces include non-generic versions for seamless migration
 
 ### 🧠 **Token Management**
 - Pre-estimation to prevent context overflow
@@ -595,6 +601,208 @@ This feature is ideal for:
 
 ## 🔥 Advanced Features
 
+### Generic Type Safety - Eliminate Object Casting
+
+The framework provides generic versions of key interfaces to eliminate object casting and improve type safety:
+
+#### Generic Parameter Validation
+
+```csharp
+// Before: Non-generic parameter validation (still supported)
+public class LegacyTool : McpToolBase<MyParams, MyResult>
+{
+    protected override Task<MyResult> ExecuteInternalAsync(
+        MyParams parameters, CancellationToken cancellationToken)
+    {
+        // Parameters already validated and strongly typed!
+        return ProcessParameters(parameters); // No casting needed
+    }
+}
+
+// New: Explicit generic parameter validator for advanced scenarios
+public class CustomValidationTool : McpToolBase<ComplexParams, ComplexResult>
+{
+    private readonly IParameterValidator<ComplexParams> _validator;
+    
+    public CustomValidationTool(IParameterValidator<ComplexParams> validator)
+    {
+        _validator = validator; // Strongly typed, no object casting
+    }
+    
+    protected override async Task<ComplexResult> ExecuteInternalAsync(
+        ComplexParams parameters, CancellationToken cancellationToken)
+    {
+        // Custom validation with no object casting
+        var validationResult = _validator.Validate(parameters);
+        
+        if (!validationResult.IsValid)
+        {
+            return CreateErrorResult("VALIDATION_FAILED", 
+                string.Join(", ", validationResult.Errors.Select(e => e.Message)));
+        }
+        
+        // Process strongly-typed parameters
+        return ProcessComplexParameters(parameters);
+    }
+}
+```
+
+#### Generic Resource Caching
+
+```csharp
+// Cache any resource type with compile-time safety
+public class SearchResultResourceProvider : IResourceProvider
+{
+    private readonly IResourceCache<SearchResultData> _cache; // Strongly typed cache!
+    private readonly ISearchService _searchService;
+    
+    public SearchResultResourceProvider(
+        IResourceCache<SearchResultData> cache, // No more object casting
+        ISearchService searchService)
+    {
+        _cache = cache;
+        _searchService = searchService;
+    }
+    
+    public async Task<ReadResourceResult> ReadResourceAsync(string uri, CancellationToken ct)
+    {
+        // Check cache first - strongly typed, no casting
+        var cached = await _cache.GetAsync(uri);
+        if (cached != null)
+        {
+            return CreateReadResourceResult(cached); // Type-safe operations
+        }
+        
+        // Generate new data
+        var searchData = await _searchService.SearchAsync(ExtractQuery(uri));
+        
+        // Store in cache - type-safe storage
+        await _cache.SetAsync(uri, searchData, TimeSpan.FromMinutes(10));
+        
+        return CreateReadResourceResult(searchData);
+    }
+    
+    private ReadResourceResult CreateReadResourceResult(SearchResultData data)
+    {
+        return new ReadResourceResult
+        {
+            Contents = new List<ResourceContent>
+            {
+                new ResourceContent
+                {
+                    Uri = data.OriginalQuery,
+                    Text = JsonSerializer.Serialize(data), // Type-safe serialization
+                    MimeType = "application/json"
+                }
+            }
+        };
+    }
+}
+
+// Register the strongly-typed cache
+builder.Services.AddSingleton<IResourceCache<SearchResultData>, InMemoryResourceCache<SearchResultData>>();
+```
+
+#### Generic Response Building
+
+```csharp
+// Before: Object-based response building (still supported for backward compatibility)
+public class LegacyResponseBuilder : BaseResponseBuilder
+{
+    public override async Task<object> BuildResponseAsync(object data, ResponseContext context)
+    {
+        return new AIOptimizedResponse // Returns object, requires casting
+        {
+            Data = new AIResponseData
+            {
+                Results = data, // object type, requires casting later
+                Meta = new AIResponseMeta { /* ... */ }
+            }
+        };
+    }
+}
+
+// New: Strongly-typed response building
+public class TypedResponseBuilder : BaseResponseBuilder<SearchData, SearchResult>
+{
+    public override async Task<SearchResult> BuildResponseAsync(SearchData data, ResponseContext context)
+    {
+        return new SearchResult // Strongly typed return, no casting needed
+        {
+            Success = true,
+            Operation = "search_data",
+            Query = data.Query,
+            Results = data.Items, // Type-safe property access
+            TotalFound = data.Items.Count,
+            ExecutionTime = context.ElapsedTime,
+            // No object casting anywhere!
+        };
+    }
+}
+
+// Using the generic AIOptimizedResponse<T>
+public class OptimizedSearchTool : McpToolBase<SearchParams, AIOptimizedResponse<SearchResultSummary>>
+{
+    protected override async Task<AIOptimizedResponse<SearchResultSummary>> ExecuteInternalAsync(
+        SearchParams parameters, CancellationToken cancellationToken)
+    {
+        var searchData = await SearchAsync(parameters.Query);
+        
+        return new AIOptimizedResponse<SearchResultSummary> // Generic type, no casting!
+        {
+            Success = true,
+            Operation = "search_optimized",
+            Data = new AIResponseData<SearchResultSummary>
+            {
+                Results = new SearchResultSummary
+                {
+                    Query = parameters.Query,
+                    TotalMatches = searchData.Count,
+                    TopResults = searchData.Take(5).ToList()
+                },
+                Meta = new AIResponseMeta
+                {
+                    TokenUsage = EstimateTokens(searchData),
+                    OptimizationApplied = searchData.Count > 100,
+                    ResourceUri = searchData.Count > 100 ? StoreAsResource(searchData) : null
+                }
+            }
+        };
+    }
+}
+```
+
+#### Migration Examples
+
+```csharp
+// Easy migration from non-generic to generic interfaces
+public class MigrationExample
+{
+    public void ConfigureServices(IServiceCollection services)
+    {
+        // Option 1: Use generic interface directly
+        services.AddSingleton<IParameterValidator<MyParams>, DefaultParameterValidator<MyParams>>();
+        services.AddSingleton<IResourceCache<MyResource>, InMemoryResourceCache<MyResource>>();
+        
+        // Option 2: Keep existing non-generic registrations (fully backward compatible)
+        services.AddSingleton<IParameterValidator, DefaultParameterValidator>();
+        services.AddSingleton<IResourceCache, InMemoryResourceCache>();
+        
+        // Option 3: Convert existing non-generic to generic using extension methods
+        var nonGenericValidator = serviceProvider.GetService<IParameterValidator>();
+        var typedValidator = nonGenericValidator.ForType<MyParams>(); // Extension method conversion
+    }
+}
+```
+
+#### Key Benefits
+
+- **🎯 Compile-time Safety**: Catch type errors at build time instead of runtime
+- **🚀 Better Performance**: No boxing/unboxing or reflection-based casting
+- **🧠 Enhanced IntelliSense**: Full type information available in IDE
+- **🔄 Seamless Migration**: Non-generic interfaces still work, upgrade at your own pace
+- **🛠️ Cleaner Code**: Eliminate try-catch blocks around casting operations
+
 ### Customizable Error Messages
 
 Override the `ErrorMessages` property in your tools to provide context-specific error messages and recovery guidance:
@@ -996,7 +1204,7 @@ The framework powers production MCP servers:
 | Metric | Target | Actual |
 |--------|--------|--------|
 | Build Time | <3s | 2.46s |
-| Test Suite | 100% pass | 538/538 ✓ |
+| Test Suite | 100% pass | 562/562 ✓ |
 | Warnings | 0 | 0 ✓ |
 | Framework Overhead | <5% | ~3% |
 

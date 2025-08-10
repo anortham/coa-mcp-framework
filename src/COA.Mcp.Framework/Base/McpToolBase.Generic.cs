@@ -436,6 +436,100 @@ public abstract class McpToolBase<TParams, TResult> : IMcpTool<TParams, TResult>
     }
 
     #endregion
+    
+    #region Response Builder Helpers
+    
+    /// <summary>
+    /// Creates a successful result with typed data.
+    /// </summary>
+    /// <typeparam name="TData">The type of the data.</typeparam>
+    /// <param name="data">The result data.</param>
+    /// <param name="message">Optional success message.</param>
+    /// <returns>A successful tool result.</returns>
+    protected ToolResult<TData> CreateSuccessResult<TData>(TData data, string? message = null)
+    {
+        return ToolResult<TData>.CreateSuccess(data, message);
+    }
+    
+    /// <summary>
+    /// Creates a failed result with error information.
+    /// </summary>
+    /// <typeparam name="TData">The type of the expected data.</typeparam>
+    /// <param name="errorMessage">The error message.</param>
+    /// <param name="errorCode">Optional error code.</param>
+    /// <returns>A failed tool result.</returns>
+    protected ToolResult<TData> CreateErrorResult<TData>(string errorMessage, string errorCode = "TOOL_ERROR")
+    {
+        return ToolResult<TData>.CreateError(errorMessage, errorCode);
+    }
+    
+    /// <summary>
+    /// Builds a response using a response builder if the result type supports it.
+    /// </summary>
+    /// <typeparam name="TBuilder">The type of the response builder.</typeparam>
+    /// <typeparam name="TData">The type of the input data.</typeparam>
+    /// <param name="builder">The response builder instance.</param>
+    /// <param name="data">The data to build the response from.</param>
+    /// <param name="responseMode">The response mode ("summary" or "full").</param>
+    /// <param name="tokenLimit">Optional token limit override.</param>
+    /// <returns>The built response.</returns>
+    protected async Task<TResult> BuildResponseAsync<TBuilder, TData>(
+        TBuilder builder,
+        TData data,
+        string responseMode = "full",
+        int? tokenLimit = null)
+        where TBuilder : class
+    {
+        // This helper assumes TResult is compatible with the builder's output
+        // The actual implementation would need reflection or a more sophisticated approach
+        // For now, this is a pattern that derived classes can follow
+        
+        var builderType = typeof(TBuilder);
+        var buildMethod = builderType.GetMethod("BuildResponseAsync");
+        
+        if (buildMethod != null)
+        {
+            var context = new Dictionary<string, object>
+            {
+                ["ResponseMode"] = responseMode,
+                ["TokenLimit"] = tokenLimit ?? TokenBudget.MaxTokens,
+                ["ToolName"] = Name
+            };
+            
+            // Create a ResponseContext if the builder expects one
+            var contextType = buildMethod.GetParameters()
+                .FirstOrDefault(p => p.Name == "context")?.ParameterType;
+                
+            if (contextType != null)
+            {
+                var responseContext = Activator.CreateInstance(contextType);
+                // Set properties via reflection if needed
+                contextType.GetProperty("ResponseMode")?.SetValue(responseContext, responseMode);
+                contextType.GetProperty("TokenLimit")?.SetValue(responseContext, tokenLimit);
+                contextType.GetProperty("ToolName")?.SetValue(responseContext, Name);
+                
+                var task = buildMethod.Invoke(builder, new[] { data, responseContext }) as Task;
+                if (task != null)
+                {
+                    await task;
+                    var resultProperty = task.GetType().GetProperty("Result");
+                    if (resultProperty != null)
+                    {
+                        var result = resultProperty.GetValue(task);
+                        if (result is TResult typedResult)
+                        {
+                            return typedResult;
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Fallback: if builder doesn't work as expected, return default
+        throw new InvalidOperationException($"Could not build response using {typeof(TBuilder).Name}");
+    }
+    
+    #endregion
 }
 
 /// <summary>

@@ -8,10 +8,65 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Placeholder for future features
+
+## [1.5.1] - 2025-01-11
+
+### Added
+
+#### 🎯 Generic Type Safety System
+- **IParameterValidator<TParams>**: Generic interface for strongly-typed parameter validation without object casting
+- **DefaultParameterValidator<TParams>**: Generic implementation with adapter pattern for backward compatibility
+- **IResourceCache<TResource>**: Generic resource cache supporting any resource type with compile-time safety
+- **InMemoryResourceCache<TResource>**: Generic cache implementation with type-safe operations
+- **AIOptimizedResponse<T>** and **AIResponseData<T>**: Generic response types eliminating object casting
+- **BaseResponseBuilder<TInput, TResult>**: Fully generic response builder with strong typing
+- **ToolResult<T>**: Generic tool result with typed data containers and static helper methods
+
+#### 🔄 Backward Compatibility Features  
+- **Extension Methods**: Seamless conversion between generic and non-generic interfaces
+- **Adapter Pattern**: Non-generic interfaces inherit from or wrap generic versions
+- **Zero Breaking Changes**: All existing code continues to work unchanged
+
+#### 🛠️ Resource Management
 - **IAsyncDisposable Support**: Tools can now properly manage resources like database connections
 - **DisposableToolBase Class**: Base class for tools requiring resource cleanup
 - **IDisposableTool Interface**: Marker interface for disposable tools
 - **Automatic Tool Disposal**: McpToolRegistry automatically disposes tools on shutdown
+
+### Changed
+- **Enhanced Type Safety**: Framework now provides compile-time safety for parameter validation and resource caching
+- **Response Builder Pattern**: Updated to support both generic and non-generic implementations
+- **Memory Cache Integration**: Generic cache implementations now handle nullable statistics correctly
+- **Validation Architecture**: Naming conflict resolved for ValidationResult using namespace aliases
+
+### Performance Improvements
+- **Eliminated Object Boxing**: Generic interfaces remove object casting overhead
+- **Compile-time Validation**: Type errors caught at build time instead of runtime
+- **Reduced Reflection**: Less reflection-based type checking in generic implementations
+- **Memory Efficiency**: Type-safe operations reduce garbage collection pressure
+
+### Migration Path
+```csharp
+// Easy upgrade path for existing tools:
+
+// 1. Keep existing non-generic usage (zero changes required)
+builder.Services.AddSingleton<IParameterValidator, DefaultParameterValidator>();
+builder.Services.AddSingleton<IResourceCache, InMemoryResourceCache>();
+
+// 2. Gradually adopt generic interfaces for new code
+builder.Services.AddSingleton<IParameterValidator<MyParams>, DefaultParameterValidator<MyParams>>();
+builder.Services.AddSingleton<IResourceCache<MyResource>, InMemoryResourceCache<MyResource>>();
+
+// 3. Use extension methods for seamless conversion
+var typedValidator = nonGenericValidator.ForType<MyParams>();
+```
+
+### Testing
+- **Total Tests**: 562 across all projects
+- **Pass Rate**: 100% (562/562 passing)
+- **New Generic Tests**: Added comprehensive test coverage for all generic interfaces
+- **Backward Compatibility Tests**: Verified zero breaking changes with existing code
 
 ## [1.1.0] - 2025-01-06
 

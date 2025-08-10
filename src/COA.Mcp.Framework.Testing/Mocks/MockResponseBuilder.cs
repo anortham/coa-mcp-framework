@@ -8,16 +8,18 @@ using System.Threading.Tasks;
 namespace COA.Mcp.Framework.Testing.Mocks
 {
     /// <summary>
-    /// Mock response builder for testing response building scenarios.
+    /// Mock response builder for testing response building scenarios with strong typing.
     /// </summary>
-    /// <typeparam name="TData">The type of data being built.</typeparam>
-    public class MockResponseBuilder<TData> : BaseResponseBuilder<TData>
+    /// <typeparam name="TInput">The type of input data being processed.</typeparam>
+    /// <typeparam name="TResult">The type of result being returned.</typeparam>
+    public class MockResponseBuilder<TInput, TResult> : BaseResponseBuilder<TInput, TResult>
+        where TResult : new()
     {
         private readonly List<string> _insights = new();
         private readonly List<AIAction> _actions = new();
-        private Func<TData, ResponseContext, Task<object>>? _buildResponseFunc;
-        private Func<TData, string, List<string>>? _generateInsightsFunc;
-        private Func<TData, int, List<AIAction>>? _generateActionsFunc;
+        private Func<TInput, ResponseContext, Task<TResult>>? _buildResponseFunc;
+        private Func<TInput, string, List<string>>? _generateInsightsFunc;
+        private Func<TInput, int, List<AIAction>>? _generateActionsFunc;
 
         /// <summary>
         /// Gets the list of build requests.
@@ -39,7 +41,7 @@ namespace COA.Mcp.Framework.Testing.Mocks
         /// </summary>
         /// <param name="insights">The insights to return.</param>
         /// <returns>The builder for chaining.</returns>
-        public MockResponseBuilder<TData> WithInsights(params string[] insights)
+        public MockResponseBuilder<TInput, TResult> WithInsights(params string[] insights)
         {
             _insights.Clear();
             _insights.AddRange(insights);
@@ -51,7 +53,7 @@ namespace COA.Mcp.Framework.Testing.Mocks
         /// </summary>
         /// <param name="actions">The actions to return.</param>
         /// <returns>The builder for chaining.</returns>
-        public MockResponseBuilder<TData> WithActions(params AIAction[] actions)
+        public MockResponseBuilder<TInput, TResult> WithActions(params AIAction[] actions)
         {
             _actions.Clear();
             _actions.AddRange(actions);
@@ -63,7 +65,7 @@ namespace COA.Mcp.Framework.Testing.Mocks
         /// </summary>
         /// <param name="buildFunc">The build function.</param>
         /// <returns>The builder for chaining.</returns>
-        public MockResponseBuilder<TData> WithBuildFunction(Func<TData, ResponseContext, Task<object>> buildFunc)
+        public MockResponseBuilder<TInput, TResult> WithBuildFunction(Func<TInput, ResponseContext, Task<TResult>> buildFunc)
         {
             _buildResponseFunc = buildFunc;
             return this;
@@ -74,7 +76,7 @@ namespace COA.Mcp.Framework.Testing.Mocks
         /// </summary>
         /// <param name="insightsFunc">The insights function.</param>
         /// <returns>The builder for chaining.</returns>
-        public MockResponseBuilder<TData> WithInsightsFunction(Func<TData, string, List<string>> insightsFunc)
+        public MockResponseBuilder<TInput, TResult> WithInsightsFunction(Func<TInput, string, List<string>> insightsFunc)
         {
             _generateInsightsFunc = insightsFunc;
             return this;
@@ -85,14 +87,14 @@ namespace COA.Mcp.Framework.Testing.Mocks
         /// </summary>
         /// <param name="actionsFunc">The actions function.</param>
         /// <returns>The builder for chaining.</returns>
-        public MockResponseBuilder<TData> WithActionsFunction(Func<TData, int, List<AIAction>> actionsFunc)
+        public MockResponseBuilder<TInput, TResult> WithActionsFunction(Func<TInput, int, List<AIAction>> actionsFunc)
         {
             _generateActionsFunc = actionsFunc;
             return this;
         }
 
         /// <inheritdoc/>
-        public override async Task<object> BuildResponseAsync(TData data, ResponseContext context)
+        public override async Task<TResult> BuildResponseAsync(TInput data, ResponseContext context)
         {
             var request = new BuildRequest
             {
@@ -115,26 +117,37 @@ namespace COA.Mcp.Framework.Testing.Mocks
 
             var startTime = DateTime.UtcNow.AddMilliseconds(-SimulatedExecutionTimeMs);
 
-            // Build default response
-            var response = new AIOptimizedResponse
+            // Build default response - check if TResult is AIOptimizedResponse
+            if (typeof(TResult).IsGenericType && 
+                typeof(TResult).GetGenericTypeDefinition() == typeof(AIOptimizedResponse<>))
             {
-                Format = "ai-optimized",
-                Data = new AIResponseData
-                {
-                    Summary = $"Mock response for {typeof(TData).Name}",
-                    Results = data,
-                    Count = data is ICollection<object> collection ? collection.Count : 1
-                },
-                Insights = GenerateInsights(data, context.ResponseMode),
-                Actions = GenerateActions(data, CalculateTokenBudget(context)),
-                Meta = CreateMetadata(startTime, SimulateTruncation)
-            };
-
-            return response;
+                var responseType = typeof(TResult).GetGenericArguments()[0];
+                var responseDataType = typeof(AIResponseData<>).MakeGenericType(responseType);
+                var responseData = Activator.CreateInstance(responseDataType);
+                
+                responseDataType.GetProperty("Summary")?.SetValue(responseData, $"Mock response for {typeof(TInput).Name}");
+                responseDataType.GetProperty("Results")?.SetValue(responseData, data);
+                responseDataType.GetProperty("Count")?.SetValue(responseData, data is ICollection<object> collection ? collection.Count : 1);
+                
+                var response = new TResult();
+                var responseObj = response as object;
+                responseObj?.GetType().GetProperty("Format")?.SetValue(responseObj, "ai-optimized");
+                responseObj?.GetType().GetProperty("Data")?.SetValue(responseObj, responseData);
+                responseObj?.GetType().GetProperty("Insights")?.SetValue(responseObj, GenerateInsights(data, context.ResponseMode));
+                responseObj?.GetType().GetProperty("Actions")?.SetValue(responseObj, GenerateActions(data, CalculateTokenBudget(context)));
+                responseObj?.GetType().GetProperty("Meta")?.SetValue(responseObj, CreateMetadata(startTime, SimulateTruncation));
+                
+                return response;
+            }
+            else
+            {
+                // For non-AIOptimizedResponse types, return a new instance
+                return new TResult();
+            }
         }
 
         /// <inheritdoc/>
-        protected override List<string> GenerateInsights(TData data, string responseMode)
+        protected override List<string> GenerateInsights(TInput data, string responseMode)
         {
             if (_generateInsightsFunc != null)
             {
@@ -149,14 +162,14 @@ namespace COA.Mcp.Framework.Testing.Mocks
             // Generate default insights
             return new List<string>
             {
-                $"Processing {typeof(TData).Name} in {responseMode} mode",
+                $"Processing {typeof(TInput).Name} in {responseMode} mode",
                 "This is a mock insight for testing",
                 SimulateTruncation ? "Results were truncated to fit token limits" : "All results included"
             };
         }
 
         /// <inheritdoc/>
-        protected override List<AIAction> GenerateActions(TData data, int tokenBudget)
+        protected override List<AIAction> GenerateActions(TInput data, int tokenBudget)
         {
             if (_generateActionsFunc != null)
             {
@@ -204,7 +217,7 @@ namespace COA.Mcp.Framework.Testing.Mocks
             /// <summary>
             /// Gets or sets the data that was built.
             /// </summary>
-            public TData Data { get; set; } = default!;
+            public TInput Data { get; set; } = default!;
 
             /// <summary>
             /// Gets or sets the context used.
@@ -217,11 +230,19 @@ namespace COA.Mcp.Framework.Testing.Mocks
             public DateTime Timestamp { get; set; }
         }
     }
+    
+    /// <summary>
+    /// Non-generic mock response builder for backward compatibility.
+    /// </summary>
+    /// <typeparam name="TData">The type of data being processed.</typeparam>
+    public class MockResponseBuilder<TData> : MockResponseBuilder<TData, AIOptimizedResponse>
+    {
+    }
 
     /// <summary>
     /// Non-generic mock response builder for simple testing scenarios.
     /// </summary>
-    public class MockResponseBuilder : MockResponseBuilder<object>
+    public class MockResponseBuilder : MockResponseBuilder<object, AIOptimizedResponse>
     {
         /// <summary>
         /// Creates a simple successful response.
