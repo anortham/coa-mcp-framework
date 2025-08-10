@@ -4,6 +4,7 @@ using System.Linq;
 using System.Reflection;
 using COA.Mcp.Framework.Configuration;
 using COA.Mcp.Framework.Interfaces;
+using COA.Mcp.Framework.Pipeline;
 using COA.Mcp.Framework.Prompts;
 using COA.Mcp.Framework.Registration;
 using COA.Mcp.Framework.Resources;
@@ -289,6 +290,7 @@ public class McpServerBuilder
         _services.AddSingleton(registry);
         return this;
     }
+
 
     /// <summary>
     /// Configures an auto-started service that runs alongside the MCP server.

@@ -26,7 +26,9 @@
       "Bash(dotnet clean:*)",
       "Bash(dotnet --version)",
       "mcp__codesearch__batch_operations",
-      "mcp__projectknowledge__save_checkpoint"
+      "mcp__projectknowledge__save_checkpoint",
+      "mcp__projectknowledge__load_checkpoint",
+      "mcp__projectknowledge__list_checkpoints"
     ],
     "deny": []
   }

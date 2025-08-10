@@ -54,6 +54,7 @@ Welcome to the comprehensive documentation for the COA MCP Framework - a complet
   - Breaking change detection
 
 ### Technical Documentation
+- [Lifecycle Hooks & Middleware](lifecycle-hooks.md) - Comprehensive guide to middleware and tool execution hooks
 - [Token Optimization Strategies](technical/TOKEN_OPTIMIZATION_STRATEGIES.md) - Comprehensive token management guide  
 - [Migration Example](technical/MIGRATION_EXAMPLE.md) - Step-by-step migration guide with updated patterns
 
@@ -70,8 +71,9 @@ Welcome to the comprehensive documentation for the COA MCP Framework - a complet
 ### 👩‍💻 For Developers
 1. [Quick Start](../README.md#-quick-start)
 2. [Core Framework Docs](../src/COA.Mcp.Framework/README.md)
-3. [Testing Guide](../src/COA.Mcp.Framework.Testing/README.md)
-4. [Examples](../examples/SimpleMcpServer/)
+3. [Lifecycle Hooks & Middleware](lifecycle-hooks.md)
+4. [Testing Guide](../src/COA.Mcp.Framework.Testing/README.md)
+5. [Examples](../examples/SimpleMcpServer/)
 
 ### 🏗️ For Architects
 1. [Token Optimization](../src/COA.Mcp.Framework.TokenOptimization/README.md)

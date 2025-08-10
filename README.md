@@ -4,7 +4,7 @@ A comprehensive .NET framework for building and consuming Model Context Protocol
 
 [![NuGet Version](https://img.shields.io/nuget/v/COA.Mcp.Framework)](https://www.nuget.org/packages/COA.Mcp.Framework)
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](https://github.com/anortham/COA-Mcp-Framework)
-[![Tests](https://img.shields.io/badge/tests-542%20passing-success)](https://github.com/anortham/COA-Mcp-Framework)
+[![Tests](https://img.shields.io/badge/tests-538%20passing-success)](https://github.com/anortham/COA-Mcp-Framework)
 [![.NET 9.0](https://img.shields.io/badge/.NET-9.0-blue)](https://dotnet.microsoft.com/download)
 
 ## 🚀 Quick Start
@@ -148,6 +148,13 @@ Your MCP server is ready! 🎉
 - Smart truncation with resource URIs
 - **Per-tool token budgets** - Configure limits via `ConfigureTokenBudgets()` in server builder
 - **Hierarchical configuration** - Tool-specific, category, and default budget settings
+
+### 🔗 **Lifecycle Hooks & Middleware**
+- **Extensible execution pipeline** - Add cross-cutting concerns with simple middleware
+- **Built-in middleware** - Logging, token counting, performance monitoring
+- **Custom middleware support** - Implement `ISimpleMiddleware` for custom logic
+- **Per-tool configuration** - Override `Middleware` property for tool-specific hooks
+- See **[Lifecycle Hooks Guide](docs/lifecycle-hooks.md)** for detailed documentation
 
 ### 💬 **Interactive Prompts**
 - Guide users through complex operations with prompt templates
@@ -296,6 +303,87 @@ var result = SubstituteVariables(template, new Dictionary<string, object>
 // Result: "Hello Developer, your project MCP Server is ready!"
 ```
 
+## 🔗 Lifecycle Hooks & Middleware
+
+The framework provides a powerful middleware system for adding cross-cutting concerns to your tools:
+
+### Adding Middleware to Tools
+
+```csharp
+public class MyTool : McpToolBase<MyParams, MyResult>
+{
+    private readonly ILogger<MyTool> _logger;
+    
+    public MyTool(ILogger<MyTool> logger) : base(logger)
+    {
+        _logger = logger;
+    }
+    
+    // Configure middleware for this specific tool
+    protected override IReadOnlyList<ISimpleMiddleware>? Middleware => new List<ISimpleMiddleware>
+    {
+        // Built-in token counting middleware
+        new TokenCountingSimpleMiddleware(),
+        
+        // Custom timing middleware
+        new TimingMiddleware(_logger)
+    };
+    
+    // Your tool implementation...
+}
+```
+
+### Built-in Middleware
+
+- **TokenCountingSimpleMiddleware**: Estimates and logs token usage
+- **LoggingSimpleMiddleware**: Comprehensive execution logging
+
+### Custom Middleware
+
+```csharp
+public class TimingMiddleware : SimpleMiddlewareBase
+{
+    private readonly ILogger _logger;
+    
+    public TimingMiddleware(ILogger logger)
+    {
+        _logger = logger;
+        Order = 50; // Controls execution order
+    }
+    
+    public override Task OnBeforeExecutionAsync(string toolName, object? parameters)
+    {
+        _logger.LogInformation("🚀 Starting {ToolName}", toolName);
+        return Task.CompletedTask;
+    }
+    
+    public override Task OnAfterExecutionAsync(string toolName, object? parameters, object? result, long elapsedMs)
+    {
+        var performance = elapsedMs < 100 ? "⚡ Fast" : elapsedMs < 1000 ? "🚶 Normal" : "🐌 Slow";
+        _logger.LogInformation("✅ {ToolName} completed: {Performance} ({ElapsedMs}ms)", 
+            toolName, performance, elapsedMs);
+        return Task.CompletedTask;
+    }
+    
+    public override Task OnErrorAsync(string toolName, object? parameters, Exception exception, long elapsedMs)
+    {
+        _logger.LogWarning("💥 {ToolName} failed after {ElapsedMs}ms: {Error}", 
+            toolName, elapsedMs, exception.Message);
+        return Task.CompletedTask;
+    }
+}
+```
+
+### Middleware Execution Flow
+
+1. **Sort by Order** (ascending): Lower numbers run first
+2. **Before hooks** (in order): middleware1 → middleware2 → middleware3  
+3. **Tool execution** with validation and token management
+4. **After hooks** (reverse order): middleware3 → middleware2 → middleware1
+5. **Error hooks** (reverse order, if error occurs)
+
+**📖 For complete documentation and advanced examples, see [Lifecycle Hooks Guide](docs/lifecycle-hooks.md)**
+
 ## 🏁 Getting Started
 
 ### Working Example: SimpleMcpServer
@@ -368,6 +456,7 @@ builder.Services.AddSingleton<IMyService, MyService>();
 // Option 1: Manual registration (recommended for explicit control)
 builder.RegisterToolType<MyFirstTool>();
 builder.RegisterToolType<MySecondTool>();
+builder.RegisterToolType<LifecycleExampleTool>(); // Example with middleware
 
 // Option 2: Automatic discovery (scans assembly for tools)
 builder.DiscoverTools(typeof(Program).Assembly);
@@ -907,7 +996,7 @@ The framework powers production MCP servers:
 | Metric | Target | Actual |
 |--------|--------|--------|
 | Build Time | <3s | 2.46s |
-| Test Suite | 100% pass | 542/542 ✓ |
+| Test Suite | 100% pass | 538/538 ✓ |
 | Warnings | 0 | 0 ✓ |
 | Framework Overhead | <5% | ~3% |
 

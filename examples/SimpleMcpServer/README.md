@@ -4,12 +4,13 @@ This example demonstrates how to create a simple MCP (Model Context Protocol) se
 
 ## Features
 
-This example server includes four tools:
+This example server includes five tools:
 
 1. **Calculator Tool** - Performs basic arithmetic operations (add, subtract, multiply, divide)
 2. **String Manipulation Tool** - Various string operations (reverse, capitalize, extract emails, etc.)
 3. **Data Store Tool** - In-memory key-value storage with CRUD operations
 4. **System Info Tool** - Retrieves system and runtime information
+5. **Lifecycle Example Tool** - Demonstrates middleware and lifecycle hooks (NEW)
 
 ## Running the Example
 
@@ -133,6 +134,38 @@ Retrieve a value:
 }
 ```
 
+### Lifecycle Example Tool (NEW)
+
+Test middleware functionality:
+```json
+{
+  "tool": "lifecycle_example",
+  "parameters": {
+    "text": "Hello Framework",
+    "operation": "uppercase",
+    "processingDelayMs": 500
+  }
+}
+```
+
+Response:
+```json
+{
+  "success": true,
+  "originalText": "Hello Framework", 
+  "processedText": "HELLO FRAMEWORK",
+  "operation": "uppercase",
+  "processingTimeMs": 500,
+  "timestamp": "2025-01-12T10:30:00Z"
+}
+```
+
+This tool demonstrates:
+- **Token counting middleware** - Estimates and logs token usage
+- **Custom timing middleware** - Categorizes performance and logs execution details  
+- **Error handling** - Middleware error hooks in action
+- **Order-based execution** - Multiple middleware working together
+
 ## Architecture
 
 The example demonstrates key framework concepts:
@@ -163,6 +196,9 @@ To add a new tool:
 - **Fluent configuration** API
 - **Async/await** pattern throughout
 - **Cancellation token** support
+- **Lifecycle hooks & middleware** - Cross-cutting concerns like logging and token counting (NEW)
+
+For detailed information on middleware and lifecycle hooks, see the [Lifecycle Hooks Guide](../../docs/lifecycle-hooks.md).
 
 ## License
 

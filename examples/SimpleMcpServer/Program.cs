@@ -22,6 +22,7 @@ builder.RegisterToolType<CalculatorTool>();
 builder.RegisterToolType<StringManipulationTool>();
 builder.RegisterToolType<DataStoreTool>();
 builder.RegisterToolType<SystemInfoTool>();
+builder.RegisterToolType<LifecycleExampleTool>(); // Demonstrates lifecycle hooks
 
 // Register prompts
 builder.RegisterPromptType<GreetingPrompt>();

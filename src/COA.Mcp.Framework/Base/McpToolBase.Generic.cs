@@ -1,7 +1,9 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using DataAnnotations = System.ComponentModel.DataAnnotations;
 using System.Diagnostics;
+using System.Linq;
 using System.Reflection;
 using System.Text.Json;
 using System.Threading;
@@ -10,6 +12,7 @@ using COA.Mcp.Framework.Configuration;
 using COA.Mcp.Framework.Exceptions;
 using COA.Mcp.Framework.Interfaces;
 using COA.Mcp.Framework.Models;
+using COA.Mcp.Framework.Pipeline;
 using COA.Mcp.Framework.Schema;
 using COA.Mcp.Framework.Utilities;
 using Microsoft.Extensions.Logging;
@@ -57,6 +60,12 @@ public abstract class McpToolBase<TParams, TResult> : IMcpTool<TParams, TResult>
     protected virtual TokenBudgetConfiguration TokenBudget =>
         _tokenBudgetConfiguration ??= new TokenBudgetConfiguration();
 
+    /// <summary>
+    /// Gets the simple middleware instances for this tool.
+    /// Override to provide lifecycle hooks.
+    /// </summary>
+    protected virtual IReadOnlyList<ISimpleMiddleware>? Middleware { get; }
+
     /// <inheritdoc/>
     public abstract string Name { get; }
 
@@ -83,6 +92,13 @@ public abstract class McpToolBase<TParams, TResult> : IMcpTool<TParams, TResult>
     /// <inheritdoc/>
     public virtual async Task<TResult> ExecuteAsync(TParams parameters, CancellationToken cancellationToken = default)
     {
+        // If middleware is configured, use it
+        if (Middleware != null && Middleware.Count > 0)
+        {
+            return await ExecuteWithMiddlewareAsync(parameters, cancellationToken);
+        }
+
+        // Otherwise, use standard execution path
         var stopwatch = Stopwatch.StartNew();
         
         try
@@ -121,6 +137,96 @@ public abstract class McpToolBase<TParams, TResult> : IMcpTool<TParams, TResult>
                 Name, stopwatch.ElapsedMilliseconds);
             var message = ErrorMessages.ToolExecutionFailed(Name, ex.Message);
             throw new ToolExecutionException(Name, message, ex);
+        }
+    }
+
+    /// <summary>
+    /// Executes the tool with middleware support.
+    /// </summary>
+    private async Task<TResult> ExecuteWithMiddlewareAsync(TParams parameters, CancellationToken cancellationToken)
+    {
+        var stopwatch = Stopwatch.StartNew();
+        
+        // Sort middleware by order (enabled ones only)
+        var sortedMiddleware = Middleware!
+            .Where(m => m.IsEnabled)
+            .OrderBy(m => m.Order)
+            .ToList();
+
+        TResult? result = default;
+        Exception? caughtException = null;
+
+        try
+        {
+            // Before execution hooks
+            foreach (var middleware in sortedMiddleware)
+            {
+                await middleware.OnBeforeExecutionAsync(Name, parameters);
+            }
+
+            // Validate parameters
+            ValidateParameters(parameters);
+            
+            _logger?.LogDebug("Executing tool '{ToolName}' with parameters: {Parameters}", 
+                Name, JsonSerializer.Serialize(parameters, _jsonOptions));
+            
+            // Execute with token management
+            result = await ExecuteWithTokenManagement(
+                () => ExecuteInternalAsync(parameters, cancellationToken),
+                cancellationToken);
+            
+            _logger?.LogInformation("Tool '{ToolName}' executed successfully in {ElapsedMs}ms", 
+                Name, stopwatch.ElapsedMilliseconds);
+
+            // After execution hooks (in reverse order)
+            foreach (var middleware in sortedMiddleware.AsEnumerable().Reverse())
+            {
+                await middleware.OnAfterExecutionAsync(Name, parameters, result, stopwatch.ElapsedMilliseconds);
+            }
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            caughtException = ex;
+            
+            // Error hooks (in reverse order)
+            foreach (var middleware in sortedMiddleware.AsEnumerable().Reverse())
+            {
+                try
+                {
+                    await middleware.OnErrorAsync(Name, parameters, ex, stopwatch.ElapsedMilliseconds);
+                }
+                catch (Exception hookEx)
+                {
+                    _logger?.LogError(hookEx, "Error in middleware error hook for tool '{ToolName}'", Name);
+                }
+            }
+
+            // Re-throw with appropriate wrapping
+            if (ex is OperationCanceledException)
+            {
+                _logger?.LogWarning("Tool '{ToolName}' was cancelled after {ElapsedMs}ms", 
+                    Name, stopwatch.ElapsedMilliseconds);
+                throw;
+            }
+            else if (ex is ValidationException vex)
+            {
+                _logger?.LogError(ex, "Validation failed for tool '{ToolName}'", Name);
+                var message = ErrorMessages.ValidationFailed("parameters", vex.Message);
+                throw new ToolExecutionException(Name, message, vex);
+            }
+            else if (ex is ToolExecutionException)
+            {
+                throw;
+            }
+            else
+            {
+                _logger?.LogError(ex, "Tool '{ToolName}' failed after {ElapsedMs}ms", 
+                    Name, stopwatch.ElapsedMilliseconds);
+                var message = ErrorMessages.ToolExecutionFailed(Name, ex.Message);
+                throw new ToolExecutionException(Name, message, ex);
+            }
         }
     }
 

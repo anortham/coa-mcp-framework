@@ -18,6 +18,7 @@ COA.Mcp.Framework/
 ├── Prompts/                        # Interactive prompt system
 ├── Schema/                         # Type-safe schema system
 ├── Registration/                   # Tool and prompt registries
+├── Pipeline/                       # Lifecycle hooks and middleware system
 └── Models/                         # Error models with recovery info
 ```
 
@@ -47,6 +48,7 @@ dotnet pack -c Release -o ./nupkg  # Create NuGet package
 - Implement `DisposeManagedResourcesAsync()` for resource cleanup
 - Override `ErrorMessages` property for custom error messages and recovery info
 - Override `TokenBudget` property for per-tool token limits
+- Override `Middleware` property to add lifecycle hooks (logging, token counting, custom logic)
 
 ### When helping with prompt development:
 - Prompts inherit from `PromptBase`
@@ -56,11 +58,11 @@ dotnet pack -c Release -o ./nupkg  # Create NuGet package
 
 ## 📊 Current Status
 - Version: 1.5.0
-- Tests: 542 passing (100%)
+- Tests: 538 passing (100%)
 - Build warnings: 0
-- Examples: SimpleMcpServer (4 tools + 2 prompts)
+- Examples: SimpleMcpServer (5 tools + 2 prompts)
 - Test Framework: NUnit (not xUnit)
-- Features: IAsyncDisposable support, Customizable error messages, Token budget configuration
+- Features: IAsyncDisposable support, Customizable error messages, Token budget configuration, Lifecycle hooks & middleware
 
 ## 🛑 Common Issues & Solutions
 
@@ -71,13 +73,17 @@ dotnet pack -c Release -o ./nupkg  # Create NuGet package
 | Validation errors | Use built-in validation helpers |
 | Token limits | Configure TokenBudgets in server builder |
 | Custom error messages | Override ErrorMessages property in tool |
+| Lifecycle hooks not working | Override Middleware property with ISimpleMiddleware list |
 
 ## 📍 Important Files
 
 - Tool base: `src/COA.Mcp.Framework/Base/McpToolBase.Generic.cs`
 - Prompt base: `src/COA.Mcp.Framework/Prompts/PromptBase.cs`
 - Server builder: `src/COA.Mcp.Framework/Server/McpServerBuilder.cs`
+- Middleware system: `src/COA.Mcp.Framework/Pipeline/SimpleMiddleware.cs`
+- Built-in middleware: `src/COA.Mcp.Framework/Pipeline/SimpleMiddleware/`
 - Working example: `examples/SimpleMcpServer/`
+- Lifecycle hooks docs: `docs/lifecycle-hooks.md`
 
 ---
 **Remember**: This is a framework - changes require rebuild + repack + consumer update!
