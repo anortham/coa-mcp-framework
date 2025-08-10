@@ -19,7 +19,7 @@ public abstract class BaseResponseBuilder<TData>
     /// <summary>
     /// Default token budget for full responses.
     /// </summary>
-    protected const int FullTokenBudget = 50000;
+    protected const int FullTokenBudget = 24000;
     
     protected readonly ILogger? _logger;
     protected readonly ProgressiveReductionEngine _reductionEngine;
