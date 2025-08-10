@@ -11,11 +11,20 @@ namespace COA.Mcp.Framework.Resources;
 public class ResourceRegistry : IResourceRegistry
 {
     private readonly ILogger<ResourceRegistry> _logger;
+    private readonly IResourceCache? _cache;
     private readonly List<IResourceProvider> _providers = new();
 
-    public ResourceRegistry(ILogger<ResourceRegistry> logger)
+    public ResourceRegistry(ILogger<ResourceRegistry> logger, IResourceCache? cache = null)
     {
         _logger = logger;
+        _cache = cache;
+        
+        if (_cache == null)
+        {
+            _logger.LogWarning("No IResourceCache provided. Resource caching is disabled. " +
+                              "This may cause issues with scoped providers. " +
+                              "Consider registering IResourceCache in your DI container.");
+        }
     }
 
     /// <inheritdoc />
@@ -54,6 +63,26 @@ public class ResourceRegistry : IResourceRegistry
         }
 
         _logger.LogDebug("Attempting to read resource: {Uri}", uri);
+        
+        // Check cache first if available
+        if (_cache != null)
+        {
+            try
+            {
+                var cachedResult = await _cache.GetAsync(uri);
+                if (cachedResult != null)
+                {
+                    _logger.LogDebug("Returning cached resource: {Uri}", uri);
+                    return cachedResult;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to retrieve resource from cache: {Uri}. Continuing without cache.", uri);
+                // Continue without cache
+            }
+        }
+        
         _logger.LogDebug("Available providers: {Count}", _providers.Count);
         
         foreach (var provider in _providers)
@@ -75,6 +104,22 @@ public class ResourceRegistry : IResourceRegistry
                     {
                         _logger.LogDebug("Provider {ProviderName} successfully read resource {Uri}", 
                             provider.Name, uri);
+                        
+                        // Cache the result if cache is available
+                        if (_cache != null)
+                        {
+                            try
+                            {
+                                await _cache.SetAsync(uri, result);
+                                _logger.LogDebug("Cached resource: {Uri}", uri);
+                            }
+                            catch (Exception cacheEx)
+                            {
+                                _logger.LogWarning(cacheEx, "Failed to cache resource: {Uri}. Continuing without caching.", uri);
+                                // Continue without caching - not a critical error
+                            }
+                        }
+                        
                         return result;
                     }
                     else

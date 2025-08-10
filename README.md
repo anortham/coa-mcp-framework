@@ -567,34 +567,81 @@ public class FileAnalysisTool : McpToolBase<FileAnalysisParams, FileAnalysisResu
 
 ### Resource Providers
 
+#### Automatic Resource Caching (v1.4.8+)
+The framework now provides automatic singleton-level caching for resources, solving the lifetime mismatch between scoped providers and singleton registry:
+
 ```csharp
-// Implement custom resource providers for large data
+// Resource caching is automatically configured by McpServerBuilder
+// No additional setup required - just implement your provider!
+
 public class SearchResultResourceProvider : IResourceProvider
 {
-    public string UriScheme => "search-results";
+    private readonly ISearchService _searchService; // Can be scoped!
+    
+    public SearchResultResourceProvider(ISearchService searchService)
+    {
+        _searchService = searchService; // Scoped dependency is OK
+    }
+    
+    public string Scheme => "search-results";
+    public string Name => "Search Results Provider";
+    public string Description => "Provides search result resources";
     
     public bool CanHandle(string uri) => 
-        uri.StartsWith($"{UriScheme}://");
+        uri.StartsWith($"{Scheme}://");
     
-    public async Task<Resource> GetResourceAsync(string uri, CancellationToken ct)
+    public async Task<ReadResourceResult> ReadResourceAsync(string uri, CancellationToken ct)
     {
+        // No need to implement caching - framework handles it!
         var sessionId = ExtractSessionId(uri);
-        var results = await LoadSearchResultsAsync(sessionId);
+        var results = await _searchService.LoadResultsAsync(sessionId);
         
-        return new Resource
+        return new ReadResourceResult
         {
-            Uri = uri,
-            Name = $"Search Results {sessionId}",
-            MimeType = "application/json",
-            Contents = JsonSerializer.Serialize(results)
+            Contents = new List<ResourceContent>
+            {
+                new ResourceContent
+                {
+                    Uri = uri,
+                    Text = JsonSerializer.Serialize(results),
+                    MimeType = "application/json"
+                }
+            }
         };
+    }
+    
+    public async Task<List<Resource>> ListResourcesAsync(CancellationToken ct)
+    {
+        // List available resources
+        var sessions = await _searchService.GetActiveSessionsAsync();
+        return sessions.Select(s => new Resource
+        {
+            Uri = $"{Scheme}://{s.Id}",
+            Name = $"Search Results {s.Id}",
+            Description = $"Results for query: {s.Query}",
+            MimeType = "application/json"
+        }).ToList();
     }
 }
 
-// Register in your server
-builder.Services.AddSingleton<IResourceProvider, SearchResultResourceProvider>();
-builder.Services.AddSingleton<IResourceRegistry, ResourceRegistry>();
+// Register your provider - caching is automatic!
+builder.Services.AddScoped<IResourceProvider, SearchResultResourceProvider>();
+
+// Optional: Configure cache settings
+builder.Services.Configure<ResourceCacheOptions>(options =>
+{
+    options.DefaultExpiration = TimeSpan.FromMinutes(10);
+    options.SlidingExpiration = TimeSpan.FromMinutes(5);
+    options.MaxSizeBytes = 200 * 1024 * 1024; // 200 MB
+});
 ```
+
+#### Why Resource Caching?
+- **Solves lifetime mismatch**: Scoped providers can work with singleton registry
+- **Improves performance**: Automatic caching of expensive operations
+- **Memory efficient**: Built-in size limits and expiration
+- **Transparent**: No code changes needed in existing providers
+- **Resilient**: Failures in cache don't affect core functionality
 
 ### Token Optimization (with optional package)
 

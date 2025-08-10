@@ -10,9 +10,11 @@ using COA.Mcp.Framework.Server.Services;
 using COA.Mcp.Framework.Transport;
 using COA.Mcp.Framework.Transport.Configuration;
 using COA.Mcp.Protocol;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace COA.Mcp.Framework.Server;
 
@@ -402,6 +404,25 @@ public class McpServerBuilder
 
     private void ConfigureDefaultServices()
     {
+        // Add memory cache services
+        _services.AddMemoryCache(options =>
+        {
+            // Set size limit for the cache (100 MB default)
+            options.SizeLimit = 100 * 1024 * 1024;
+            options.CompactionPercentage = 0.05; // Compact 5% when size limit is reached
+            options.ExpirationScanFrequency = TimeSpan.FromMinutes(1);
+        });
+        
+        // Add resource cache service as singleton
+        _services.Configure<ResourceCacheOptions>(options =>
+        {
+            options.DefaultExpiration = TimeSpan.FromMinutes(5);
+            options.SlidingExpiration = TimeSpan.FromMinutes(2);
+            options.MaxSizeBytes = 100 * 1024 * 1024; // 100 MB
+            options.EnableStatistics = true;
+        });
+        _services.AddSingleton<IResourceCache, InMemoryResourceCache>();
+        
         // Add framework services
         _services.AddSingleton<McpToolRegistry>();
         _services.AddSingleton<ResourceRegistry>();

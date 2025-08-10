@@ -18,7 +18,7 @@ public class ResourceRegistryTests
     public void Setup()
     {
         _loggerMock = new Mock<ILogger<ResourceRegistry>>();
-        _registry = new ResourceRegistry(_loggerMock.Object);
+        _registry = new ResourceRegistry(_loggerMock.Object, null); // No cache for basic tests
     }
 
     [Test]
