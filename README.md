@@ -4,7 +4,7 @@ A comprehensive .NET framework for building and consuming Model Context Protocol
 
 [![NuGet Version](https://img.shields.io/nuget/v/COA.Mcp.Framework)](https://www.nuget.org/packages/COA.Mcp.Framework)
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](https://github.com/anortham/COA-Mcp-Framework)
-[![Tests](https://img.shields.io/badge/tests-352%20passing-success)](https://github.com/anortham/COA-Mcp-Framework)
+[![Tests](https://img.shields.io/badge/tests-489%20passing-success)](https://github.com/anortham/COA-Mcp-Framework)
 [![.NET 9.0](https://img.shields.io/badge/.NET-9.0-blue)](https://dotnet.microsoft.com/download)
 
 ## 🚀 Quick Start
@@ -13,7 +13,7 @@ A comprehensive .NET framework for building and consuming Model Context Protocol
 
 ```xml
 <!-- Add to your .csproj file -->
-<PackageReference Include="COA.Mcp.Framework" Version="1.1.0" />
+<PackageReference Include="COA.Mcp.Framework" Version="1.4.0" />
 ```
 
 ### Create Your First MCP Server
@@ -106,10 +106,13 @@ Your MCP server is ready! 🎉
 
 | Package | Version | Description |
 |---------|---------|-------------|
-| **COA.Mcp.Framework** | 1.1.0 | Core framework with MCP protocol included |
-| **COA.Mcp.Client** | 1.1.0 | Strongly-typed C# client for MCP servers |
-| COA.Mcp.Framework.TokenOptimization | 1.1.0 | Advanced token management (optional) |
-| COA.Mcp.Framework.Testing | 1.1.0 | Testing helpers and assertions (optional) |
+| **COA.Mcp.Framework** | 1.4.0 | Core framework with MCP protocol included |
+| **COA.Mcp.Protocol** | 1.4.0 | Low-level protocol types and JSON-RPC |
+| **COA.Mcp.Client** | 1.4.0 | Strongly-typed C# client for MCP servers |
+| **COA.Mcp.Framework.TokenOptimization** | 1.4.0 | Advanced token management and AI response optimization |
+| **COA.Mcp.Framework.Testing** | 1.4.0 | Testing helpers, assertions, and benchmarks |
+| **COA.Mcp.Framework.Templates** | 1.4.0 | Project templates for quick starts |
+| **COA.Mcp.Framework.Migration** | 1.4.0 | Migration tools for updating from older versions |
 
 ## ✨ Key Features
 
@@ -393,7 +396,7 @@ var builder = new McpServerBuilder()
     });
 ```
 
-### 🚀 Auto-Service Management (New in v1.1.0)
+### 🚀 Auto-Service Management
 
 The framework now supports automatic service startup, enabling dual-mode architectures where an MCP server can act as both a STDIO client and an HTTP service provider:
 
@@ -596,7 +599,7 @@ builder.Services.AddSingleton<IResourceRegistry, ResourceRegistry>();
 
 ```csharp
 // Add the TokenOptimization package
-// <PackageReference Include="COA.Mcp.Framework.TokenOptimization" Version="1.1.0" />
+// <PackageReference Include="COA.Mcp.Framework.TokenOptimization" Version="1.4.0" />
 
 public class SearchTool : McpToolBase<SearchParams, SearchResult>
 {
@@ -730,7 +733,7 @@ The framework powers production MCP servers:
 | Metric | Target | Actual |
 |--------|--------|--------|
 | Build Time | <3s | 2.46s |
-| Test Suite | 100% pass | 352/352 ✓ |
+| Test Suite | 100% pass | 448/448 ✓ |
 | Warnings | 0 | 0 ✓ |
 | Framework Overhead | <5% | ~3% |
 
