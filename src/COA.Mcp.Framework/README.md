@@ -384,13 +384,19 @@ public class DataSyncService : IHostedService
     }
 }
 
-// Register with auto-start
-services.AddHostedService<DataSyncService>();
-services.AddMcpServiceManagement(options =>
-{
-    options.AutoStartServices = true;
-    options.StartupTimeout = TimeSpan.FromSeconds(30);
-});
+// Use auto-service management via McpServerBuilder
+var builder = new McpServerBuilder()
+    .WithServerInfo("My Server", "1.0.0")
+    .UseStdioTransport()
+    .UseAutoService(config =>
+    {
+        config.ServiceId = "data-sync-service";
+        config.ExecutablePath = "path/to/service.exe";
+        config.Port = 5100;
+        config.HealthEndpoint = "http://localhost:5100/health";
+        config.AutoRestart = true;
+        config.StartupTimeoutSeconds = 30;
+    });
 ```
 
 ## Resource Providers
