@@ -65,7 +65,8 @@ public abstract class BaseResponseBuilder<TInput, TResult> : IResponseBuilder
     {
         if (data is TInput typedData)
         {
-            return await BuildResponseAsync(typedData, context);
+            var result = await BuildResponseAsync(typedData, context);
+            return result ?? throw new InvalidOperationException("BuildResponseAsync returned null");
         }
         throw new ArgumentException($"Expected data of type {typeof(TInput).Name}, got {data?.GetType().Name ?? "null"}");
     }
