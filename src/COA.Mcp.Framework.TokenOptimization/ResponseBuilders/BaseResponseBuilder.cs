@@ -1,3 +1,4 @@
+using System;
 using COA.Mcp.Framework.TokenOptimization.Models;
 using COA.Mcp.Framework.Models;
 using COA.Mcp.Framework.TokenOptimization.Reduction;
@@ -186,6 +187,7 @@ public abstract class BaseResponseBuilder<TInput, TResult> : IResponseBuilder
 /// Uses object types for both input and output.
 /// </summary>
 /// <typeparam name="TData">The type of data being processed.</typeparam>
+[Obsolete("Use BaseResponseBuilder<TInput, TResult> instead for better type safety. This single-parameter version will be removed in version 2.0.0.", false)]
 public abstract class BaseResponseBuilder<TData> : BaseResponseBuilder<TData, object>
 {
     /// <summary>

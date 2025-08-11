@@ -1,7 +1,7 @@
+using System;
 using COA.Mcp.Framework.TokenOptimization.Models;
 using COA.Mcp.Framework.Models;
 using COA.Mcp.Framework.TokenOptimization.ResponseBuilders;
-using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -235,6 +235,7 @@ namespace COA.Mcp.Framework.Testing.Mocks
     /// Non-generic mock response builder for backward compatibility.
     /// </summary>
     /// <typeparam name="TData">The type of data being processed.</typeparam>
+    [Obsolete("Use MockResponseBuilder<TInput, TResult> instead for better type safety. This single-parameter version will be removed in version 2.0.0.", false)]
     public class MockResponseBuilder<TData> : MockResponseBuilder<TData, AIOptimizedResponse>
     {
     }

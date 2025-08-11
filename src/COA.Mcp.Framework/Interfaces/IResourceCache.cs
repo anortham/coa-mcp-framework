@@ -1,3 +1,4 @@
+using System;
 using COA.Mcp.Protocol;
 
 namespace COA.Mcp.Framework.Interfaces;
@@ -53,6 +54,7 @@ public interface IResourceCache<TResource> where TResource : class
 /// Resolves the lifetime mismatch between scoped providers and singleton registry.
 /// Non-generic version for backward compatibility.
 /// </summary>
+[Obsolete("Use IResourceCache<TResource> instead for better type safety. This non-generic version will be removed in version 2.0.0.", false)]
 public interface IResourceCache : IResourceCache<ReadResourceResult>
 {
     // All methods are inherited from IResourceCache<ReadResourceResult>

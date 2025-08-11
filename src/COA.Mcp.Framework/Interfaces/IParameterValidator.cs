@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 namespace COA.Mcp.Framework.Interfaces;
@@ -28,6 +29,7 @@ public interface IParameterValidator<TParams> where TParams : class
 /// <summary>
 /// Service for validating tool parameters (non-generic for backward compatibility).
 /// </summary>
+[Obsolete("Use IParameterValidator<TParams> instead for better type safety. This non-generic version will be removed in version 2.0.0.", false)]
 public interface IParameterValidator
 {
     /// <summary>

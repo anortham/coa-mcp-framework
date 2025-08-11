@@ -1,3 +1,4 @@
+using System;
 using System.Text.Json.Serialization;
 using COA.Mcp.Framework.Models;
 
@@ -58,6 +59,7 @@ public class AIOptimizedResponse<T> : ToolResultBase
 /// Non-generic AI-optimized response for backward compatibility.
 /// Provides structured data with insights and suggested actions.
 /// </summary>
+[Obsolete("Use AIOptimizedResponse<T> instead for better type safety. This non-generic version will be removed in version 2.0.0.", false)]
 public class AIOptimizedResponse : AIOptimizedResponse<object>
 {
     /// <summary>
@@ -130,6 +132,7 @@ public class AIResponseData<T>
 /// <summary>
 /// Non-generic container for backward compatibility.
 /// </summary>
+[Obsolete("Use AIResponseData<T> instead for better type safety. This non-generic version will be removed in version 2.0.0.", false)]
 public class AIResponseData : AIResponseData<object>
 {
 }
