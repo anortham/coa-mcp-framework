@@ -3,10 +3,11 @@
 ## 🚨 CRITICAL: Framework vs Server Execution
 
 **Framework changes require:**
-1. Build framework: `dotnet build -c Debug`
-2. Pack NuGet: `dotnet pack -c Release`  
-3. Update consumer package references
-4. Restart MCP servers
+1. Build framework: `dotnet build`
+2. Run tests: `dotnet test` (must be 100% passing)
+3. Pack NuGet: `dotnet pack -c Release`
+4. Update consumer package references
+5. Restart MCP servers
 
 ## 📁 Project Structure
 
@@ -30,39 +31,41 @@ COA.Mcp.Framework/
 4. **Include recovery steps in errors** - Help AI agents recover from failures
 5. **Prefer manual registration** - Explicit control over auto-discovery
 
-## 🔧 Common Tasks
+## 🔧 Development Commands
 
-### When modifying framework code:
 ```bash
+# Essential commands for framework development
 dotnet build                        # Build framework
 dotnet test                         # Run all tests (must be 100% passing)
-dotnet pack -c Release -o ./nupkg  # Create NuGet package
+dotnet pack -c Release              # Create NuGet packages
 ```
 
-### When helping with tool development:
-- Tools inherit from `McpToolBase<TParams, TResult>` 
-- For tools with resources (DB connections, files), use `DisposableToolBase<TParams, TResult>`
-- Parameters are validated automatically
+## 🛠️ Tool Development
+
+**Base Classes:**
+- `McpToolBase<TParams, TResult>` - Standard tools
+- `DisposableToolBase<TParams, TResult>` - Tools with resources (DB, files)
+
+**Key Patterns:**
+- Parameters validated automatically
 - Use `ValidateRequired()`, `ValidateRange()` helpers
 - Return `ToolResultBase`-derived types
-- Implement `DisposeManagedResourcesAsync()` for resource cleanup
-- Override `ErrorMessages` property for custom error messages and recovery info
-- Override `TokenBudget` property for per-tool token limits
-- Override `Middleware` property to add lifecycle hooks (logging, token counting, custom logic)
+- Override `ErrorMessages` for custom error messages with recovery steps
+- Override `TokenBudget` for per-tool token limits
+- Override `Middleware` for lifecycle hooks (logging, token counting)
 
-### When helping with prompt development:
-- Prompts inherit from `PromptBase`
-- Use helper methods: `CreateSystemMessage()`, `CreateUserMessage()`
+## 💬 Prompt Development
+
+**Base Class:** `PromptBase`
+- Use `CreateSystemMessage()`, `CreateUserMessage()` helpers
 - Implement argument validation
 - Support variable substitution with `{{variable}}` syntax
 
 ## 📊 Current Status
-- Version: 1.7.0
-- Tests: 538 passing (100%)
-- Build warnings: 0
-- Examples: SimpleMcpServer (5 tools + 2 prompts)
-- Test Framework: NUnit (not xUnit)
-- Features: IAsyncDisposable support, Customizable error messages, Token budget configuration, Lifecycle hooks & middleware
+- **Version:** 1.7.0
+- **Tests:** 538 passing (100%) - NUnit framework
+- **Build:** 0 warnings
+- **Example:** `examples/SimpleMcpServer/` (5 tools + 2 prompts)
 
 ## 🛑 Common Issues & Solutions
 
@@ -75,15 +78,15 @@ dotnet pack -c Release -o ./nupkg  # Create NuGet package
 | Custom error messages | Override ErrorMessages property in tool |
 | Lifecycle hooks not working | Override Middleware property with ISimpleMiddleware list |
 
-## 📍 Important Files
+## 📍 Key Files
 
-- Tool base: `src/COA.Mcp.Framework/Base/McpToolBase.Generic.cs`
-- Prompt base: `src/COA.Mcp.Framework/Prompts/PromptBase.cs`
-- Server builder: `src/COA.Mcp.Framework/Server/McpServerBuilder.cs`
-- Middleware system: `src/COA.Mcp.Framework/Pipeline/SimpleMiddleware.cs`
-- Built-in middleware: `src/COA.Mcp.Framework/Pipeline/SimpleMiddleware/`
-- Working example: `examples/SimpleMcpServer/`
-- Lifecycle hooks docs: `docs/lifecycle-hooks.md`
+| Component | File Path |
+|-----------|-----------|
+| Tool base | `src/COA.Mcp.Framework/Base/McpToolBase.Generic.cs` |
+| Prompt base | `src/COA.Mcp.Framework/Prompts/PromptBase.cs` |
+| Server builder | `src/COA.Mcp.Framework/Server/McpServerBuilder.cs` |
+| Middleware | `src/COA.Mcp.Framework/Pipeline/SimpleMiddleware.cs` |
+| Example server | `examples/SimpleMcpServer/` |
 
 ---
 **Remember**: This is a framework - changes require rebuild + repack + consumer update!
