@@ -41,20 +41,16 @@ pool:
 variables:
   buildConfiguration: "Release"
   dotnetSdkVersion: "9.x"
-  # Base version for Framework packages - v1.6.0
+  # Base version for Framework packages - v1.7.0
   majorVersion: 1
-  minorVersion: 6
+  minorVersion: 7
   # Auto-incrementing patch version - increments on every build
   # The counter is keyed by major.minor version, so it resets when those change
   patchVersion: $[counter(format('{0}.{1}', variables['majorVersion'], variables['minorVersion']), 0)]
   versionPrefix: "$(majorVersion).$(minorVersion).$(patchVersion)"
   versionSuffix: ""
-  # Protocol package version - unified versioning with framework
-  protocolMajorVersion: 1
-  protocolMinorVersion: 6
-  # Use same counter pattern as framework packages
-  protocolPatchVersion: $[counter(format('protocol-{0}.{1}', variables['protocolMajorVersion'], variables['protocolMinorVersion']), 0)]
-  protocolVersion: "$(protocolMajorVersion).$(protocolMinorVersion).$(protocolPatchVersion)"
+  # Protocol package version - unified with framework (uses same version)
+  # No separate versioning needed since Protocol now uses $(versionArguments)
   # Windows-specific settings
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
   DOTNET_CLI_TELEMETRY_OPTOUT: true
@@ -180,8 +176,7 @@ stages:
               Write-Host "  Counter Key: $(majorVersion).$(minorVersion)"
               Write-Host "-----------------------------------------"
               Write-Host "Protocol Package:"
-              Write-Host "  Protocol Version: $(protocolVersion)"
-              Write-Host "  Counter Key: protocol-$(protocolMajorVersion).$(protocolMinorVersion)"
+              Write-Host "  Protocol Version: $(versionPrefix) (unified with Framework)"
               Write-Host "========================================="
             displayName: "Display version information"
 
