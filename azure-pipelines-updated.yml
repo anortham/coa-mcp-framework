@@ -406,8 +406,6 @@ stages:
               publishFeedCredentials: 'NuGetOrg-ServiceConnection'
               verbosityPush: 'Detailed'
 
-              verbosityPush: 'Detailed'
-
           - task: NuGetCommand@2
             displayName: "Push COA.Mcp.Framework.Migration to NuGet.org"
             inputs:
