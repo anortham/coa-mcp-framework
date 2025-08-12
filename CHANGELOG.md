@@ -7,8 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-- Placeholder for future features
+### Fixed
+- **Auto-Service Startup**: Fixed critical issue where hosted services registered via `UseAutoService()` were not being started when using `RunAsync()`. The framework now properly starts all `IHostedService` instances before starting the MCP server and stops them gracefully during shutdown.
+- **Async Disposal**: Fixed disposal issue in `RunAsync()` where service providers implementing `IAsyncDisposable` were not being disposed correctly, causing exceptions during shutdown.
+- **Default Transport**: Fixed missing default transport initialization in `RunAsync()` method to match the behavior of `Build()` method
 
 ## [1.5.1] - 2025-01-11
 

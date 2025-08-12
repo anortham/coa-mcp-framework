@@ -351,7 +351,11 @@ public class McpServerBuilder
         }
         
         var serviceProvider = _services.BuildServiceProvider();
-        
+        return BuildWithProvider(serviceProvider);
+    }
+    
+    private McpServer BuildWithProvider(IServiceProvider serviceProvider)
+    {
         // Get registries
         var toolRegistry = serviceProvider.GetRequiredService<McpToolRegistry>();
         var resourceRegistry = serviceProvider.GetRequiredService<ResourceRegistry>();
@@ -396,7 +400,26 @@ public class McpServerBuilder
     /// <returns>A task that completes when the server stops.</returns>
     public async Task RunAsync(CancellationToken cancellationToken = default)
     {
-        var server = Build();
+        // If no transport specified, use stdio by default
+        if (_transport == null)
+        {
+            UseStdioTransport();
+        }
+        
+        var serviceProvider = _services.BuildServiceProvider();
+        var server = BuildWithProvider(serviceProvider);
+        
+        // Start all hosted services (including auto-services)
+        var hostedServices = serviceProvider.GetServices<IHostedService>();
+        foreach (var hostedService in hostedServices)
+        {
+            if (hostedService != server) // Don't start the server twice
+            {
+                await hostedService.StartAsync(cancellationToken);
+            }
+        }
+        
+        // Start the MCP server
         await server.StartAsync(cancellationToken);
         
         // Keep running until cancellation
@@ -406,7 +429,27 @@ public class McpServerBuilder
             await tcs.Task;
         }
         
+        // Stop the MCP server
         await server.StopAsync(CancellationToken.None);
+        
+        // Stop all hosted services
+        foreach (var hostedService in hostedServices)
+        {
+            if (hostedService != server)
+            {
+                await hostedService.StopAsync(CancellationToken.None);
+            }
+        }
+        
+        // Dispose async if supported, otherwise dispose synchronously
+        if (serviceProvider is IAsyncDisposable asyncDisposable)
+        {
+            await asyncDisposable.DisposeAsync();
+        }
+        else
+        {
+            serviceProvider.Dispose();
+        }
     }
 
     /// <summary>

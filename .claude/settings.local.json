@@ -28,7 +28,9 @@
       "mcp__codesearch__batch_operations",
       "mcp__projectknowledge__save_checkpoint",
       "mcp__projectknowledge__load_checkpoint",
-      "mcp__projectknowledge__list_checkpoints"
+      "mcp__projectknowledge__list_checkpoints",
+      "mcp__codenav__csharp_code_clone_detection",
+      "mcp__codenav__csharp_get_workspace_statistics"
     ],
     "deny": []
   }
