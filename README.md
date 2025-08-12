@@ -13,7 +13,7 @@ A comprehensive .NET framework for building and consuming Model Context Protocol
 
 ```xml
 <!-- Add to your .csproj file -->
-<PackageReference Include="COA.Mcp.Framework" Version="1.5.1" />
+<PackageReference Include="COA.Mcp.Framework" Version="1.7.0" />
 ```
 
 ### Create Your First MCP Server
@@ -114,13 +114,13 @@ Your MCP server is ready! 🎉
 
 | Package | Version | Description |
 |---------|---------|-------------|
-| **COA.Mcp.Framework** | 1.5.1 | Core framework with MCP protocol included |
-| **COA.Mcp.Protocol** | 1.5.1 | Low-level protocol types and JSON-RPC |
-| **COA.Mcp.Client** | 1.5.1 | Strongly-typed C# client for MCP servers |
-| **COA.Mcp.Framework.TokenOptimization** | 1.5.1 | Advanced token management and AI response optimization |
-| **COA.Mcp.Framework.Testing** | 1.5.1 | Testing helpers, assertions, and benchmarks |
-| **COA.Mcp.Framework.Templates** | 1.5.1 | Project templates for quick starts |
-| **COA.Mcp.Framework.Migration** | 1.5.1 | Migration tools for updating from older versions |
+| **COA.Mcp.Framework** | 1.7.0 | Core framework with MCP protocol included |
+| **COA.Mcp.Protocol** | 1.7.0 | Low-level protocol types and JSON-RPC |
+| **COA.Mcp.Client** | 1.7.0 | Strongly-typed C# client for MCP servers |
+| **COA.Mcp.Framework.TokenOptimization** | 1.7.0 | Advanced token management and AI response optimization |
+| **COA.Mcp.Framework.Testing** | 1.7.0 | Testing helpers, assertions, and benchmarks |
+| **COA.Mcp.Framework.Templates** | 1.7.0 | Project templates for quick starts |
+| **COA.Mcp.Framework.Migration** | 1.7.0 | Migration tools for updating from older versions |
 
 ## ✨ Key Features
 
@@ -1070,7 +1070,7 @@ builder.Services.Configure<ResourceCacheOptions>(options =>
 
 ```csharp
 // Add the TokenOptimization package
-// <PackageReference Include="COA.Mcp.Framework.TokenOptimization" Version="1.4.0" />
+// <PackageReference Include="COA.Mcp.Framework.TokenOptimization" Version="1.7.0" />
 
 public class SearchTool : McpToolBase<SearchParams, SearchResult>
 {

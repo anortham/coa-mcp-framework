@@ -16,7 +16,7 @@ Token optimization and intelligent response building for MCP tools. This package
 ### 1. Add Package Reference
 
 ```xml
-<PackageReference Include="COA.Mcp.Framework.TokenOptimization" Version="1.4.0" />
+<PackageReference Include="COA.Mcp.Framework.TokenOptimization" Version="1.7.0" />
 ```
 
 ### 2. Register Services

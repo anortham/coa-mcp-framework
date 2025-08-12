@@ -16,8 +16,8 @@
     <!-- Version is managed by Azure Pipeline -->
     <Authors>Children of Alabama</Authors>
     <Description>MCP protocol types and interfaces for Model Context Protocol servers</Description>
-    <PackageProjectUrl>https://github.com/coa/codesearch-mcp</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/coa/codesearch-mcp</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/anortham/coa-mcp-framework</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/anortham/coa-mcp-framework</RepositoryUrl>
     <PackageTags>mcp;protocol;model-context-protocol</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>

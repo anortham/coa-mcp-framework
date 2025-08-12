@@ -57,7 +57,7 @@ dotnet pack -c Release -o ./nupkg  # Create NuGet package
 - Support variable substitution with `{{variable}}` syntax
 
 ## 📊 Current Status
-- Version: 1.5.0
+- Version: 1.7.0
 - Tests: 538 passing (100%)
 - Build warnings: 0
 - Examples: SimpleMcpServer (5 tools + 2 prompts)

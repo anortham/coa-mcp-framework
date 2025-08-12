@@ -35,7 +35,7 @@
     <!-- These will be overridden by the Azure Pipeline -->
     <!-- IMPORTANT: Do not set Version/PackageVersion in individual .csproj files -->
     <!-- The pipeline uses a counter to auto-increment patch version on each build -->
-    <VersionPrefix Condition="'$(VersionPrefix)' == ''">1.5.6</VersionPrefix>
+    <VersionPrefix Condition="'$(VersionPrefix)' == ''">1.7.0</VersionPrefix>
     <VersionSuffix Condition="'$(VersionSuffix)' == '' AND '$(Configuration)' == 'Debug'">dev</VersionSuffix>
   </PropertyGroup>
 

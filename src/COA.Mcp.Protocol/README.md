@@ -14,7 +14,7 @@ This package implements the MCP specification, providing:
 ## Installation
 
 ```xml
-<PackageReference Include="COA.Mcp.Protocol" Version="1.4.0" />
+<PackageReference Include="COA.Mcp.Protocol" Version="1.7.0" />
 ```
 
 Most users should use `COA.Mcp.Framework` instead, which includes this package and provides higher-level abstractions.

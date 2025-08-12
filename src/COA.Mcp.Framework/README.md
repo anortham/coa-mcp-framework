@@ -16,7 +16,7 @@ The core framework for building Model Context Protocol (MCP) servers and tools i
 ## Installation
 
 ```xml
-<PackageReference Include="COA.Mcp.Framework" Version="1.4.0" />
+<PackageReference Include="COA.Mcp.Framework" Version="1.7.0" />
 ```
 
 ## Quick Start
