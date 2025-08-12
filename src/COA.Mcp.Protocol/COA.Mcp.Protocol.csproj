@@ -11,9 +11,9 @@
     <DocumentationFile>$(OutputPath)$(AssemblyName).xml</DocumentationFile>
     
     <!-- Package Metadata -->
+    <IsPackable>true</IsPackable>
     <PackageId>COA.Mcp.Protocol</PackageId>
-    <!-- Version is set by Azure Pipeline, but provide a default for local builds -->
-    <Version Condition="'$(Version)' == ''">1.4.0</Version>
+    <!-- Version is managed by Azure Pipeline -->
     <Authors>Children of Alabama</Authors>
     <Description>MCP protocol types and interfaces for Model Context Protocol servers</Description>
     <PackageProjectUrl>https://github.com/coa/codesearch-mcp</PackageProjectUrl>
