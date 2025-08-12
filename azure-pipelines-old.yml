@@ -1,25 +1,28 @@
-# Azure Pipelines RELEASE Pipeline for COA MCP Framework
-# Manual trigger only - publishes to Azure Artifacts and NuGet.org
-# For CI builds, use azure-pipelines.yml
+# Azure Pipelines CI/CD for COA MCP Framework
+# Builds, tests, and publishes NuGet packages to Azure Artifacts
 
-name: 'COA MCP Framework - RELEASE - v$(majorVersion).$(minorVersion).$(patchVersion)'
+name: 'COA MCP Framework - $(Build.SourceBranchName) - $(Date:yyyyMMdd)$(Rev:.r)'
 
-# MANUAL TRIGGER ONLY - No automatic triggers
-trigger: none
+trigger:
+  branches:
+    include:
+      - main
+      - develop
+      - release/*
+  tags:
+    include:
+      - v*
+  paths:
+    exclude:
+      - "**/*.md"
+      - ".gitignore"
+      - "docs/**"
 
-# Don't run on pull requests
-pr: none
-
-# Parameters for manual runs
-parameters:
-  - name: publishToNuGet
-    displayName: 'Publish to NuGet.org?'
-    type: boolean
-    default: false
-  - name: createGitTag
-    displayName: 'Create Git tag for release?'
-    type: boolean
-    default: true
+pr:
+  branches:
+    include:
+      - main
+      - develop
 
 pool:
   name: "Default" # Using local Windows agent pool
@@ -45,11 +48,11 @@ variables:
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
   DOTNET_CLI_TELEMETRY_OPTOUT: true
   NUGET_PACKAGES: $(Pipeline.Workspace)\.nuget\packages
-  # Manual run parameters
-  shouldPublishToNuGet: ${{ parameters.publishToNuGet }}
-  shouldCreateTag: ${{ parameters.createGitTag }}
-  # Always treat manual runs as releases
-  isRelease: true
+  # Release flag based on tags
+  ${{ if startsWith(variables['Build.SourceBranch'], 'refs/tags/v') }}:
+    isRelease: true
+  ${{ else }}:
+    isRelease: false
 
 stages:
   - stage: Build
@@ -320,12 +323,12 @@ stages:
               ArtifactName: "packages"
               publishLocation: "Container"
 
-  - stage: PublishInternal
+  - stage: Publish
     displayName: "Publish to Azure DevOps"
     dependsOn: Build
     condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
     jobs:
-      - job: PublishToAzureDevOps
+      - job: PublishPackages
         displayName: "Publish to COA Feed"
         steps:
           - task: DownloadBuildArtifacts@1
@@ -344,87 +347,3 @@ stages:
               nuGetFeedType: 'internal'
               publishVstsFeed: 'COA'
               allowPackageConflicts: true
-
-  - stage: PublishNuGetOrg
-    displayName: "Publish to NuGet.org"
-    dependsOn: PublishInternal
-    condition: and(succeeded(), eq(variables['shouldPublishToNuGet'], 'true'))
-    jobs:
-      - job: PublishToNuGetOrg
-        displayName: "Publish to NuGet.org"
-        steps:
-          - task: DownloadBuildArtifacts@1
-            displayName: "Download artifacts"
-            inputs:
-              buildType: "current"
-              downloadType: "single"
-              artifactName: "packages"
-              downloadPath: "$(System.ArtifactsDirectory)"
-
-          - powershell: |
-              Write-Host "Packages to publish to NuGet.org:"
-              Write-Host "================================="
-              Get-ChildItem -Path "$(System.ArtifactsDirectory)\packages" -Filter "*.nupkg" | ForEach-Object {
-                  Write-Host $_.Name
-              }
-              Write-Host "================================="
-            displayName: "List packages to publish"
-
-          - task: NuGetCommand@2
-            displayName: "Push COA.Mcp.Framework to NuGet.org"
-            inputs:
-              command: 'push'
-              packagesToPush: '$(System.ArtifactsDirectory)/packages/COA.Mcp.Framework.*.nupkg'
-              nuGetFeedType: 'external'
-              publishFeedCredentials: 'NuGetOrg-ServiceConnection'
-              verbosityPush: 'Detailed'
-
-          - task: NuGetCommand@2
-            displayName: "Push COA.Mcp.Framework.TokenOptimization to NuGet.org"
-            inputs:
-              command: 'push'
-              packagesToPush: '$(System.ArtifactsDirectory)/packages/COA.Mcp.Framework.TokenOptimization.*.nupkg'
-              nuGetFeedType: 'external'
-              publishFeedCredentials: 'NuGetOrg-ServiceConnection'
-              verbosityPush: 'Detailed'
-
-          - task: NuGetCommand@2
-            displayName: "Push COA.Mcp.Framework.Testing to NuGet.org"
-            inputs:
-              command: 'push'
-              packagesToPush: '$(System.ArtifactsDirectory)/packages/COA.Mcp.Framework.Testing.*.nupkg'
-              nuGetFeedType: 'external'
-              publishFeedCredentials: 'NuGetOrg-ServiceConnection'
-              verbosityPush: 'Detailed'
-
-          - task: NuGetCommand@2
-            displayName: "Push COA.Mcp.Framework.Templates to NuGet.org"
-            inputs:
-              command: 'push'
-              packagesToPush: '$(System.ArtifactsDirectory)/packages/COA.Mcp.Framework.Templates.*.nupkg'
-              nuGetFeedType: 'external'
-              publishFeedCredentials: 'NuGetOrg-ServiceConnection'
-              verbosityPush: 'Detailed'
-
-          - task: NuGetCommand@2
-            displayName: "Push COA.Mcp.Framework.Migration to NuGet.org"
-            inputs:
-              command: 'push'
-              packagesToPush: '$(System.ArtifactsDirectory)/packages/COA.Mcp.Framework.Migration.*.nupkg'
-              nuGetFeedType: 'external'
-              publishFeedCredentials: 'NuGetOrg-ServiceConnection'
-              verbosityPush: 'Detailed'
-
-          - task: NuGetCommand@2
-            displayName: "Push COA.Mcp.Client to NuGet.org"
-            inputs:
-              command: 'push'
-              packagesToPush: '$(System.ArtifactsDirectory)/packages/COA.Mcp.Client.*.nupkg'
-              nuGetFeedType: 'external'
-              publishFeedCredentials: 'NuGetOrg-ServiceConnection'
-              verbosityPush: 'Detailed'
-
-          - powershell: |
-              Write-Host "Successfully published packages to NuGet.org!"
-              Write-Host "Packages should appear at https://www.nuget.org shortly"
-            displayName: "Publish success message"

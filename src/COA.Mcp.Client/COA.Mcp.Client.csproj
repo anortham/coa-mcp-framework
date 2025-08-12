@@ -12,6 +12,7 @@
     <Product>COA MCP Client Library</Product>
     <Description>Strongly-typed C# client library for interacting with MCP servers over HTTP/WebSocket</Description>
     <PackageTags>mcp;client;http;websocket;json-rpc;ai;llm</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/coa/mcp-framework</PackageProjectUrl>
     <RepositoryUrl>https://github.com/coa/mcp-framework</RepositoryUrl>
     <LangVersion>latest</LangVersion>
