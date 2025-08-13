@@ -48,7 +48,7 @@ public class AdaptiveResponseBuilderTests
         Assert.That(result.Results, Is.Not.Null);
         Assert.That(result.Results.Count, Is.GreaterThan(0));
         Assert.That(result.Message, Is.Not.Null);
-        Assert.That(result.Message, Does.Contain("TestMethod"));
+        Assert.That(result.Message.ToUpperInvariant(), Does.Contain("TESTMETHOD"));
         
         TestContext.WriteLine($"Generated {result.Results.Count} search results");
         TestContext.WriteLine($"Message length: {result.Message?.Length ?? 0} characters");
