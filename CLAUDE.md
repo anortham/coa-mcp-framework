@@ -30,6 +30,7 @@ COA.Mcp.Framework/
 3. **Use existing patterns** - Follow established code conventions
 4. **Include recovery steps in errors** - Help AI agents recover from failures
 5. **Prefer manual registration** - Explicit control over auto-discovery
+6. **USE NUNIT FOR TESTS** - This project uses NUnit, not xUnit! Use `[Test]`, `[TestCase]`, `Assert.That()`
 
 ## 🔧 Development Commands
 

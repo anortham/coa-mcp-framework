@@ -31,7 +31,11 @@
       "mcp__projectknowledge__list_checkpoints",
       "mcp__codenav__csharp_code_clone_detection",
       "mcp__codenav__csharp_get_workspace_statistics",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "WebFetch(domain:github.com)",
+      "WebSearch",
+      "WebFetch(domain:code.visualstudio.com)",
+      "WebFetch(domain:docs.github.com)"
     ],
     "deny": []
   }
