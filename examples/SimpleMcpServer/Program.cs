@@ -23,6 +23,8 @@ builder.RegisterToolType<StringManipulationTool>();
 builder.RegisterToolType<DataStoreTool>();
 builder.RegisterToolType<SystemInfoTool>();
 builder.RegisterToolType<LifecycleExampleTool>(); // Demonstrates lifecycle hooks
+builder.RegisterToolType<SearchDemoTool>(); // Demonstrates visualization capabilities
+builder.RegisterToolType<MetricsDemoTool>(); // Demonstrates chart visualization
 
 // Register prompts
 builder.RegisterPromptType<GreetingPrompt>();

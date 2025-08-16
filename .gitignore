@@ -366,3 +366,4 @@ FodyWeavers.xsd
 
 # Performance analysis and benchmarks (local only)
 docs/performance/
+.claude/settings.local.json

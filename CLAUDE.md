@@ -20,7 +20,8 @@ COA.Mcp.Framework/
 ├── Schema/                         # Type-safe schema system
 ├── Registration/                   # Tool and prompt registries
 ├── Pipeline/                       # Lifecycle hooks and middleware system
-└── Models/                         # Error models with recovery info
+├── Models/                         # Error models with recovery info
+└── COA.Mcp.Visualization/         # Visualization protocol contracts (NEW)
 ```
 
 ## ⚠️ Key Development Rules
@@ -68,6 +69,15 @@ dotnet pack -c Release              # Create NuGet packages
 - **Build:** 0 warnings
 - **Example:** `examples/SimpleMcpServer/` (5 tools + 2 prompts)
 
+## 🎨 Visualization Protocol
+
+**NEW**: Tools can provide structured visualization data for rich UI clients:
+- Implement `IVisualizationProvider` for tools that need visualization
+- Return `VisualizationDescriptor` with data and display hints
+- VS Code Bridge handles all rendering - no markdown generation needed
+- Protocol is language-agnostic (works with TypeScript/Python/Rust MCP servers)
+- See `docs/VISUALIZATION_PROTOCOL.md` for full specification
+
 ## 🛑 Common Issues & Solutions
 
 | Issue | Solution |
@@ -78,6 +88,7 @@ dotnet pack -c Release              # Create NuGet packages
 | Token limits | Configure TokenBudgets in server builder |
 | Custom error messages | Override ErrorMessages property in tool |
 | Lifecycle hooks not working | Override Middleware property with ISimpleMiddleware list |
+| Visualization not showing | Check IVisualizationProvider implementation |
 
 ## 📍 Key Files
 

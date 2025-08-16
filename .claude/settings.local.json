@@ -35,8 +35,15 @@
       "WebFetch(domain:github.com)",
       "WebSearch",
       "WebFetch(domain:code.visualstudio.com)",
-      "WebFetch(domain:docs.github.com)"
+      "WebFetch(domain:docs.github.com)",
+      "mcp__projectknowledge__find_knowledge",
+      "mcp__projectknowledge__show_activity",
+      "mcp__projectknowledge__store_knowledge"
     ],
-    "deny": []
+    "deny": [],
+    "defaultMode": "acceptEdits",
+    "additionalDirectories": [
+      "C:\\source\\MCP-VSCode-Bridge"
+    ]
   }
 }

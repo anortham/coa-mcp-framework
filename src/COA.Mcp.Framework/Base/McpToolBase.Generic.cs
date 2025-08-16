@@ -283,6 +283,22 @@ public abstract class McpToolBase<TParams, TResult> : IMcpTool<TParams, TResult>
     }
 
     /// <summary>
+    /// Gets the visualization descriptor for this tool's output.
+    /// Override this method to provide custom visualization hints for VS Code and other UI clients.
+    /// </summary>
+    /// <returns>A visualization descriptor, or null if no visualization is provided.</returns>
+    public virtual COA.Mcp.Visualization.VisualizationDescriptor? GetVisualizationDescriptor()
+    {
+        // Check if this tool implements IVisualizationProvider
+        if (this is COA.Mcp.Visualization.IVisualizationProvider provider)
+        {
+            return provider.GetVisualizationDescriptor();
+        }
+        
+        return null;
+    }
+
+    /// <summary>
     /// Validates the input parameters using data annotations and custom validation.
     /// </summary>
     /// <param name="parameters">The parameters to validate.</param>

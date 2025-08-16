@@ -1,0 +1,27 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    
+    <!-- NuGet Package Metadata -->
+    <IsPackable>true</IsPackable>
+    <PackageId>COA.Mcp.Visualization</PackageId>
+    <Authors>anortham</Authors>
+    <Description>Visualization protocol contracts for MCP servers to communicate display hints to VS Code and other visualization clients</Description>
+    <PackageTags>mcp;ai;claude;framework;visualization;vscode;protocol</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/anortham/coa-mcp-framework</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/anortham/coa-mcp-framework</PackageProjectUrl>
+    <Company>COA</Company>
+    <Product>COA MCP Framework</Product>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.Text.Json" Version="9.0.8" />
+  </ItemGroup>
+
+</Project>

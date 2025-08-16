@@ -36,6 +36,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\COA.Mcp.Protocol\COA.Mcp.Protocol.csproj" />
+    <ProjectReference Include="..\COA.Mcp.Visualization\COA.Mcp.Visualization.csproj" />
   </ItemGroup>
 
 </Project>

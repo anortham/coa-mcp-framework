@@ -313,6 +313,18 @@ stages:
               versioningScheme: "off"
               arguments: "$(versionArguments) --no-restore"
 
+          # Pack Visualization
+          - task: DotNetCoreCLI@2
+            displayName: "Pack COA.Mcp.Visualization"
+            inputs:
+              command: "pack"
+              packagesToPack: "src/COA.Mcp.Visualization/COA.Mcp.Visualization.csproj"
+              configuration: $(buildConfiguration)
+              packDirectory: "$(Build.ArtifactStagingDirectory)/packages"
+              nobuild: true
+              versioningScheme: "off"
+              arguments: "$(versionArguments) --no-restore"
+
           - powershell: |
               Write-Host "Generated NuGet packages:"
               Write-Host "========================="
@@ -438,6 +450,15 @@ stages:
             inputs:
               command: 'push'
               packagesToPush: '$(System.ArtifactsDirectory)/packages/COA.Mcp.Client.*.nupkg'
+              nuGetFeedType: 'external'
+              publishFeedCredentials: 'NuGetOrg-ServiceConnection'
+              verbosityPush: 'Detailed'
+
+          - task: NuGetCommand@2
+            displayName: "Push COA.Mcp.Visualization to NuGet.org"
+            inputs:
+              command: 'push'
+              packagesToPush: '$(System.ArtifactsDirectory)/packages/COA.Mcp.Visualization.*.nupkg'
               nuGetFeedType: 'external'
               publishFeedCredentials: 'NuGetOrg-ServiceConnection'
               verbosityPush: 'Detailed'
