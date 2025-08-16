@@ -1,8 +1,8 @@
-# Pilot Program Plan: Copilot-MCP Bridge
+# Pilot Program Plan: MCP-VSCode Bridge Extension
 
 ## Overview
 
-This document outlines the pilot program for testing and validating the Copilot-MCP Bridge with a small group of developers before full team rollout.
+This document outlines the pilot program for testing and validating the MCP-VSCode Bridge Extension with a small group of developers before full team rollout.
 
 ## Pilot Objectives
 

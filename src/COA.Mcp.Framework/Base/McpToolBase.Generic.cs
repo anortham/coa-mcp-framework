@@ -117,10 +117,7 @@ public abstract class McpToolBase<TParams, TResult> : IMcpTool<TParams, TResult>
             _logger?.LogInformation("Tool '{ToolName}' executed successfully in {ElapsedMs}ms", 
                 Name, stopwatch.ElapsedMilliseconds);
             
-            // Automatically include visualization data if tool provides it
-            var enhancedResult = AddVisualizationToResult(result, parameters);
-            
-            return enhancedResult;
+            return result;
         }
         catch (OperationCanceledException)
         {
@@ -181,8 +178,7 @@ public abstract class McpToolBase<TParams, TResult> : IMcpTool<TParams, TResult>
             _logger?.LogInformation("Tool '{ToolName}' executed successfully in {ElapsedMs}ms", 
                 Name, stopwatch.ElapsedMilliseconds);
 
-            // Automatically include visualization data if tool provides it
-            result = AddVisualizationToResult(result, parameters);
+            // Return result directly
 
             // After execution hooks (in reverse order)
             foreach (var middleware in sortedMiddleware.AsEnumerable().Reverse())
@@ -288,124 +284,7 @@ public abstract class McpToolBase<TParams, TResult> : IMcpTool<TParams, TResult>
         return GetInputSchema();
     }
 
-    /// <summary>
-    /// Gets the visualization descriptor for this tool's output.
-    /// Override this method to provide custom visualization hints for VS Code and other UI clients.
-    /// </summary>
-    /// <returns>A visualization descriptor, or null if no visualization is provided.</returns>
-    public virtual COA.Mcp.Visualization.VisualizationDescriptor? GetVisualizationDescriptor()
-    {
-        // Default implementation - tools should override this method if they implement IVisualizationProvider
-        return null;
-    }
 
-    /// <summary>
-    /// Automatically adds visualization data to the result if the tool provides it and visualization is requested
-    /// </summary>
-    /// <param name="result">The original tool result</param>
-    /// <param name="parameters">The tool parameters</param>
-    /// <returns>Enhanced result with visualization data, or original result if no visualization</returns>
-    private TResult AddVisualizationToResult(TResult result, TParams parameters)
-    {
-        try
-        {
-            // Check if visualization is requested via IVisualizableParameters
-            bool visualizationRequested = false;
-            if (parameters is COA.Mcp.Visualization.IVisualizableParameters visualizableParams)
-            {
-                visualizationRequested = visualizableParams.ShowInVSCode ?? false;
-            }
-
-            // If visualization not requested, return original result
-            if (!visualizationRequested)
-            {
-                _logger?.LogDebug("Visualization not requested for '{ToolName}'", Name);
-                return result;
-            }
-
-            // Get visualization descriptor from tool
-            var visualizationDescriptor = GetVisualizationDescriptor();
-            if (visualizationDescriptor == null)
-            {
-                return result;
-            }
-
-            // Add _visualization field to the result
-            // We need to handle this dynamically since we don't know the result type structure
-            var resultType = result?.GetType();
-            if (resultType == null)
-            {
-                return result;
-            }
-
-            // If result has a Data property (common pattern in MCP responses), add _visualization to it
-            var dataProperty = resultType.GetProperty("Data");
-            if (dataProperty?.CanWrite == true && dataProperty.GetValue(result) != null)
-            {
-                var existingData = dataProperty.GetValue(result);
-                var enhancedData = AddVisualizationToObject(existingData, visualizationDescriptor);
-                dataProperty.SetValue(result, enhancedData);
-                
-                _logger?.LogDebug("Added visualization data to tool result for '{ToolName}'", Name);
-            }
-            else
-            {
-                // If no Data property, try to add _visualization directly to result
-                var enhancedResult = AddVisualizationToObject(result, visualizationDescriptor);
-                if (enhancedResult != null && !ReferenceEquals(enhancedResult, result))
-                {
-                    return (TResult)enhancedResult;
-                }
-            }
-
-            return result;
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogWarning(ex, "Failed to add visualization data to result for tool '{ToolName}'", Name);
-            return result; // Return original result if visualization fails
-        }
-    }
-
-    /// <summary>
-    /// Adds _visualization field to an object dynamically
-    /// </summary>
-    private static object? AddVisualizationToObject(object? data, COA.Mcp.Visualization.VisualizationDescriptor visualizationDescriptor)
-    {
-        if (data == null) return null;
-
-        var dataType = data.GetType();
-        
-        // Handle primitive types and strings differently
-        if (dataType.IsPrimitive || dataType == typeof(string) || dataType == typeof(decimal) || dataType == typeof(DateTime))
-        {
-            // For primitive types, create a wrapper object
-            var dataDict = new Dictionary<string, object>
-            {
-                ["value"] = data,
-                ["_visualization"] = visualizationDescriptor
-            };
-            return dataDict;
-        }
-
-        // For complex objects, convert to dictionary for dynamic manipulation
-        var complexDataDict = new Dictionary<string, object>();
-        
-        // Copy existing properties
-        foreach (var prop in dataType.GetProperties())
-        {
-            var value = prop.GetValue(data);
-            if (value != null)
-            {
-                complexDataDict[prop.Name.ToLowerInvariant()] = value;
-            }
-        }
-        
-        // Add _visualization field
-        complexDataDict["_visualization"] = visualizationDescriptor;
-        
-        return complexDataDict;
-    }
 
     /// <summary>
     /// Validates the input parameters using data annotations and custom validation.
