@@ -198,6 +198,7 @@ namespace COA.Mcp.Framework.Testing.Builders
         /// Builds the AI-optimized response.
         /// </summary>
         /// <returns>The built response.</returns>
+#pragma warning disable CS0618 // Type or member is obsolete - testing backward compatibility
         public AIOptimizedResponse Build()
         {
             var response = new AIOptimizedResponse
@@ -205,6 +206,7 @@ namespace COA.Mcp.Framework.Testing.Builders
                 Format = _format,
                 Data = new AIResponseData
                 {
+#pragma warning restore CS0618 // Type or member is obsolete
                     Summary = _summary,
                     Results = _results,
                     Count = _count
@@ -234,7 +236,9 @@ namespace COA.Mcp.Framework.Testing.Builders
         /// </summary>
         /// <param name="results">The results to include.</param>
         /// <returns>A built response.</returns>
+#pragma warning disable CS0618 // Type or member is obsolete - testing backward compatibility
         public static AIOptimizedResponse Success(object results)
+#pragma warning restore CS0618 // Type or member is obsolete
         {
             return new ResponseBuilder()
                 .WithSummary("Operation completed successfully")
@@ -249,7 +253,9 @@ namespace COA.Mcp.Framework.Testing.Builders
         /// <param name="error">The error message.</param>
         /// <param name="suggestedAction">Optional suggested action.</param>
         /// <returns>A built error response.</returns>
+#pragma warning disable CS0618 // Type or member is obsolete - testing backward compatibility
         public static AIOptimizedResponse Error(string error, string? suggestedAction = null)
+#pragma warning restore CS0618 // Type or member is obsolete
         {
             var builder = new ResponseBuilder()
                 .WithSummary("Operation failed")
@@ -270,7 +276,9 @@ namespace COA.Mcp.Framework.Testing.Builders
         /// </summary>
         /// <param name="entityType">The type of entity that was searched for.</param>
         /// <returns>A built empty response.</returns>
+#pragma warning disable CS0618 // Type or member is obsolete - testing backward compatibility
         public static AIOptimizedResponse Empty(string entityType)
+#pragma warning restore CS0618 // Type or member is obsolete
         {
             return new ResponseBuilder()
                 .WithSummary($"No {entityType} found")
@@ -291,7 +299,9 @@ namespace COA.Mcp.Framework.Testing.Builders
         /// <param name="totalCount">The total count before truncation.</param>
         /// <param name="resourceUri">URI to access full results.</param>
         /// <returns>A built truncated response.</returns>
+#pragma warning disable CS0618 // Type or member is obsolete - testing backward compatibility
         public static AIOptimizedResponse LargeResultSet(object results, int totalCount, string resourceUri)
+#pragma warning restore CS0618 // Type or member is obsolete
         {
             return new ResponseBuilder()
                 .WithSummary($"Found {totalCount} results (showing subset)")

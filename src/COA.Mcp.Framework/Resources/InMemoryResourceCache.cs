@@ -11,7 +11,9 @@ namespace COA.Mcp.Framework.Resources;
 /// In-memory implementation of resource cache with automatic expiration and size limits.
 /// Thread-safe and suitable for singleton lifetime.
 /// </summary>
+#pragma warning disable CS0618 // Type or member is obsolete - backward compatibility
 public class InMemoryResourceCache : IResourceCache
+#pragma warning restore CS0618 // Type or member is obsolete
 {
     private readonly IMemoryCache _cache;
     private readonly ILogger<InMemoryResourceCache> _logger;

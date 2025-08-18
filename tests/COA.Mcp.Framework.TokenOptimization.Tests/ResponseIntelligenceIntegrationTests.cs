@@ -241,10 +241,12 @@ namespace COA.Mcp.Framework.TokenOptimization.Tests
             actionContext.RelatedInsights = insights;
             var actions = await _actionGenerator.GenerateActionsAsync(searchResults, actionContext);
 
+#pragma warning disable CS0618 // Type or member is obsolete - testing backward compatibility
             var response = new AIOptimizedResponse
             {
                 Data = new AIResponseData
                 {
+#pragma warning restore CS0618 // Type or member is obsolete
                     Summary = $"Found {searchResults.Count} results",
                     Results = searchResults,
                     Count = searchResults.Count

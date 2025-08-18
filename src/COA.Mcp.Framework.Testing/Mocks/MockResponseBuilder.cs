@@ -243,6 +243,7 @@ namespace COA.Mcp.Framework.Testing.Mocks
     /// <summary>
     /// Non-generic mock response builder for simple testing scenarios.
     /// </summary>
+#pragma warning disable CS0618 // Type or member is obsolete - testing backward compatibility
     public class MockResponseBuilder : MockResponseBuilder<object, AIOptimizedResponse>
     {
         /// <summary>
@@ -257,6 +258,7 @@ namespace COA.Mcp.Framework.Testing.Mocks
                 Format = "ai-optimized",
                 Data = new AIResponseData
                 {
+#pragma warning restore CS0618 // Type or member is obsolete
                     Summary = "Success",
                     Results = data,
                     Count = 1
@@ -276,6 +278,7 @@ namespace COA.Mcp.Framework.Testing.Mocks
         /// </summary>
         /// <param name="error">The error message.</param>
         /// <returns>An error response.</returns>
+#pragma warning disable CS0618 // Type or member is obsolete - testing backward compatibility
         public static AIOptimizedResponse CreateErrorResponse(string error)
         {
             return new AIOptimizedResponse
@@ -283,6 +286,7 @@ namespace COA.Mcp.Framework.Testing.Mocks
                 Format = "ai-optimized",
                 Data = new AIResponseData
                 {
+#pragma warning restore CS0618 // Type or member is obsolete
                     Summary = "Error",
                     Results = new { error },
                     Count = 0

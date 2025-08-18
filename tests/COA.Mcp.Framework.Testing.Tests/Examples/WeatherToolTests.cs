@@ -62,8 +62,10 @@ namespace COA.Mcp.Framework.Testing.Tests.Examples
                 .ReturnsAsync(expectedWeather);
 
             // Act
+#pragma warning disable CS0618 // Type or member is obsolete - testing backward compatibility
             var result = await ExecuteToolAsync<AIOptimizedResponse>(
                 () => Tool.ExecuteAsync(parameters));
+#pragma warning restore CS0618 // Type or member is obsolete
 
             // Assert - Use fluent assertions
             result.Should().BeSuccessful()
@@ -120,8 +122,10 @@ namespace COA.Mcp.Framework.Testing.Tests.Examples
                 .ReturnsAsync(largeWeatherData);
 
             // Act
+#pragma warning disable CS0618 // Type or member is obsolete - testing backward compatibility
             var result = await ExecuteToolAsync<AIOptimizedResponse>(
                 () => Tool.ExecuteAsync(parameters));
+#pragma warning restore CS0618 // Type or member is obsolete
 
             // Assert - Check token optimization
             result.Should().BeSuccessful();

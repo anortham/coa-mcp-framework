@@ -73,7 +73,9 @@ namespace COA.Mcp.Framework.Testing.Tests.Examples
             result.Should().NotBeNull();
             
             // Use AI response assertion if result is an AI response
+#pragma warning disable CS0618 // Type or member is obsolete - testing backward compatibility
             if (result is AIOptimizedResponse aiResponse)
+#pragma warning restore CS0618 // Type or member is obsolete
             {
                 aiResponse.Should().BeSuccessful();
             }

@@ -13,6 +13,7 @@ public class ResourceRegistryWithCacheTests
 {
     private ResourceRegistry _registry;
     private Mock<ILogger<ResourceRegistry>> _loggerMock;
+#pragma warning disable CS0618 // Type or member is obsolete - testing backward compatibility
     private Mock<IResourceCache> _cacheMock;
     private Mock<IResourceProvider> _providerMock;
 
@@ -21,6 +22,7 @@ public class ResourceRegistryWithCacheTests
     {
         _loggerMock = new Mock<ILogger<ResourceRegistry>>();
         _cacheMock = new Mock<IResourceCache>();
+#pragma warning restore CS0618 // Type or member is obsolete
         _providerMock = new Mock<IResourceProvider>();
         
         _registry = new ResourceRegistry(_loggerMock.Object, _cacheMock.Object);

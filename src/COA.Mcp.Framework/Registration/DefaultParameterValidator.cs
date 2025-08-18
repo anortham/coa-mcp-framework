@@ -12,7 +12,9 @@ namespace COA.Mcp.Framework.Registration;
 /// <summary>
 /// Default implementation of parameter validation.
 /// </summary>
+#pragma warning disable CS0618 // Type or member is obsolete - backward compatibility
 public class DefaultParameterValidator : IParameterValidator
+#pragma warning restore CS0618 // Type or member is obsolete
 {
     private readonly ILogger<DefaultParameterValidator>? _logger;
 

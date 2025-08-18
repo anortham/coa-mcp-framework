@@ -11,6 +11,7 @@ namespace COA.Mcp.Framework.Testing.Assertions
     /// <summary>
     /// Fluent assertions for AI-optimized responses.
     /// </summary>
+#pragma warning disable CS0618 // Type or member is obsolete - testing backward compatibility
     public class AIOptimizedResponseAssertions : ReferenceTypeAssertions<AIOptimizedResponse, AIOptimizedResponseAssertions>
     {
         /// <summary>
@@ -18,6 +19,7 @@ namespace COA.Mcp.Framework.Testing.Assertions
         /// </summary>
         /// <param name="response">The response to assert on.</param>
         public AIOptimizedResponseAssertions(AIOptimizedResponse response) : base(response)
+#pragma warning restore CS0618 // Type or member is obsolete
         {
             Identifier = "AI-optimized response";
         }
@@ -349,7 +351,9 @@ namespace COA.Mcp.Framework.Testing.Assertions
         /// </summary>
         /// <param name="response">The response to assert on.</param>
         /// <returns>Response assertions.</returns>
+#pragma warning disable CS0618 // Type or member is obsolete - testing backward compatibility
         public static AIOptimizedResponseAssertions Should(this AIOptimizedResponse response)
+#pragma warning restore CS0618 // Type or member is obsolete
         {
             return new AIOptimizedResponseAssertions(response);
         }

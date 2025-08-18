@@ -480,7 +480,9 @@ public class McpServerBuilder
             options.MaxSizeBytes = 100 * 1024 * 1024; // 100 MB
             options.EnableStatistics = true;
         });
+#pragma warning disable CS0618 // Type or member is obsolete - backward compatibility
         _services.AddSingleton<IResourceCache, InMemoryResourceCache>();
+#pragma warning restore CS0618 // Type or member is obsolete
         
         // Add framework services
         _services.AddSingleton<McpToolRegistry>();

@@ -25,7 +25,9 @@ public static class ServiceCollectionExtensions
 
         // Register core services
         services.TryAddSingleton<McpToolRegistry>();
+#pragma warning disable CS0618 // Type or member is obsolete - backward compatibility
         services.TryAddSingleton<IParameterValidator, DefaultParameterValidator>();
+#pragma warning restore CS0618 // Type or member is obsolete
         
         // Register the options
         services.AddSingleton(options);

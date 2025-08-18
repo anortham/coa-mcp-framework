@@ -11,10 +11,12 @@ namespace COA.Mcp.Framework.Resources;
 public class ResourceRegistry : IResourceRegistry
 {
     private readonly ILogger<ResourceRegistry> _logger;
+#pragma warning disable CS0618 // Type or member is obsolete - backward compatibility
     private readonly IResourceCache? _cache;
     private readonly List<IResourceProvider> _providers = new();
 
     public ResourceRegistry(ILogger<ResourceRegistry> logger, IResourceCache? cache = null)
+#pragma warning restore CS0618 // Type or member is obsolete
     {
         _logger = logger;
         _cache = cache;

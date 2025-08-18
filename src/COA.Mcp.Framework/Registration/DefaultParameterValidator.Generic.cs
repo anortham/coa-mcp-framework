@@ -13,7 +13,9 @@ namespace COA.Mcp.Framework.Registration;
 /// Generic implementation of parameter validation with strong typing.
 /// </summary>
 /// <typeparam name="TParams">The type of parameters to validate.</typeparam>
+#pragma warning disable CS0618 // Type or member is obsolete - backward compatibility
 public class DefaultParameterValidator<TParams> : IParameterValidator<TParams>, IParameterValidator
+#pragma warning restore CS0618 // Type or member is obsolete
     where TParams : class
 {
     private readonly ILogger? _logger;
@@ -63,7 +65,9 @@ public static class ParameterValidatorExtensions
     /// <typeparam name="TParams">The parameter type.</typeparam>
     /// <param name="validator">The non-generic validator.</param>
     /// <returns>A generic validator instance.</returns>
+#pragma warning disable CS0618 // Type or member is obsolete - backward compatibility
     public static IParameterValidator<TParams> ForType<TParams>(this IParameterValidator validator)
+#pragma warning restore CS0618 // Type or member is obsolete
         where TParams : class
     {
         if (validator is IParameterValidator<TParams> typedValidator)
@@ -81,9 +85,11 @@ public static class ParameterValidatorExtensions
     private class ParameterValidatorAdapter<TParams> : IParameterValidator<TParams>
         where TParams : class
     {
+#pragma warning disable CS0618 // Type or member is obsolete - backward compatibility
         private readonly IParameterValidator _innerValidator;
 
         public ParameterValidatorAdapter(IParameterValidator innerValidator)
+#pragma warning restore CS0618 // Type or member is obsolete
         {
             _innerValidator = innerValidator ?? throw new ArgumentNullException(nameof(innerValidator));
         }

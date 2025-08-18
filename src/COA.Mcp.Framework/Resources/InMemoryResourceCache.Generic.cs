@@ -236,7 +236,9 @@ public class InMemoryResourceCache<TResource> : IResourceCache<TResource>
 /// <summary>
 /// Non-generic implementation that specifically handles ReadResourceResult for backward compatibility.
 /// </summary>
+#pragma warning disable CS0618 // Type or member is obsolete - backward compatibility
 public class InMemoryResourceCacheTyped : InMemoryResourceCache<ReadResourceResult>, IResourceCache
+#pragma warning restore CS0618 // Type or member is obsolete
 {
     /// <summary>
     /// Initializes a new instance for ReadResourceResult caching.
