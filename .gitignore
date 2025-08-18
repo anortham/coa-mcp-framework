@@ -366,4 +366,8 @@ FodyWeavers.xsd
 
 # Performance analysis and benchmarks (local only)
 docs/performance/
+
+# Internal planning documents (Azure DevOps only, not for public GitHub)
+docs/future/
+
 .claude/settings.local.json
