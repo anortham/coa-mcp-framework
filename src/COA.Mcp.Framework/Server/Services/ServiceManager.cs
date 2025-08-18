@@ -446,10 +446,15 @@ public class ServiceManager : IServiceManager, IHostedService, IDisposable
         try
         {
             using var tcpClient = new TcpClient();
-            await tcpClient.ConnectAsync(IPAddress.Loopback, port);
+            using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(100));
+            await tcpClient.ConnectAsync(IPAddress.Loopback, port, cts.Token);
             return true;
         }
         catch (SocketException)
+        {
+            return false;
+        }
+        catch (OperationCanceledException)
         {
             return false;
         }
