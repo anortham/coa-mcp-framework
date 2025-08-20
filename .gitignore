@@ -364,6 +364,10 @@ FodyWeavers.xsd
 .codenav
 .claude/settings.local.json
 
+# NuGet local configurations (internal feeds, credentials)
+NuGet.config.local
+nuget.config.local
+
 # Performance analysis and benchmarks (local only)
 docs/performance/
 
