@@ -64,7 +64,7 @@ dotnet pack -c Release              # Create NuGet packages
 - Support variable substitution with `{{variable}}` syntax
 
 ## 📊 Current Status
-- **Version:** 1.7.0
+- **Version:** 1.7.17
 - **Tests:** 538 passing (100%) - NUnit framework
 - **Build:** 0 warnings
 - **Example:** `examples/SimpleMcpServer/` (5 tools + 2 prompts)

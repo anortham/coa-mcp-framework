@@ -41,7 +41,7 @@ pool:
 variables:
   buildConfiguration: "Release"
   dotnetSdkVersion: "9.x"
-  # Base version for Framework packages - v1.7.0
+  # Base version for Framework packages - v1.7.17
   majorVersion: 1
   minorVersion: 7
   # Auto-incrementing patch version - increments on every build

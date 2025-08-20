@@ -15,7 +15,7 @@ Comprehensive testing utilities for MCP tools and servers. This package provides
 ## Installation
 
 ```xml
-<PackageReference Include="COA.Mcp.Framework.Testing" Version="1.7.0" />
+<PackageReference Include="COA.Mcp.Framework.Testing" Version="1.7.17" />
 <PackageReference Include="NUnit" Version="4.1.0" />
 <PackageReference Include="FluentAssertions" Version="6.12.0" />
 ```
