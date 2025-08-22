@@ -139,7 +139,8 @@ Your MCP server is ready! 🎉
 ### 🛡️ **Comprehensive Error Handling**
 - Standardized error models with `ErrorInfo` and `RecoveryInfo`
 - AI-friendly error messages with recovery steps
-- Built-in validation helpers
+- **Built-in validation helpers** - `ValidateRequired()`, `ValidatePositive()`, `ValidateRange()`, `ValidateNotEmpty()`
+- **Error result helpers** - `CreateErrorResult()`, `CreateValidationErrorResult()` with recovery steps
 - **Customizable error messages** - Override `ErrorMessages` property for tool-specific guidance
 
 ### 🎯 **Generic Type Safety**
@@ -916,6 +917,111 @@ public class HighVolumeAnalysisTool : McpToolBase<AnalysisParams, AnalysisResult
     // ... tool implementation
 }
 ```
+
+### Built-in Validation Helpers
+
+The framework provides several validation helpers in the `McpToolBase` class to simplify parameter validation:
+
+```csharp
+public class DataProcessingTool : McpToolBase<DataParams, DataResult>
+{
+    protected override async Task<DataResult> ExecuteInternalAsync(
+        DataParams parameters,
+        CancellationToken cancellationToken)
+    {
+        // Validate required parameters (throws ValidationException if null/empty)
+        var filePath = ValidateRequired(parameters.FilePath, nameof(parameters.FilePath));
+        var query = ValidateRequired(parameters.Query, nameof(parameters.Query));
+        
+        // Validate positive numbers
+        var maxResults = ValidatePositive(parameters.MaxResults, nameof(parameters.MaxResults));
+        
+        // Validate ranges
+        var priority = ValidateRange(parameters.Priority, 1, 10, nameof(parameters.Priority));
+        
+        // Validate collections aren't empty
+        var tags = ValidateNotEmpty(parameters.Tags, nameof(parameters.Tags));
+        
+        // All validation passed - process the data
+        return await ProcessDataAsync(filePath, query, maxResults, priority, tags);
+    }
+}
+```
+
+#### Available Validation Helpers
+
+| Helper | Purpose | Throws |
+|--------|---------|--------|
+| `ValidateRequired<T>(value, paramName)` | Ensures value is not null or empty string | `ValidationException` |
+| `ValidatePositive(value, paramName)` | Ensures numeric value > 0 | `ValidationException` |
+| `ValidateRange(value, min, max, paramName)` | Ensures value is within range | `ValidationException` |
+| `ValidateNotEmpty<T>(collection, paramName)` | Ensures collection has items | `ValidationException` |
+
+### Built-in Error Result Helpers
+
+The framework provides helpers to create standardized error results with recovery information:
+
+```csharp
+public class DatabaseTool : McpToolBase<DbParams, DbResult>
+{
+    protected override async Task<DbResult> ExecuteInternalAsync(
+        DbParams parameters,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var connectionString = ValidateRequired(parameters.ConnectionString, nameof(parameters.ConnectionString));
+            
+            // Attempt database operation
+            var result = await ExecuteDatabaseQuery(connectionString, parameters.Query);
+            
+            return new DbResult
+            {
+                Success = true,
+                Operation = "database_query",
+                Data = result
+            };
+        }
+        catch (SqlException ex) when (ex.Number == 2) // Connection timeout
+        {
+            // Create standardized error with recovery steps
+            return new DbResult
+            {
+                Success = false,
+                Operation = "database_query",
+                Error = CreateErrorResult(
+                    "database_query", 
+                    $"Database connection timeout: {ex.Message}",
+                    "Verify database server is running and accessible"
+                )
+            };
+        }
+        catch (ArgumentException ex)
+        {
+            // Create validation error with specific guidance
+            return new DbResult
+            {
+                Success = false,
+                Operation = "database_query",
+                Error = CreateValidationErrorResult(
+                    "database_query",
+                    "connectionString",
+                    "Must be a valid SQL Server connection string"
+                )
+            };
+        }
+    }
+}
+```
+
+#### Available Error Result Helpers
+
+| Helper | Purpose | Returns |
+|--------|---------|---------|
+| `CreateErrorResult(operation, error, recoveryStep?)` | Creates `ErrorInfo` with recovery guidance | `ErrorInfo` |
+| `CreateValidationErrorResult(operation, paramName, requirement)` | Creates validation-specific error | `ErrorInfo` |
+| `CreateSuccessResult<T>(data, message?)` | Creates successful `ToolResult<T>` | `ToolResult<T>` |
+| `CreateErrorResult<T>(errorMessage, errorCode?)` | Creates failed `ToolResult<T>` | `ToolResult<T>` |
 
 ### Error Handling with Recovery Steps
 
