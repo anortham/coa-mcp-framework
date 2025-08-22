@@ -4,6 +4,7 @@ using FluentAssertions;
 
 namespace COA.Mcp.Protocol.Tests;
 
+[TestFixture]
 public class ServerCapabilitiesTests
 {
     private readonly JsonSerializerOptions _jsonOptions = new()
@@ -14,7 +15,7 @@ public class ServerCapabilitiesTests
 
     #region ResourceCapabilities Tests
 
-    [Fact]
+    [Test]
     public void ResourceCapabilities_AllFeatures_ShouldSerializeCorrectly()
     {
         // Arrange
@@ -34,7 +35,7 @@ public class ServerCapabilitiesTests
         deserialized.ListChanged.Should().BeTrue();
     }
 
-    [Fact]
+    [Test]
     public void ResourceCapabilities_PartialFeatures_ShouldSerializeCorrectly()
     {
         // Arrange
@@ -54,7 +55,7 @@ public class ServerCapabilitiesTests
         deserialized.ListChanged.Should().BeTrue();
     }
 
-    [Fact]
+    [Test]
     public void ResourceCapabilities_DefaultValues_ShouldBeFalse()
     {
         // Arrange
@@ -74,7 +75,7 @@ public class ServerCapabilitiesTests
 
     #region ServerCapabilities Tests
 
-    [Fact]
+    [Test]
     public void ServerCapabilities_WithAllCapabilities_ShouldSerializeCorrectly()
     {
         // Arrange
@@ -102,7 +103,7 @@ public class ServerCapabilitiesTests
         deserialized.Prompts.Should().NotBeNull();
     }
 
-    [Fact]
+    [Test]
     public void ServerCapabilities_ToolsOnly_ShouldSerializeCorrectly()
     {
         // Arrange
@@ -122,7 +123,7 @@ public class ServerCapabilitiesTests
         deserialized.Prompts.Should().BeNull();
     }
 
-    [Fact]
+    [Test]
     public void ServerCapabilities_ResourcesOnly_ShouldSerializeCorrectly()
     {
         // Arrange
@@ -148,7 +149,7 @@ public class ServerCapabilitiesTests
         deserialized.Prompts.Should().BeNull();
     }
 
-    [Fact]
+    [Test]
     public void ServerCapabilities_PromptsOnly_ShouldSerializeCorrectly()
     {
         // Arrange
@@ -172,7 +173,7 @@ public class ServerCapabilitiesTests
 
     #region InitializeResult Tests
 
-    [Fact]
+    [Test]
     public void InitializeResult_WithAllCapabilities_ShouldSerializeCorrectly()
     {
         // Arrange
@@ -212,7 +213,7 @@ public class ServerCapabilitiesTests
         deserialized.Capabilities.Prompts.Should().NotBeNull();
     }
 
-    [Fact]
+    [Test]
     public void InitializeResult_MinimalSetup_ShouldSerializeCorrectly()
     {
         // Arrange
@@ -247,7 +248,7 @@ public class ServerCapabilitiesTests
 
     #region Real-world Integration Tests
 
-    [Fact]
+    [Test]
     public void ServerCapabilities_CodeSearchServerConfiguration_ShouldWork()
     {
         // Arrange - Simulate actual CodeSearch server configuration
@@ -298,7 +299,7 @@ public class ServerCapabilitiesTests
         deserialized.ServerInfo.Version.Should().StartWith("1.5.");
     }
 
-    [Fact]
+    [Test]
     public void ServerCapabilities_EvolutionPath_ShouldBeFlexible()
     {
         // Test that capabilities can be added incrementally without breaking existing clients
@@ -344,7 +345,7 @@ public class ServerCapabilitiesTests
 
     #region JSON Structure Validation
 
-    [Fact]
+    [Test]
     public void ServerCapabilities_JsonStructure_ShouldMatchMcpSpecification()
     {
         // Arrange
@@ -376,7 +377,7 @@ public class ServerCapabilitiesTests
         json.Should().Contain("\"listChanged\"");
     }
 
-    [Fact]
+    [Test]
     public void ResourceCapabilities_JsonStructure_ShouldUseCorrectPropertyNames()
     {
         // Arrange

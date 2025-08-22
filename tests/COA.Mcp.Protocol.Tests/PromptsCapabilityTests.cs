@@ -4,6 +4,7 @@ using FluentAssertions;
 
 namespace COA.Mcp.Protocol.Tests;
 
+[TestFixture]
 public class PromptsCapabilityTests
 {
     private readonly JsonSerializerOptions _jsonOptions = new()
@@ -14,7 +15,7 @@ public class PromptsCapabilityTests
 
     #region PromptArgument Tests
 
-    [Fact]
+    [Test]
     public void PromptArgument_RequiredArgument_ShouldSerializeCorrectly()
     {
         // Arrange
@@ -36,7 +37,7 @@ public class PromptsCapabilityTests
         deserialized.Required.Should().BeTrue();
     }
 
-    [Fact]
+    [Test]
     public void PromptArgument_OptionalArgument_ShouldSerializeCorrectly()
     {
         // Arrange
@@ -58,7 +59,7 @@ public class PromptsCapabilityTests
         deserialized.Required.Should().BeFalse();
     }
 
-    [Fact]
+    [Test]
     public void PromptArgument_DefaultRequired_ShouldBeFalse()
     {
         // Arrange
@@ -81,7 +82,7 @@ public class PromptsCapabilityTests
 
     #region Prompt Tests
 
-    [Fact]
+    [Test]
     public void Prompt_WithArguments_ShouldSerializeCorrectly()
     {
         // Arrange
@@ -121,7 +122,7 @@ public class PromptsCapabilityTests
         deserialized.Arguments[1].Required.Should().BeFalse();
     }
 
-    [Fact]
+    [Test]
     public void Prompt_WithoutArguments_ShouldSerializeCorrectly()
     {
         // Arrange
@@ -147,7 +148,7 @@ public class PromptsCapabilityTests
 
     #region PromptContent Tests
 
-    [Fact]
+    [Test]
     public void PromptContent_TextContent_ShouldSerializeCorrectly()
     {
         // Arrange
@@ -167,7 +168,7 @@ public class PromptsCapabilityTests
         deserialized.Text.Should().Be("You are an expert at using CodeSearch tools to find code.");
     }
 
-    [Fact]
+    [Test]
     public void PromptContent_TextOnly_RequiredFieldsSet()
     {
         // Arrange
@@ -186,7 +187,7 @@ public class PromptsCapabilityTests
 
     #region PromptMessage Tests
 
-    [Fact]
+    [Test]
     public void PromptMessage_SystemMessage_ShouldSerializeCorrectly()
     {
         // Arrange
@@ -212,7 +213,7 @@ public class PromptsCapabilityTests
         deserialized.Content.Text.Should().Be("You are a helpful assistant for code search and analysis.");
     }
 
-    [Fact]
+    [Test]
     public void PromptMessage_UserMessage_ShouldSerializeCorrectly()
     {
         // Arrange
@@ -236,7 +237,7 @@ public class PromptsCapabilityTests
         deserialized.Content.Text.Should().Be("Help me find all TODO comments in the project.");
     }
 
-    [Fact]
+    [Test]
     public void PromptMessage_AssistantMessage_ShouldSerializeCorrectly()
     {
         // Arrange
@@ -264,7 +265,7 @@ public class PromptsCapabilityTests
 
     #region ListPromptsResult Tests
 
-    [Fact]
+    [Test]
     public void ListPromptsResult_MultiplePrompts_ShouldSerializeCorrectly()
     {
         // Arrange
@@ -303,7 +304,7 @@ public class PromptsCapabilityTests
         deserialized.Prompts[1].Arguments.Should().BeEmpty();
     }
 
-    [Fact]
+    [Test]
     public void ListPromptsResult_EmptyList_ShouldSerializeCorrectly()
     {
         // Arrange
@@ -325,7 +326,7 @@ public class PromptsCapabilityTests
 
     #region GetPromptRequest Tests
 
-    [Fact]
+    [Test]
     public void GetPromptRequest_WithArguments_ShouldSerializeCorrectly()
     {
         // Arrange
@@ -353,7 +354,7 @@ public class PromptsCapabilityTests
         deserialized.Arguments["initial_query"].ToString().Should().Be("TODO");
     }
 
-    [Fact]
+    [Test]
     public void GetPromptRequest_WithoutArguments_ShouldSerializeCorrectly()
     {
         // Arrange
@@ -376,7 +377,7 @@ public class PromptsCapabilityTests
 
     #region GetPromptResult Tests
 
-    [Fact]
+    [Test]
     public void GetPromptResult_CompletePrompt_ShouldSerializeCorrectly()
     {
         // Arrange
@@ -420,7 +421,7 @@ public class PromptsCapabilityTests
         deserialized.Messages[1].Content.Text.Should().Contain("error handling patterns");
     }
 
-    [Fact]
+    [Test]
     public void GetPromptResult_WithOptionalDescription_ShouldSerializeCorrectly()
     {
         // Arrange
@@ -450,7 +451,7 @@ public class PromptsCapabilityTests
 
     #region Integration Tests
 
-    [Fact]
+    [Test]
     public void PromptsWorkflow_CompleteRoundTrip_ShouldWork()
     {
         // Arrange - List prompts request/response
@@ -529,7 +530,7 @@ public class PromptsCapabilityTests
         deserializedGet.Messages[1].Content.Text.Should().Contain("exception handling");
     }
 
-    [Fact]
+    [Test]
     public void PromptArguments_ComplexTypes_ShouldSerializeCorrectly()
     {
         // Arrange - Test with various argument value types

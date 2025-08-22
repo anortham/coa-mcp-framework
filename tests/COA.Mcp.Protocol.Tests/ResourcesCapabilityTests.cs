@@ -4,6 +4,7 @@ using FluentAssertions;
 
 namespace COA.Mcp.Protocol.Tests;
 
+[TestFixture]
 public class ResourcesCapabilityTests
 {
     private readonly JsonSerializerOptions _jsonOptions = new()
@@ -14,7 +15,7 @@ public class ResourcesCapabilityTests
 
     #region Resource Tests
 
-    [Fact]
+    [Test]
     public void Resource_ShouldSerializeCorrectly()
     {
         // Arrange
@@ -38,7 +39,7 @@ public class ResourcesCapabilityTests
         deserialized.MimeType.Should().Be("text/x-csharp");
     }
 
-    [Fact]
+    [Test]
     public void Resource_WithOptionalFields_ShouldSerializeCorrectly()
     {
         // Arrange
@@ -64,7 +65,7 @@ public class ResourcesCapabilityTests
 
     #region ResourceContent Tests
 
-    [Fact]
+    [Test]
     public void ResourceContent_TextContent_ShouldSerializeCorrectly()
     {
         // Arrange
@@ -87,7 +88,7 @@ public class ResourcesCapabilityTests
         deserialized.Blob.Should().BeNull();
     }
 
-    [Fact]
+    [Test]
     public void ResourceContent_BlobContent_ShouldSerializeCorrectly()
     {
         // Arrange
@@ -115,7 +116,7 @@ public class ResourcesCapabilityTests
 
     #region ListResourcesResult Tests
 
-    [Fact]
+    [Test]
     public void ListResourcesResult_ShouldSerializeCorrectly()
     {
         // Arrange
@@ -139,7 +140,7 @@ public class ResourcesCapabilityTests
         deserialized.Resources[1].Uri.Should().Be("codesearch://workspace/file2.cs");
     }
 
-    [Fact]
+    [Test]
     public void ListResourcesResult_EmptyList_ShouldSerializeCorrectly()
     {
         // Arrange
@@ -161,7 +162,7 @@ public class ResourcesCapabilityTests
 
     #region ReadResourceRequest Tests
 
-    [Fact]
+    [Test]
     public void ReadResourceRequest_ShouldSerializeCorrectly()
     {
         // Arrange
@@ -183,7 +184,7 @@ public class ResourcesCapabilityTests
 
     #region ReadResourceResult Tests
 
-    [Fact]
+    [Test]
     public void ReadResourceResult_SingleContent_ShouldSerializeCorrectly()
     {
         // Arrange
@@ -212,7 +213,7 @@ public class ResourcesCapabilityTests
         deserialized.Contents[0].Text.Should().Contain("namespace Test");
     }
 
-    [Fact]
+    [Test]
     public void ReadResourceResult_MultipleContents_ShouldSerializeCorrectly()
     {
         // Arrange
@@ -250,7 +251,7 @@ public class ResourcesCapabilityTests
 
     #region ResourceCapabilities Tests
 
-    [Fact]
+    [Test]
     public void ResourceCapabilities_ShouldSerializeCorrectly()
     {
         // Arrange
@@ -270,7 +271,7 @@ public class ResourcesCapabilityTests
         deserialized.ListChanged.Should().BeFalse();
     }
 
-    [Fact]
+    [Test]
     public void ResourceCapabilities_DefaultValues_ShouldSerializeCorrectly()
     {
         // Arrange
@@ -290,7 +291,7 @@ public class ResourcesCapabilityTests
 
     #region Integration Tests
 
-    [Fact]
+    [Test]
     public void ResourcesWorkflow_CompleteRoundTrip_ShouldWork()
     {
         // Arrange - List resources request/response

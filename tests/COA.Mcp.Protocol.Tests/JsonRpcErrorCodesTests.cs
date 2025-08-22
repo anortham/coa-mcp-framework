@@ -3,9 +3,10 @@ using FluentAssertions;
 
 namespace COA.Mcp.Protocol.Tests;
 
+[TestFixture]
 public class JsonRpcErrorCodesTests
 {
-    [Fact]
+    [Test]
     public void Constants_ShouldHaveCorrectValues()
     {
         // JSON-RPC 2.0 Standard Error Codes
@@ -31,14 +32,13 @@ public class JsonRpcErrorCodesTests
         JsonRpcErrorCodes.MemoryOperationFailed.Should().Be(-32104);
     }
 
-    [Theory]
-    [InlineData(-32000, true)]  // ServerError
-    [InlineData(-32001, true)]  // ResourceNotFound
-    [InlineData(-32099, true)]  // Edge of server error range
-    [InlineData(-32100, false)] // MCP error, not server error
-    [InlineData(-32603, false)] // Standard JSON-RPC error
-    [InlineData(-31999, false)] // Outside range
-    [InlineData(0, false)]      // Not an error code
+    [TestCase(-32000, true)]  // ServerError
+    [TestCase(-32001, true)]  // ResourceNotFound
+    [TestCase(-32099, true)]  // Edge of server error range
+    [TestCase(-32100, false)] // MCP error, not server error
+    [TestCase(-32603, false)] // Standard JSON-RPC error
+    [TestCase(-31999, false)] // Outside range
+    [TestCase(0, false)]      // Not an error code
     public void IsServerError_ShouldReturnCorrectValue(int errorCode, bool expected)
     {
         // Act
@@ -48,14 +48,13 @@ public class JsonRpcErrorCodesTests
         result.Should().Be(expected);
     }
 
-    [Theory]
-    [InlineData(-32100, true)]  // ToolNotFound
-    [InlineData(-32104, true)]  // MemoryOperationFailed
-    [InlineData(-32199, true)]  // Edge of MCP error range
-    [InlineData(-32000, false)] // Server error, not MCP error
-    [InlineData(-32603, false)] // Standard JSON-RPC error
-    [InlineData(-32200, false)] // Outside range
-    [InlineData(0, false)]      // Not an error code
+    [TestCase(-32100, true)]  // ToolNotFound
+    [TestCase(-32104, true)]  // MemoryOperationFailed
+    [TestCase(-32199, true)]  // Edge of MCP error range
+    [TestCase(-32000, false)] // Server error, not MCP error
+    [TestCase(-32603, false)] // Standard JSON-RPC error
+    [TestCase(-32200, false)] // Outside range
+    [TestCase(0, false)]      // Not an error code
     public void IsMcpError_ShouldReturnCorrectValue(int errorCode, bool expected)
     {
         // Act
@@ -65,22 +64,21 @@ public class JsonRpcErrorCodesTests
         result.Should().Be(expected);
     }
 
-    [Theory]
-    [InlineData(JsonRpcErrorCodes.ParseError, "Parse error - Invalid JSON was received")]
-    [InlineData(JsonRpcErrorCodes.InvalidRequest, "Invalid Request - The JSON sent is not a valid Request object")]
-    [InlineData(JsonRpcErrorCodes.MethodNotFound, "Method not found - The method does not exist or is not available")]
-    [InlineData(JsonRpcErrorCodes.InvalidParams, "Invalid params - Invalid method parameter(s)")]
-    [InlineData(JsonRpcErrorCodes.InternalError, "Internal error - Internal JSON-RPC error")]
-    [InlineData(JsonRpcErrorCodes.ResourceNotFound, "Resource not found - The requested resource could not be found")]
-    [InlineData(JsonRpcErrorCodes.ResourceAccessDenied, "Access denied - Access to the requested resource was denied")]
-    [InlineData(JsonRpcErrorCodes.OperationTimeout, "Operation timeout - The requested operation timed out")]
-    [InlineData(JsonRpcErrorCodes.ServiceUnavailable, "Service unavailable - The server is temporarily unavailable")]
-    [InlineData(JsonRpcErrorCodes.OperationCancelled, "Operation cancelled - The operation was cancelled")]
-    [InlineData(JsonRpcErrorCodes.ToolNotFound, "Tool not found - A tool with the requested name was not found")]
-    [InlineData(JsonRpcErrorCodes.ToolExecutionError, "Tool execution error - The tool failed to execute")]
-    [InlineData(JsonRpcErrorCodes.WorkspaceNotFound, "Workspace not found - The requested workspace could not be accessed")]
-    [InlineData(JsonRpcErrorCodes.IndexNotAvailable, "Index not available - The workspace index is not available or corrupted")]
-    [InlineData(JsonRpcErrorCodes.MemoryOperationFailed, "Memory operation failed - The requested memory operation failed")]
+    [TestCase(JsonRpcErrorCodes.ParseError, "Parse error - Invalid JSON was received")]
+    [TestCase(JsonRpcErrorCodes.InvalidRequest, "Invalid Request - The JSON sent is not a valid Request object")]
+    [TestCase(JsonRpcErrorCodes.MethodNotFound, "Method not found - The method does not exist or is not available")]
+    [TestCase(JsonRpcErrorCodes.InvalidParams, "Invalid params - Invalid method parameter(s)")]
+    [TestCase(JsonRpcErrorCodes.InternalError, "Internal error - Internal JSON-RPC error")]
+    [TestCase(JsonRpcErrorCodes.ResourceNotFound, "Resource not found - The requested resource could not be found")]
+    [TestCase(JsonRpcErrorCodes.ResourceAccessDenied, "Access denied - Access to the requested resource was denied")]
+    [TestCase(JsonRpcErrorCodes.OperationTimeout, "Operation timeout - The requested operation timed out")]
+    [TestCase(JsonRpcErrorCodes.ServiceUnavailable, "Service unavailable - The server is temporarily unavailable")]
+    [TestCase(JsonRpcErrorCodes.OperationCancelled, "Operation cancelled - The operation was cancelled")]
+    [TestCase(JsonRpcErrorCodes.ToolNotFound, "Tool not found - A tool with the requested name was not found")]
+    [TestCase(JsonRpcErrorCodes.ToolExecutionError, "Tool execution error - The tool failed to execute")]
+    [TestCase(JsonRpcErrorCodes.WorkspaceNotFound, "Workspace not found - The requested workspace could not be accessed")]
+    [TestCase(JsonRpcErrorCodes.IndexNotAvailable, "Index not available - The workspace index is not available or corrupted")]
+    [TestCase(JsonRpcErrorCodes.MemoryOperationFailed, "Memory operation failed - The requested memory operation failed")]
     public void GetStandardErrorDescription_WithKnownCodes_ShouldReturnDescription(int errorCode, string expectedDescription)
     {
         // Act
@@ -90,11 +88,10 @@ public class JsonRpcErrorCodesTests
         description.Should().Be(expectedDescription);
     }
 
-    [Theory]
-    [InlineData(-999)]    // Unknown error code
-    [InlineData(0)]       // Not an error code
-    [InlineData(200)]     // HTTP success code (wrong domain)
-    [InlineData(-31000)]  // Outside defined ranges
+    [TestCase(-999)]    // Unknown error code
+    [TestCase(0)]       // Not an error code
+    [TestCase(200)]     // HTTP success code (wrong domain)
+    [TestCase(-31000)]  // Outside defined ranges
     public void GetStandardErrorDescription_WithUnknownCodes_ShouldReturnNull(int errorCode)
     {
         // Act
@@ -104,7 +101,7 @@ public class JsonRpcErrorCodesTests
         description.Should().BeNull();
     }
 
-    [Fact]
+    [Test]
     public void ErrorRanges_ShouldNotOverlap()
     {
         // Arrange
@@ -154,7 +151,7 @@ public class JsonRpcErrorCodesTests
         }
     }
 
-    [Fact]
+    [Test]
     public void ErrorCodeRanges_ShouldFollowJsonRpcSpecification()
     {
         // JSON-RPC 2.0 specification defines:

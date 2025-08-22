@@ -4,9 +4,10 @@ using FluentAssertions;
 
 namespace COA.Mcp.Protocol.Tests;
 
+[TestFixture]
 public class ProgressNotificationTests
 {
-    [Fact]
+    [Test]
     public void Constructor_ShouldSetMethodToProgressNotifications()
     {
         // Act
@@ -17,7 +18,7 @@ public class ProgressNotificationTests
         notification.JsonRpc.Should().Be("2.0");
     }
 
-    [Fact]
+    [Test]
     public void ParameterizedConstructor_ShouldSetAllProperties()
     {
         // Arrange
@@ -37,7 +38,7 @@ public class ProgressNotificationTests
         notification.Message.Should().Be(message);
     }
 
-    [Fact]
+    [Test]
     public void ParameterizedConstructor_WithOptionalNulls_ShouldSetOnlyRequiredProperties()
     {
         // Arrange
@@ -54,7 +55,7 @@ public class ProgressNotificationTests
         notification.Message.Should().BeNull();
     }
 
-    [Fact]
+    [Test]
     public void JsonSerialization_WithAllProperties_ShouldSerializeCorrectly()
     {
         // Arrange
@@ -75,7 +76,7 @@ public class ProgressNotificationTests
         json.Should().Contain("\"message\":\"Processing file\"");
     }
 
-    [Fact]
+    [Test]
     public void JsonSerialization_WithNullOptionalProperties_ShouldExcludeNulls()
     {
         // Arrange
@@ -94,7 +95,7 @@ public class ProgressNotificationTests
         json.Should().NotContain("message");
     }
 
-    [Fact]
+    [Test]
     public void JsonDeserialization_ShouldDeserializeCorrectly()
     {
         // Arrange
@@ -125,7 +126,7 @@ public class ProgressNotificationTests
         notification.Message.Should().Be("Almost done");
     }
 
-    [Fact]
+    [Test]
     public void JsonDeserialization_WithMissingOptionalProperties_ShouldHandleGracefully()
     {
         // Arrange
@@ -152,11 +153,10 @@ public class ProgressNotificationTests
         notification.Message.Should().BeNull();
     }
 
-    [Theory]
-    [InlineData(0, 100, "Starting operation")]
-    [InlineData(50, 100, "Halfway done")]
-    [InlineData(100, 100, "Operation complete")]
-    [InlineData(25, null, "Indeterminate progress")]
+    [TestCase(0, 100, "Starting operation")]
+    [TestCase(50, 100, "Halfway done")]
+    [TestCase(100, 100, "Operation complete")]
+    [TestCase(25, null, "Indeterminate progress")]
     public void ProgressNotification_ShouldHandleVariousProgressScenarios(int progress, int? total, string message)
     {
         // Act

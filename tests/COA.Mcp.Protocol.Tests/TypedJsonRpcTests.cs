@@ -4,6 +4,7 @@ using FluentAssertions;
 
 namespace COA.Mcp.Protocol.Tests;
 
+[TestFixture]
 public class TypedJsonRpcTests
 {
     // Test parameter types for strongly-typed tests
@@ -22,7 +23,7 @@ public class TypedJsonRpcTests
 
     #region TypedJsonRpcRequest Tests
 
-    [Fact]
+    [Test]
     public void TypedJsonRpcRequest_DefaultConstructor_ShouldSetJsonRpcVersion()
     {
         // Act
@@ -33,7 +34,7 @@ public class TypedJsonRpcTests
         request.Params.Should().BeNull();
     }
 
-    [Fact]
+    [Test]
     public void TypedJsonRpcRequest_ParameterizedConstructor_ShouldSetAllProperties()
     {
         // Arrange
@@ -51,7 +52,7 @@ public class TypedJsonRpcTests
         request.JsonRpc.Should().Be("2.0");
     }
 
-    [Fact]
+    [Test]
     public void TypedJsonRpcRequest_JsonSerialization_ShouldSerializeWithStrongTypes()
     {
         // Arrange
@@ -76,7 +77,7 @@ public class TypedJsonRpcTests
         json.Should().Contain("\"isActive\":false");
     }
 
-    [Fact]
+    [Test]
     public void TypedJsonRpcRequest_JsonDeserialization_ShouldDeserializeWithStrongTypes()
     {
         // Arrange
@@ -113,7 +114,7 @@ public class TypedJsonRpcTests
 
     #region TypedJsonRpcResponse Tests
 
-    [Fact]
+    [Test]
     public void TypedJsonRpcResponse_SuccessConstructor_ShouldSetResult()
     {
         // Arrange
@@ -131,7 +132,7 @@ public class TypedJsonRpcTests
         response.JsonRpc.Should().Be("2.0");
     }
 
-    [Fact]
+    [Test]
     public void TypedJsonRpcResponse_ErrorConstructor_ShouldSetError()
     {
         // Arrange
@@ -152,7 +153,7 @@ public class TypedJsonRpcTests
         response.IsError.Should().BeTrue();
     }
 
-    [Fact]
+    [Test]
     public void TypedJsonRpcResponse_JsonSerialization_WithResult_ShouldSerializeCorrectly()
     {
         // Arrange
@@ -175,7 +176,7 @@ public class TypedJsonRpcTests
         json.Should().NotContain("error");
     }
 
-    [Fact]
+    [Test]
     public void TypedJsonRpcResponse_JsonSerialization_WithError_ShouldSerializeError()
     {
         // Arrange
@@ -204,7 +205,7 @@ public class TypedJsonRpcTests
 
     #region TypedJsonRpcNotification Tests
 
-    [Fact]
+    [Test]
     public void TypedJsonRpcNotification_Constructor_ShouldSetProperties()
     {
         // Arrange
@@ -220,7 +221,7 @@ public class TypedJsonRpcTests
         notification.JsonRpc.Should().Be("2.0");
     }
 
-    [Fact]
+    [Test]
     public void TypedJsonRpcNotification_JsonSerialization_ShouldNotIncludeId()
     {
         // Arrange
@@ -253,7 +254,7 @@ public class TypedJsonRpcTests
         public override string ToolName => "test_tool";
     }
 
-    [Fact]
+    [Test]
     public void TypedToolRequest_Constructor_ShouldSetMethodToToolsCall()
     {
         // Act
@@ -265,7 +266,7 @@ public class TypedJsonRpcTests
         request.JsonRpc.Should().Be("2.0");
     }
 
-    [Fact]
+    [Test]
     public void TypedToolRequest_ParameterizedConstructor_ShouldSetProperties()
     {
         // Arrange
@@ -287,7 +288,7 @@ public class TypedJsonRpcTests
 
     #region TypedToolResponse Tests
 
-    [Fact]
+    [Test]
     public void TypedToolResponse_WithToolResult_ShouldWrapInCallToolResult()
     {
         // Arrange
@@ -305,7 +306,7 @@ public class TypedJsonRpcTests
         response.IsError.Should().BeFalse();
     }
 
-    [Fact]
+    [Test]
     public void TypedToolResponse_WithError_ShouldSetError()
     {
         // Arrange
@@ -331,7 +332,7 @@ public class TypedJsonRpcTests
 
     #region Integration Tests
 
-    [Fact]
+    [Test]
     public void RoundTripSerialization_TypedRequest_ShouldPreserveTypes()
     {
         // Arrange
@@ -361,7 +362,7 @@ public class TypedJsonRpcTests
         deserializedRequest.Params.IsActive.Should().Be(originalRequest.Params.IsActive);
     }
 
-    [Fact]
+    [Test]
     public void RoundTripSerialization_TypedResponse_ShouldPreserveTypes()
     {
         // Arrange
