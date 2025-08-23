@@ -50,7 +50,7 @@ dotnet pack -c Release              # Create NuGet packages
 
 **Key Patterns:**
 - Parameters validated automatically
-- Use `ValidateRequired()`, `ValidateRange()` helpers
+- Use validation helpers from McpToolBase: `ValidateRequired()`, `ValidateRange()`, `ValidatePositive()`, `ValidateNotEmpty()`
 - Return `ToolResultBase`-derived types
 - Override `ErrorMessages` for custom error messages with recovery steps
 - Override `TokenBudget` for per-tool token limits
@@ -84,7 +84,7 @@ dotnet pack -c Release              # Create NuGet packages
 |-------|----------|
 | Changes not reflected | Rebuild, repack, update package reference |
 | Tool not found | Verify inheritance from McpToolBase |
-| Validation errors | Use built-in validation helpers |
+| Validation errors | Use validation helpers from McpToolBase (ValidateRequired, ValidateRange, etc.) |
 | Token limits | Configure TokenBudgets in server builder |
 | Custom error messages | Override ErrorMessages property in tool |
 | Lifecycle hooks not working | Override Middleware property with ISimpleMiddleware list |
@@ -94,7 +94,7 @@ dotnet pack -c Release              # Create NuGet packages
 
 | Component | File Path |
 |-----------|-----------|
-| Tool base | `src/COA.Mcp.Framework/Base/McpToolBase.Generic.cs` |
+| Tool base (includes validation helpers) | `src/COA.Mcp.Framework/Base/McpToolBase.Generic.cs` |
 | Prompt base | `src/COA.Mcp.Framework/Prompts/PromptBase.cs` |
 | Server builder | `src/COA.Mcp.Framework/Server/McpServerBuilder.cs` |
 | Middleware | `src/COA.Mcp.Framework/Pipeline/SimpleMiddleware.cs` |

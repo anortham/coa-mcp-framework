@@ -207,7 +207,7 @@ Once you've verified the V2 tool works correctly:
 
 ## Key Differences in the Migrated Version
 
-1. **Inherits from McpToolBase** - Gets validation helpers and token management
+1. **Inherits from McpToolBase** - Gets validation helpers (ValidateRequired, ValidateRange, etc.) as protected methods and token management
 2. **Uses ExecuteWithTokenManagement** - Automatic token optimization
 3. **Returns AIOptimizedResponse** - Standardized response format
 4. **Uses framework's Insight/AIAction types** - Better structure
@@ -236,7 +236,7 @@ if (error != null)
 1. **Automatic token counting** - No need to worry about context limits
 2. **Response truncation** - Large responses automatically reduced
 3. **Consistent error handling** - Framework provides standard error format
-4. **Built-in validation** - Use `ValidateRequired`, `ValidateRange`, etc.
+4. **Built-in validation** - Use protected methods from McpToolBase: `ValidateRequired`, `ValidateRange`, `ValidatePositive`, `ValidateNotEmpty`
 5. **Ready for testing** - Can now write unit tests using framework helpers
 
 ## Migration Tips
