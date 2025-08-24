@@ -42,11 +42,36 @@ public class DefaultTestStatusServiceTests
     [TearDown]
     public void TearDown()
     {
-        // Clean up temporary directory
+        // Clean up temporary directory with retry logic for file handle issues
         if (Directory.Exists(_tempDirectory))
         {
-            Directory.Delete(_tempDirectory, true);
+            TryDeleteDirectory(_tempDirectory, maxRetries: 5, delayMs: 100);
         }
+    }
+
+    private static void TryDeleteDirectory(string directory, int maxRetries = 3, int delayMs = 100)
+    {
+        for (int i = 0; i < maxRetries; i++)
+        {
+            try
+            {
+                Directory.Delete(directory, true);
+                return; // Success
+            }
+            catch (IOException) when (i < maxRetries - 1)
+            {
+                // Wait and retry - processes may still be releasing file handles
+                System.Threading.Thread.Sleep(delayMs);
+            }
+            catch (UnauthorizedAccessException) when (i < maxRetries - 1)
+            {
+                // Wait and retry - processes may still be releasing file handles
+                System.Threading.Thread.Sleep(delayMs);
+            }
+        }
+
+        // If we get here, all retries failed - try one more time without catching
+        Directory.Delete(directory, true);
     }
 
     [Test]
