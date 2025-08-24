@@ -7,7 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0] - 2025-08-24
+
+### 🚨 BREAKING CHANGES
+
+#### Tool Constructor Signature Change
+- **All tools** that inherit from `McpToolBase` or `DisposableToolBase` must update their constructors
+- **Before**: `MyTool(ILogger<MyTool> logger) : base(logger)`
+- **After**: `MyTool(IServiceProvider? serviceProvider, ILogger<MyTool>? logger = null) : base(serviceProvider, logger)`
+- **Impact**: This change affects ALL existing tools but enables powerful global middleware capabilities
+- **Migration Guide**: See `docs/MIGRATION_GLOBAL_MIDDLEWARE.md` for complete migration instructions
+
 ### Added
+
+#### 🌐 Global Middleware System
+- **WithGlobalMiddleware()**: Instance-based middleware registration that applies to ALL tools automatically
+- **AddGlobalMiddleware<T>()**: Type-based middleware registration with dependency injection support
+- **Built-in Convenience Methods**: Easy setup for common middleware (logging, token counting, type verification, TDD enforcement)
+- **Automatic Middleware Combination**: Tools now seamlessly combine global middleware (from DI) with tool-specific middleware
+- **Proper Ordering**: All middleware sorted by `Order` property for consistent execution flow
+- **DI Integration**: Full dependency injection support for middleware resolution
+
+#### 🔧 Enhanced Framework Architecture
+- **McpServerBuilder Extensions**: Comprehensive middleware registration methods with flexible configuration options
+- **IServiceProvider Integration**: Tools can now resolve global middleware from dependency injection container
+- **Middleware Property Split**: Separated `ToolSpecificMiddleware` and combined `Middleware` properties for better clarity
+- **Global Cross-cutting Concerns**: Consistent application of logging, security, monitoring across all tools
 
 #### 🛡️ Advanced Middleware System
 - **TypeVerificationMiddleware**: Prevents AI-hallucinated types in code generation by verifying type existence before allowing code operations
@@ -57,11 +82,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Performance Tested**: Validated middleware pipeline performance under load
 - **Memory Efficient**: Optimized caching strategies to minimize memory footprint
 
+### Fixed
+- **CS1998 Warnings**: Eliminated all async method warnings by properly implementing synchronous methods with `Task.FromResult()` or `Task.CompletedTask`
+  - Fixed 5 methods in `VerificationStateManager.cs`
+  - Fixed 1 method in `TddEnforcementMiddleware.cs`
+- **Build Quality**: Achieved 0 warnings, 0 errors build status across entire solution
+- **Constructor Compatibility**: Updated all framework examples and tests to use new constructor signature
+
 ### Technical Details
-- **Total New Tests**: 62 tests added (TypeVerification: 17, TddEnforcement: 6, VerificationStateManager: 28, TestStatusService: 11)
-- **Framework Test Count**: Updated from 562 to 874 total tests
+- **Global Middleware Tests**: 9 comprehensive integration tests added for global middleware functionality
+- **Total New Tests**: 71 tests added (62 middleware + 9 global middleware integration tests)
+- **Framework Test Count**: Updated from 640 to 648 total tests (100% pass rate)
+- **Build Status**: 0 warnings, 0 errors across all projects
 - **Performance Impact**: < 5ms overhead per operation with caching enabled
 - **Memory Usage**: Configurable cache limits with automatic cleanup
+- **Migration Impact**: All existing tools require constructor updates but gain powerful global middleware capabilities
 
 ## [1.5.6] - 2025-01-12
 
@@ -253,8 +288,14 @@ var typedValidator = nonGenericValidator.ForType<MyParams>();
 - [ ] GraphQL support
 - [ ] Project templates (`dotnet new mcp-server`)
 
-### [2.0.0]
+### [2.1.0]
+- [ ] Enhanced JWT authentication with role-based permissions
+- [ ] Advanced monitoring and metrics collection
+- [ ] Performance optimizations for high-throughput scenarios
+- [ ] Extended visualization protocol support
+
+### [3.0.0]
 - [ ] Breaking change: Async tool discovery
-- [ ] Cloud-native features (service discovery, distributed tracing)
+- [ ] Cloud-native features (service discovery, distributed tracing)  
 - [ ] Kubernetes support with health probes
 - [ ] Auto-scaling capabilities

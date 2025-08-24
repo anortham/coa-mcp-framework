@@ -293,7 +293,7 @@ public class VerificationStateManager : IVerificationStateManager, IHostedServic
     }
 
     /// <inheritdoc/>
-    public async Task LogVerificationSuccessAsync(string toolName, string filePath, IList<string> verifiedTypes)
+    public Task LogVerificationSuccessAsync(string toolName, string filePath, IList<string> verifiedTypes)
     {
         _logger.LogInformation("Verification success: Tool={ToolName}, File={FilePath}, Types={Types}",
             toolName, filePath, string.Join(", ", verifiedTypes));
@@ -306,10 +306,12 @@ public class VerificationStateManager : IVerificationStateManager, IHostedServic
                 state.RecordAccess();
             }
         }
+        
+        return Task.CompletedTask;
     }
 
     /// <inheritdoc/>
-    public async Task LogVerificationFailureAsync(string toolName, string filePath, 
+    public Task LogVerificationFailureAsync(string toolName, string filePath, 
         IList<string> unverifiedTypes, IList<string> memberIssues)
     {
         _logger.LogWarning("Verification failure: Tool={ToolName}, File={FilePath}, " +
@@ -317,6 +319,8 @@ public class VerificationStateManager : IVerificationStateManager, IHostedServic
             toolName, filePath, 
             string.Join(", ", unverifiedTypes), 
             string.Join(", ", memberIssues));
+        
+        return Task.CompletedTask;
     }
 
     /// <inheritdoc/>
@@ -345,10 +349,10 @@ public class VerificationStateManager : IVerificationStateManager, IHostedServic
     }
 
     /// <inheritdoc/>
-    public async Task InvalidateCacheForFileAsync(string changedFilePath)
+    public Task InvalidateCacheForFileAsync(string changedFilePath)
     {
         if (string.IsNullOrWhiteSpace(changedFilePath))
-            return;
+            return Task.CompletedTask;
 
         var invalidatedTypes = new List<string>();
 
@@ -368,6 +372,8 @@ public class VerificationStateManager : IVerificationStateManager, IHostedServic
             _logger.LogDebug("Invalidated {Count} types due to file change: {FilePath}", 
                 invalidatedTypes.Count, changedFilePath);
         }
+        
+        return Task.CompletedTask;
     }
 
     /// <inheritdoc/>
@@ -447,12 +453,12 @@ public class VerificationStateManager : IVerificationStateManager, IHostedServic
     /// <summary>
     /// Checks if the verification state is still valid.
     /// </summary>
-    private async Task<bool> IsVerificationStillValidAsync(TypeVerificationState state)
+    private Task<bool> IsVerificationStillValidAsync(TypeVerificationState state)
     {
         // Check expiration time
         if (state.ExpiresAt.HasValue && DateTime.UtcNow > state.ExpiresAt.Value)
         {
-            return false;
+            return Task.FromResult(false);
         }
 
         // Check file modification time if available
@@ -463,30 +469,30 @@ public class VerificationStateManager : IVerificationStateManager, IHostedServic
                 var currentModTime = new FileInfo(state.FilePath).LastWriteTime.Ticks;
                 if (currentModTime > state.FileModificationTime)
                 {
-                    return false;
+                    return Task.FromResult(false);
                 }
             }
             catch
             {
                 // If we can't check file modification, fall back to time-based check
-                return state.IsStillValid(_options.CacheExpirationHours);
+                return Task.FromResult(state.IsStillValid(_options.CacheExpirationHours));
             }
         }
 
-        return true;
+        return Task.FromResult(true);
     }
 
     /// <summary>
     /// Sets up file watching for automatic cache invalidation.
     /// </summary>
-    private async Task SetupFileWatchingAsync(string filePath)
+    private Task SetupFileWatchingAsync(string filePath)
     {
         if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath))
-            return;
+            return Task.CompletedTask;
 
         var directory = Path.GetDirectoryName(filePath);
         if (string.IsNullOrEmpty(directory) || _fileWatchers.ContainsKey(directory))
-            return;
+            return Task.CompletedTask;
 
         try
         {
@@ -506,6 +512,8 @@ public class VerificationStateManager : IVerificationStateManager, IHostedServic
         {
             _logger.LogWarning(ex, "Failed to set up file watching for directory: {Directory}", directory);
         }
+        
+        return Task.CompletedTask;
     }
 
     /// <summary>

@@ -434,10 +434,10 @@ public class TddEnforcementMiddleware : SimpleMiddlewareBase
     /// <summary>
     /// Finds test files related to the given source file.
     /// </summary>
-    private static async Task<List<string>> FindRelatedTestFiles(string sourceFilePath, string workspaceRoot)
+    private static Task<List<string>> FindRelatedTestFiles(string sourceFilePath, string workspaceRoot)
     {
         if (string.IsNullOrEmpty(sourceFilePath))
-            return new List<string>();
+            return Task.FromResult(new List<string>());
 
         var sourceFileName = Path.GetFileNameWithoutExtension(sourceFilePath);
         var testFiles = new List<string>();
@@ -464,7 +464,7 @@ public class TddEnforcementMiddleware : SimpleMiddlewareBase
             // Ignore file system errors
         }
 
-        return testFiles;
+        return Task.FromResult(testFiles);
     }
 
     /// <summary>
