@@ -60,7 +60,7 @@ public class MetricsDemoTool : McpToolBase<MetricsDemoParams, MetricsDemoResult>
 {
     private MetricsDemoResult? _lastResult;
 
-    public MetricsDemoTool(ILogger<MetricsDemoTool>? logger = null) : base(logger)
+    public MetricsDemoTool(ILogger<MetricsDemoTool>? logger = null) : base(null, logger)
     {
     }
 

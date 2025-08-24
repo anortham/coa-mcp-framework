@@ -13,6 +13,7 @@ using COA.Mcp.Framework.Exceptions;
 using COA.Mcp.Framework.Interfaces;
 using COA.Mcp.Framework.Models;
 using COA.Mcp.Framework.Pipeline;
+using Microsoft.Extensions.DependencyInjection;
 using COA.Mcp.Framework.Schema;
 using COA.Mcp.Framework.Utilities;
 using Microsoft.Extensions.Logging;
@@ -29,14 +30,16 @@ public abstract class McpToolBase<TParams, TResult> : IMcpTool<TParams, TResult>
 {
     private readonly ILogger? _logger;
     private readonly JsonSerializerOptions _jsonOptions;
+    private readonly IReadOnlyList<ISimpleMiddleware> _globalMiddleware;
     private ErrorMessageProvider? _errorMessageProvider;
     private TokenBudgetConfiguration? _tokenBudgetConfiguration;
 
     /// <summary>
     /// Initializes a new instance of the McpToolBase class.
     /// </summary>
+    /// <param name="serviceProvider">Service provider for dependency injection and global middleware resolution.</param>
     /// <param name="logger">Optional logger for the tool.</param>
-    protected McpToolBase(ILogger? logger = null)
+    protected McpToolBase(IServiceProvider? serviceProvider = null, ILogger? logger = null)
     {
         _logger = logger;
         _jsonOptions = new JsonSerializerOptions
@@ -44,6 +47,12 @@ public abstract class McpToolBase<TParams, TResult> : IMcpTool<TParams, TResult>
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
             WriteIndented = false
         };
+
+        // Resolve global middleware from DI container
+        _globalMiddleware = serviceProvider?.GetServices<ISimpleMiddleware>()
+            ?.Where(m => m.IsEnabled)
+            ?.OrderBy(m => m.Order)
+            ?.ToList() ?? new List<ISimpleMiddleware>();
     }
 
     /// <summary>
@@ -64,7 +73,26 @@ public abstract class McpToolBase<TParams, TResult> : IMcpTool<TParams, TResult>
     /// Gets the simple middleware instances for this tool.
     /// Override to provide lifecycle hooks.
     /// </summary>
-    protected virtual IReadOnlyList<ISimpleMiddleware>? Middleware { get; }
+    protected virtual IReadOnlyList<ISimpleMiddleware>? ToolSpecificMiddleware { get; }
+
+    /// <summary>
+    /// Gets the combined middleware (global + tool-specific) for this tool.
+    /// </summary>
+    protected virtual IReadOnlyList<ISimpleMiddleware>? Middleware
+    {
+        get
+        {
+            var combined = new List<ISimpleMiddleware>(_globalMiddleware);
+            
+            if (ToolSpecificMiddleware != null)
+            {
+                combined.AddRange(ToolSpecificMiddleware);
+            }
+            
+            // Sort by order and return
+            return combined.OrderBy(m => m.Order).ToList();
+        }
+    }
 
     /// <inheritdoc/>
     public abstract string Name { get; }

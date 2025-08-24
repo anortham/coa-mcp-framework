@@ -148,7 +148,7 @@ public class DisposableToolBaseTests
         public bool UnmanagedResourcesDisposed { get; private set; }
         public int DisposeCallCount { get; private set; }
 
-        public TestDisposableTool(ILogger<TestDisposableTool> logger) : base(logger)
+        public TestDisposableTool(ILogger<TestDisposableTool> logger) : base(null, logger)
         {
         }
 
@@ -187,7 +187,7 @@ public class DisposableToolBaseTests
 
     public class FailingDisposableTool : DisposableToolBase<TestParams, TestResult>
     {
-        public FailingDisposableTool(ILogger logger) : base(logger)
+        public FailingDisposableTool(ILogger logger) : base(null, logger)
         {
         }
 

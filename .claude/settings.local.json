@@ -38,7 +38,12 @@
       "WebFetch(domain:docs.github.com)",
       "mcp__projectknowledge__find_knowledge",
       "mcp__projectknowledge__show_activity",
-      "mcp__projectknowledge__store_knowledge"
+      "mcp__projectknowledge__store_knowledge",
+      "mcp__goldfish__checkpoint",
+      "Read(/C:\\source\\COA CodeNav MCP\\docs/**)",
+      "Bash(csc:*)",
+      "Bash(debug_regex.exe)",
+      "Bash(dotnet script:*)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits",

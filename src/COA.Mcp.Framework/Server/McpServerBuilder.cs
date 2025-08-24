@@ -1,10 +1,13 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
 using COA.Mcp.Framework.Configuration;
 using COA.Mcp.Framework.Interfaces;
 using COA.Mcp.Framework.Pipeline;
+using COA.Mcp.Framework.Pipeline.Middleware;
+using COA.Mcp.Framework.Pipeline.SimpleMiddleware;
 using COA.Mcp.Framework.Prompts;
 using COA.Mcp.Framework.Registration;
 using COA.Mcp.Framework.Resources;
@@ -291,6 +294,123 @@ public class McpServerBuilder
         return this;
     }
 
+    #region Global Middleware Configuration
+
+    /// <summary>
+    /// Registers pre-configured global middleware instances that will be applied to all tools.
+    /// Middleware is executed in the order specified by the Order property.
+    /// </summary>
+    /// <param name="middleware">The middleware instances to register.</param>
+    /// <returns>The builder for chaining.</returns>
+    public McpServerBuilder WithGlobalMiddleware(params ISimpleMiddleware[] middleware)
+    {
+        return WithGlobalMiddleware((IEnumerable<ISimpleMiddleware>)middleware);
+    }
+
+    /// <summary>
+    /// Registers pre-configured global middleware instances that will be applied to all tools.
+    /// Middleware is executed in the order specified by the Order property.
+    /// </summary>
+    /// <param name="middleware">The middleware instances to register.</param>
+    /// <returns>The builder for chaining.</returns>
+    public McpServerBuilder WithGlobalMiddleware(IEnumerable<ISimpleMiddleware> middleware)
+    {
+        foreach (var m in middleware)
+        {
+            _services.AddSingleton<ISimpleMiddleware>(m);
+        }
+        return this;
+    }
+
+    /// <summary>
+    /// Registers a middleware type for dependency injection that will be applied to all tools.
+    /// The middleware will be resolved from the DI container and applied globally.
+    /// </summary>
+    /// <typeparam name="TMiddleware">The middleware type to register.</typeparam>
+    /// <param name="lifetime">The service lifetime (default: Singleton for consistent behavior).</param>
+    /// <returns>The builder for chaining.</returns>
+    public McpServerBuilder AddGlobalMiddleware<TMiddleware>(ServiceLifetime lifetime = ServiceLifetime.Singleton)
+        where TMiddleware : class, ISimpleMiddleware
+    {
+        _services.Add(new ServiceDescriptor(typeof(ISimpleMiddleware), typeof(TMiddleware), lifetime));
+        return this;
+    }
+
+    /// <summary>
+    /// Registers a global middleware with a factory function.
+    /// Useful for middleware that needs complex configuration or dependencies.
+    /// </summary>
+    /// <typeparam name="TMiddleware">The middleware type to register.</typeparam>
+    /// <param name="factory">Factory function to create the middleware.</param>
+    /// <param name="lifetime">The service lifetime (default: Singleton).</param>
+    /// <returns>The builder for chaining.</returns>
+    public McpServerBuilder AddGlobalMiddleware<TMiddleware>(
+        Func<IServiceProvider, TMiddleware> factory, 
+        ServiceLifetime lifetime = ServiceLifetime.Singleton)
+        where TMiddleware : class, ISimpleMiddleware
+    {
+        _services.Add(new ServiceDescriptor(typeof(ISimpleMiddleware), factory, lifetime));
+        return this;
+    }
+
+    /// <summary>
+    /// Convenience method to add the built-in TypeVerificationMiddleware.
+    /// </summary>
+    /// <param name="configure">Optional configuration action.</param>
+    /// <returns>The builder for chaining.</returns>
+    public McpServerBuilder AddTypeVerificationMiddleware(Action<TypeVerificationOptions>? configure = null)
+    {
+        if (configure != null)
+        {
+            _services.Configure(configure);
+        }
+        
+        return AddGlobalMiddleware<TypeVerificationMiddleware>();
+    }
+
+    /// <summary>
+    /// Convenience method to add the built-in TddEnforcementMiddleware.
+    /// </summary>
+    /// <param name="configure">Optional configuration action.</param>
+    /// <returns>The builder for chaining.</returns>
+    public McpServerBuilder AddTddEnforcementMiddleware(Action<TddEnforcementOptions>? configure = null)
+    {
+        if (configure != null)
+        {
+            _services.Configure(configure);
+        }
+        
+        return AddGlobalMiddleware<TddEnforcementMiddleware>();
+    }
+
+    /// <summary>
+    /// Convenience method to add the built-in LoggingSimpleMiddleware.
+    /// </summary>
+    /// <param name="logLevel">The log level for middleware operations (default: Information).</param>
+    /// <returns>The builder for chaining.</returns>
+    public McpServerBuilder AddLoggingMiddleware(LogLevel logLevel = LogLevel.Information)
+    {
+        return AddGlobalMiddleware<LoggingSimpleMiddleware>(provider =>
+        {
+            var logger = provider.GetRequiredService<ILogger<LoggingSimpleMiddleware>>();
+            return new LoggingSimpleMiddleware(logger, logLevel);
+        });
+    }
+
+    /// <summary>
+    /// Convenience method to add the built-in TokenCountingSimpleMiddleware.
+    /// </summary>
+    /// <returns>The builder for chaining.</returns>
+    public McpServerBuilder AddTokenCountingMiddleware()
+    {
+        return AddGlobalMiddleware<TokenCountingSimpleMiddleware>(provider =>
+        {
+            var logger = provider.GetRequiredService<ILogger<TokenCountingSimpleMiddleware>>();
+            return new TokenCountingSimpleMiddleware(logger);
+        });
+    }
+
+    #endregion
 
     /// <summary>
     /// Configures an auto-started service that runs alongside the MCP server.

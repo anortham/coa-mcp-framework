@@ -64,14 +64,46 @@ dotnet pack -c Release              # Create NuGet packages
 - Support variable substitution with `{{variable}}` syntax
 
 ## 📊 Current Status
-- **Version:** 1.7.17
-- **Tests:** 538 passing (100%) - NUnit framework
+- **Version:** 1.7.22
+- **Tests:** 874 passing (100%) - NUnit framework
 - **Build:** 0 warnings
 - **Example:** `examples/SimpleMcpServer/` (5 tools + 2 prompts)
+- **NEW:** Advanced middleware system with type verification and TDD enforcement
+
+## 🛡️ Advanced Middleware System
+
+**NEW**: Comprehensive middleware for AI-assisted development:
+
+### TypeVerificationMiddleware
+Prevents AI-hallucinated types by verifying type existence before code operations:
+- **Smart Type Resolution**: Detects classes, interfaces, enums, member access
+- **Session-Scoped Caching**: Remembers verified types with file modification tracking
+- **Multi-Language Support**: C#, TypeScript, JavaScript with extensible patterns
+- **Enforcement Modes**: Strict (blocks), Warning (logs), Disabled
+- **Order:** 5 (runs very early in pipeline)
+
+### TddEnforcementMiddleware  
+Enforces Test-Driven Development by requiring failing tests before implementation:
+- **Red-Green-Refactor**: Implements proper TDD workflow
+- **Multi-Language Runners**: dotnet test, npm test, pytest, custom runners
+- **Smart Detection**: Distinguishes new features from refactoring
+- **Flexible Configuration**: Per-language test patterns and timeouts
+- **Order:** 10 (runs after type verification)
+
+### Configuration Example
+```csharp
+var builder = McpServerBuilder.Create("my-server")
+    .WithGlobalMiddleware(new List<ISimpleMiddleware>
+    {
+        new TypeVerificationMiddleware(typeService, stateManager, logger, typeOptions),
+        new TddEnforcementMiddleware(testService, logger, tddOptions),
+        new LoggingSimpleMiddleware(logger, LogLevel.Information)
+    });
+```
 
 ## 🎨 Visualization Protocol
 
-**NEW**: Tools can provide structured visualization data for rich UI clients:
+Tools can provide structured visualization data for rich UI clients:
 - Implement `IVisualizationProvider` for tools that need visualization
 - Return `VisualizationDescriptor` with data and display hints
 - VS Code Bridge handles all rendering - no markdown generation needed
@@ -89,6 +121,11 @@ dotnet pack -c Release              # Create NuGet packages
 | Custom error messages | Override ErrorMessages property in tool |
 | Lifecycle hooks not working | Override Middleware property with ISimpleMiddleware list |
 | Visualization not showing | Check IVisualizationProvider implementation |
+| **Type verification blocking** | **Configure TypeVerificationOptions, add to WhitelistedTypes, or set Mode = Warning** |
+| **TDD enforcement blocking** | **Run failing tests first, configure TddEnforcementOptions, or set Mode = Warning** |
+| **Middleware not running** | **Check Order property, ensure registered in WithGlobalMiddleware()** |
+| **Types flagged incorrectly** | **Use CodeNav tools to verify types exist, check namespaces/imports** |
+| **Tests not detected** | **Configure TestRunnerConfig for your language, check FailingTestPatterns** |
 
 ## 📍 Key Files
 
@@ -97,8 +134,43 @@ dotnet pack -c Release              # Create NuGet packages
 | Tool base (includes validation helpers) | `src/COA.Mcp.Framework/Base/McpToolBase.Generic.cs` |
 | Prompt base | `src/COA.Mcp.Framework/Prompts/PromptBase.cs` |
 | Server builder | `src/COA.Mcp.Framework/Server/McpServerBuilder.cs` |
-| Middleware | `src/COA.Mcp.Framework/Pipeline/SimpleMiddleware.cs` |
+| Middleware base | `src/COA.Mcp.Framework/Pipeline/SimpleMiddleware.cs` |
+| **Type verification middleware** | **`src/COA.Mcp.Framework/Pipeline/Middleware/TypeVerificationMiddleware.cs`** |
+| **TDD enforcement middleware** | **`src/COA.Mcp.Framework/Pipeline/Middleware/TddEnforcementMiddleware.cs`** |
+| **Verification state manager** | **`src/COA.Mcp.Framework/Services/VerificationStateManager.cs`** |
+| **Type verification options** | **`src/COA.Mcp.Framework/Configuration/TypeVerificationOptions.cs`** |
+| **TDD enforcement options** | **`src/COA.Mcp.Framework/Configuration/TddEnforcementOptions.cs`** |
 | Example server | `examples/SimpleMcpServer/` |
+
+## 🚀 Quick Start with Middleware
+
+```csharp
+// 1. Configure services
+services.AddSingleton<ITypeResolutionService, CodeNavTypeResolutionService>();
+services.AddSingleton<IVerificationStateManager, VerificationStateManager>();
+services.AddSingleton<ITestStatusService, DefaultTestStatusService>();
+
+// 2. Configure options
+services.Configure<TypeVerificationOptions>(options =>
+{
+    options.Enabled = true;
+    options.Mode = TypeVerificationMode.Warning; // Start with warnings
+});
+
+services.Configure<TddEnforcementOptions>(options =>
+{
+    options.Enabled = false; // Enable when ready for TDD
+});
+
+// 3. Add middleware to server
+var builder = McpServerBuilder.Create("my-server", services)
+    .WithGlobalMiddleware(new List<ISimpleMiddleware>
+    {
+        new TypeVerificationMiddleware(typeService, stateManager, logger, typeOptions),
+        new TddEnforcementMiddleware(testService, logger, tddOptions),
+        new LoggingSimpleMiddleware(logger, LogLevel.Information)
+    });
+```
 
 ---
 **Remember**: This is a framework - changes require rebuild + repack + consumer update!

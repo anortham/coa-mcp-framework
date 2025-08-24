@@ -116,10 +116,19 @@ public class McpToolRegistry : IAsyncDisposable
     /// <param name="assembly">The assembly to scan for tools.</param>
     public void DiscoverAndRegisterTools(Assembly assembly)
     {
+        // Skip test assemblies to avoid registering test helper classes
+        if (IsTestAssembly(assembly))
+        {
+            _logger?.LogDebug("Skipping tool discovery in test assembly {AssemblyName}", assembly.GetName().Name);
+            return;
+        }
+
         var toolTypes = assembly.GetTypes()
             .Where(t => t.IsClass && !t.IsAbstract)
             .Where(t => t.GetInterfaces().Any(i => 
                 i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IMcpTool<,>)))
+            .Where(t => !IsTestClass(t)) // Skip test helper classes
+            .Where(t => HasParameterlessConstructor(t) || _serviceProvider.GetService(t) != null) // Only classes that can be instantiated
             .ToList();
 
         foreach (var toolType in toolTypes)
@@ -692,6 +701,50 @@ public class McpToolRegistry : IAsyncDisposable
         
         GC.SuppressFinalize(this);
     }
-    
+
+    #endregion
+
+    #region Helper Methods
+
+    /// <summary>
+    /// Determines if an assembly is a test assembly by checking common test indicators.
+    /// </summary>
+    private static bool IsTestAssembly(Assembly assembly)
+    {
+        var name = assembly.GetName().Name ?? string.Empty;
+        return name.Contains(".Tests") || 
+               name.Contains(".Test") || 
+               name.EndsWith("Tests") || 
+               name.EndsWith("Test") ||
+               assembly.GetReferencedAssemblies().Any(a => 
+                   a.Name?.Contains("nunit") == true || 
+                   a.Name?.Contains("xunit") == true || 
+                   a.Name?.Contains("mstest") == true);
+    }
+
+    /// <summary>
+    /// Determines if a type is a test class by checking naming conventions and attributes.
+    /// </summary>
+    private static bool IsTestClass(Type type)
+    {
+        var name = type.Name;
+        return name.Contains("Test") || 
+               name.Contains("Mock") || 
+               name.Contains("Fake") || 
+               name.Contains("Stub") ||
+               type.IsNested || // Nested classes in test files are usually test helpers
+               type.GetCustomAttributes().Any(a => 
+                   a.GetType().Name.Contains("Test") ||
+                   a.GetType().Name.Contains("Mock"));
+    }
+
+    /// <summary>
+    /// Checks if a type has a parameterless constructor.
+    /// </summary>
+    private static bool HasParameterlessConstructor(Type type)
+    {
+        return type.GetConstructor(Type.EmptyTypes) != null;
+    }
+
     #endregion
 }

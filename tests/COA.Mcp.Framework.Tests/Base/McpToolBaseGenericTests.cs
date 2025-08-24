@@ -378,7 +378,7 @@ namespace COA.Mcp.Framework.Tests.Base
 
         private class TestTool : McpToolBase<TestParameters, TestResult>
         {
-            public TestTool(ILogger? logger = null) : base(logger) { }
+            public TestTool(ILogger? logger = null) : base(null, logger) { }
 
             public override string Name => "test_tool";
             public override string Description => "Test tool";
@@ -403,7 +403,7 @@ namespace COA.Mcp.Framework.Tests.Base
 
         private class TestToolWithValidation : McpToolBase<TestValidationParameters, TestResult>
         {
-            public TestToolWithValidation(ILogger? logger = null) : base(logger) { }
+            public TestToolWithValidation(ILogger? logger = null) : base(null, logger) { }
 
             public override string Name => "validation_tool";
             public override string Description => "Tool with validation";
@@ -466,7 +466,7 @@ namespace COA.Mcp.Framework.Tests.Base
 
         private class HighTokenTool : McpToolBase<TestParameters, TestResult>
         {
-            public HighTokenTool(ILogger logger) : base(logger) { }
+            public HighTokenTool(ILogger logger) : base(null, logger) { }
 
             public override string Name => "high_token_tool";
             public override string Description => "Tool with high token usage";

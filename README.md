@@ -4,7 +4,7 @@ A comprehensive .NET framework for building and consuming Model Context Protocol
 
 [![NuGet Version](https://img.shields.io/nuget/v/COA.Mcp.Framework)](https://www.nuget.org/packages/COA.Mcp.Framework)
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](https://github.com/anortham/COA-Mcp-Framework)
-[![Tests](https://img.shields.io/badge/tests-562%20passing-success)](https://github.com/anortham/COA-Mcp-Framework)
+[![Tests](https://img.shields.io/badge/tests-874%20passing-success)](https://github.com/anortham/COA-Mcp-Framework)
 [![.NET 9.0](https://img.shields.io/badge/.NET-9.0-blue)](https://dotnet.microsoft.com/download)
 
 ## 🚀 Quick Start
@@ -110,6 +110,32 @@ await builder.RunAsync();
 
 Your MCP server is ready! 🎉
 
+### 🆕 Enable AI-Powered Middleware
+
+Add intelligent type verification and TDD enforcement to your MCP server:
+
+```csharp
+// Configure middleware in your server setup
+services.AddMcpFramework(options => 
+{
+    // Enable Type Verification - prevents AI hallucinated types
+    options.EnableTypeVerification = true;
+    options.TypeVerification.Mode = TypeVerificationMode.Strict; // or Warning
+    options.TypeVerification.WhitelistedTypes.Add("MyCustomType");
+    
+    // Enable TDD Enforcement - enforces test-first development  
+    options.EnableTddEnforcement = true;
+    options.TddEnforcement.Mode = TddEnforcementMode.Warning; // or Strict
+    options.TddEnforcement.TestFilePatterns.Add("**/*Spec.cs"); // Custom test patterns
+});
+```
+
+**Benefits:**
+- 🛡️ **Type Safety**: Catches undefined types before code generation fails
+- 🧪 **Quality Assurance**: Enforces proper testing practices
+- 🚀 **AI-Friendly**: Provides clear error messages with recovery steps
+- ⚡ **Performance**: Intelligent caching with file modification detection
+
 ## 📦 NuGet Packages
 
 | Package | Version | Description |
@@ -159,6 +185,10 @@ Your MCP server is ready! 🎉
 ### 🔗 **Lifecycle Hooks & Middleware**
 - **Extensible execution pipeline** - Add cross-cutting concerns with simple middleware
 - **Built-in middleware** - Logging, token counting, performance monitoring
+- **🆕 Type Verification Middleware** - Prevents AI hallucinated types in code generation with intelligent caching
+- **🆕 TDD Enforcement Middleware** - Enforces Test-Driven Development workflow (Red-Green-Refactor)
+- **Smart caching system** - Session-scoped type verification with file modification invalidation
+- **Multi-platform test integration** - Supports dotnet test, npm test, pytest, and more
 - **Custom middleware support** - Implement `ISimpleMiddleware` for custom logic
 - **Per-tool configuration** - Override `Middleware` property for tool-specific hooks
 - See **[Lifecycle Hooks Guide](docs/lifecycle-hooks.md)** for detailed documentation

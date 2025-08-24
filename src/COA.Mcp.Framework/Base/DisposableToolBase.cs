@@ -21,8 +21,9 @@ public abstract class DisposableToolBase<TParams, TResult> : McpToolBase<TParams
     /// <summary>
     /// Initializes a new instance of the DisposableToolBase class.
     /// </summary>
+    /// <param name="serviceProvider">Service provider for dependency injection and global middleware resolution.</param>
     /// <param name="logger">Optional logger for the tool.</param>
-    protected DisposableToolBase(ILogger? logger = null) : base(logger)
+    protected DisposableToolBase(IServiceProvider? serviceProvider = null, ILogger? logger = null) : base(serviceProvider, logger)
     {
     }
 

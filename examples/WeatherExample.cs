@@ -161,7 +161,7 @@ public class WeatherTool : McpToolBase<WeatherParameters, WeatherResult>
     private readonly ILogger<WeatherTool> _logger;
     
     public WeatherTool(IWeatherService weatherService, ILogger<WeatherTool> logger)
-        : base(logger)
+        : base(null, logger)
     {
         _weatherService = weatherService;
         _logger = logger;

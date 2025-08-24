@@ -4,9 +4,176 @@
 
 ## Overview
 
-The COA MCP Framework provides comprehensive validation and error handling capabilities through the `McpToolBase` class. All tools that inherit from `McpToolBase` automatically get access to validation helpers, error result builders, and customizable error messages.
+The COA MCP Framework provides comprehensive validation and error handling capabilities at multiple levels:
 
-## Validation Helper Methods
+1. **Tool-Level Validation**: Through the `McpToolBase` class validation helpers
+2. **Middleware-Level Validation**: Advanced type verification and TDD enforcement
+3. **Framework-Level Validation**: Automatic parameter validation using data annotations
+
+All tools that inherit from `McpToolBase` automatically get access to validation helpers, error result builders, and customizable error messages. Additionally, the new middleware system provides proactive validation before tool execution begins.
+
+## Middleware-Level Validation
+
+The framework now includes advanced middleware that performs validation before your tool code executes, preventing common issues and enforcing best practices.
+
+### Type Verification Middleware
+
+Prevents AI-hallucinated types by verifying that referenced types actually exist in the codebase:
+
+#### Configuration
+```csharp
+services.Configure<TypeVerificationOptions>(options =>
+{
+    options.Enabled = true;
+    options.Mode = TypeVerificationMode.Strict; // Blocks execution on unverified types
+    options.CacheExpirationHours = 24;
+    options.RequireMemberVerification = true;
+    options.WhitelistedTypes = new HashSet<string> { "string", "int", "object" };
+});
+```
+
+#### Error Messages and Recovery
+When type verification fails, users receive detailed guidance:
+
+```
+🚫 TYPE VERIFICATION FAILED: Unverified types detected
+
+Issues detected:
+  • Type 'UserService' not found or not verified
+  • Member 'user.FullName' not verified (User type may not have FullName property)
+
+🔍 Type Verification Process:
+1. VERIFY: Use CodeNav tools to check if types exist
+2. RESOLVE: Import required namespaces or fix type names  
+3. VALIDATE: Hover over types to verify member access
+
+📋 Required actions:
+1. Verify type definitions:
+   • Check if 'UserService' exists in the codebase
+   • Verify 'User' type has 'FullName' property
+   
+2. Fix type issues:
+   • Add missing using statements: using MyProject.Services;
+   • Correct property names: user.FirstName + user.LastName
+   • Import types: import { UserService } from './services';
+
+3. Re-run after fixes to verify resolution
+
+💡 TIP: Use 'Go to Definition' to verify types exist before coding!
+```
+
+#### Validation Modes
+- **Strict**: Blocks operations with unverified types
+- **Warning**: Logs warnings but allows execution
+- **Disabled**: No type verification
+
+### TDD Enforcement Middleware
+
+Enforces Test-Driven Development practices by requiring failing tests before implementation:
+
+#### Configuration
+```csharp
+services.Configure<TddEnforcementOptions>(options =>
+{
+    options.Enabled = true;
+    options.Mode = TddEnforcementMode.Warning; // Warns but allows execution
+    options.RequireFailingTest = true;
+    options.AllowRefactoring = true;
+    options.TestRunners = new Dictionary<string, TestRunnerConfig>
+    {
+        ["csharp"] = new TestRunnerConfig
+        {
+            Command = "dotnet test",
+            TimeoutMs = 30000,
+            FailingTestPatterns = new List<string> { @"Failed: \d+", @"Test Run Failed" }
+        }
+    };
+});
+```
+
+#### Error Messages and Recovery
+When TDD enforcement fails, users receive workflow guidance:
+
+```
+🚫 TDD VIOLATION: Implementation without proper test coverage
+
+Issues detected:
+  • No failing tests found - write a failing test first (RED phase)
+  • Tests haven't been run recently - run tests first to verify current state
+
+🔍 TDD Workflow (Red-Green-Refactor):
+1. RED: Write a failing test that describes the desired behavior
+2. GREEN: Write the minimal code to make the test pass  
+3. REFACTOR: Improve the code while keeping tests green
+
+📋 Required actions:
+1. Write a failing test first:
+   • Create or update test files
+   • Write tests that describe the expected behavior  
+   • Verify tests fail before implementing
+
+2. Run tests to verify current state:
+   dotnet test
+
+3. After tests fail, implement the minimal code to pass
+
+💡 TIP: This ensures your code is tested and behaves as expected!
+```
+
+#### TDD Phases
+- **Red**: Writing failing tests (required before implementation)
+- **Green**: Writing minimal code to pass tests (allowed)
+- **Refactor**: Improving code while tests pass (configurable)
+
+### Middleware Integration with Tools
+
+Middleware validation happens automatically before your tool's `ExecuteInternalAsync` method:
+
+```csharp
+public class MyCodeTool : McpToolBase<CodeParams, CodeResult>
+{
+    protected override async Task<CodeResult> ExecuteInternalAsync(
+        CodeParams parameters, 
+        CancellationToken cancellationToken)
+    {
+        // By the time this method runs:
+        // 1. TypeVerificationMiddleware has verified all types exist
+        // 2. TddEnforcementMiddleware has checked for failing tests
+        // 3. Your tool-level validation (below) can focus on business logic
+        
+        var filePath = ValidateRequired(parameters.FilePath, nameof(parameters.FilePath));
+        var content = ValidateRequired(parameters.Content, nameof(parameters.Content));
+        
+        // Your implementation logic here
+    }
+}
+```
+
+### Custom Middleware Error Handling
+
+You can customize middleware error messages by overriding the error message providers:
+
+```csharp
+public class CustomTypeVerificationMiddleware : TypeVerificationMiddleware
+{
+    public CustomTypeVerificationMiddleware(
+        ITypeResolutionService typeService,
+        IVerificationStateManager stateManager,
+        ILogger<TypeVerificationMiddleware> logger,
+        IOptions<TypeVerificationOptions> options) 
+        : base(typeService, stateManager, logger, options)
+    {
+    }
+
+    protected override string GetTypeVerificationError(List<string> unverifiedTypes, string filePath)
+    {
+        return $"Custom error: {unverifiedTypes.Count} unverified types in {filePath}. " +
+               $"Please verify these types exist: {string.Join(", ", unverifiedTypes)}";
+    }
+}
+```
+
+## Tool-Level Validation Helper Methods
 
 All validation helpers are **protected methods** available in any class that inherits from `McpToolBase<TParams, TResult>`.
 
@@ -213,14 +380,75 @@ The `ValidateParameters(TParams parameters)` method automatically validates thes
 
 ## Best Practices
 
-1. **Use validation helpers consistently** - Always validate parameters using the provided helper methods
-2. **Provide meaningful error messages** - Override `ErrorMessages` for domain-specific errors
-3. **Include recovery steps** - Help AI agents understand how to fix errors
-4. **Use appropriate error codes** - Standard codes like "VALIDATION_ERROR", "FILE_NOT_FOUND", etc.
-5. **Validate early** - Check parameters at the start of your `ExecuteInternalAsync` method
-6. **Be specific** - Include parameter names and expected formats in error messages
+### Framework-Wide Validation Strategy
 
-## Example Complete Tool
+1. **Layer your validation approach**:
+   - **Middleware Level**: Type verification, TDD enforcement, security checks
+   - **Framework Level**: Data annotation validation for basic requirements
+   - **Tool Level**: Business logic validation using helper methods
+
+2. **Configure middleware appropriately**:
+   - **Development**: Strict type verification + Warning TDD enforcement
+   - **Production**: Warning type verification + Disabled TDD enforcement
+   - **Learning environments**: Strict enforcement for both
+
+### Tool-Level Validation
+
+3. **Use validation helpers consistently** - Always validate parameters using the provided helper methods
+4. **Provide meaningful error messages** - Override `ErrorMessages` for domain-specific errors
+5. **Include recovery steps** - Help AI agents understand how to fix errors
+6. **Use appropriate error codes** - Standard codes like "VALIDATION_ERROR", "FILE_NOT_FOUND", etc.
+7. **Validate early** - Check parameters at the start of your `ExecuteInternalAsync` method
+8. **Be specific** - Include parameter names and expected formats in error messages
+
+### Middleware Integration
+
+9. **Don't duplicate middleware validation** - If middleware handles type checking, don't repeat it in tools
+10. **Focus on business logic** - Let middleware handle infrastructure concerns, tools handle domain logic
+11. **Provide complementary error messages** - Middleware gives technical guidance, tools give domain context
+
+### Error Recovery Design
+
+12. **Progressive error recovery** - Start with automated fixes, then guided manual steps
+13. **Context-aware messages** - Include file paths, line numbers, and specific values in errors
+14. **Actionable guidance** - Every error should tell users exactly what to do next
+
+## Complete Example: Multi-Layer Validation
+
+This example shows how middleware, framework, and tool validation work together:
+
+### 1. Server Configuration with Middleware
+
+```csharp
+var builder = McpServerBuilder.Create("validation-demo")
+    .WithGlobalMiddleware(new List<ISimpleMiddleware>
+    {
+        // Middleware validation (runs first)
+        new TypeVerificationMiddleware(typeService, stateManager, logger, typeOptions),
+        new TddEnforcementMiddleware(testService, logger, tddOptions),
+        new LoggingSimpleMiddleware(logger, LogLevel.Information)
+    });
+```
+
+### 2. Parameter Class with Framework Validation
+
+```csharp
+public class FileSearchParams
+{
+    [Required(ErrorMessage = "Search path is required")]
+    [StringLength(500, ErrorMessage = "Path cannot exceed 500 characters")]
+    public string SearchPath { get; set; } = "";
+    
+    [Required(ErrorMessage = "Search pattern is required")]
+    [RegularExpression(@"^[^<>:""|?*]+$", ErrorMessage = "Pattern contains invalid characters")]
+    public string Pattern { get; set; } = "";
+    
+    [Range(1, 1000, ErrorMessage = "Max results must be between 1 and 1000")]
+    public int MaxResults { get; set; } = 50;
+}
+```
+
+### 3. Tool with Business Logic Validation
 
 ```csharp
 public class FileSearchTool : McpToolBase<FileSearchParams, ToolResult<FileSearchResults>>
@@ -231,7 +459,7 @@ public class FileSearchTool : McpToolBase<FileSearchParams, ToolResult<FileSearc
         _errorMessages ??= new FileSearchErrorMessages();
     
     public override string Name => "search_files";
-    public override string Description => "Search for files by pattern";
+    public override string Description => "Search for files by pattern with comprehensive validation";
     
     protected override async Task<ToolResult<FileSearchResults>> ExecuteInternalAsync(
         FileSearchParams parameters, 
@@ -239,30 +467,78 @@ public class FileSearchTool : McpToolBase<FileSearchParams, ToolResult<FileSearc
     {
         try
         {
-            // Validate parameters using helpers
+            // At this point:
+            // 1. TypeVerificationMiddleware has verified all types in any code being generated
+            // 2. TddEnforcementMiddleware has checked test coverage requirements  
+            // 3. Framework has validated [Required], [Range], etc. annotations
+            
+            // Tool-level validation focuses on business logic
             var searchPath = ValidateRequired(parameters.SearchPath, nameof(parameters.SearchPath));
             var pattern = ValidateRequired(parameters.Pattern, nameof(parameters.Pattern));
             var maxResults = ValidateRange(parameters.MaxResults, 1, 1000, nameof(parameters.MaxResults));
             
-            // Perform search
-            var results = await SearchFilesAsync(searchPath, pattern, maxResults, cancellationToken);
+            // Business-specific validation
+            if (!Directory.Exists(searchPath))
+            {
+                return CreateErrorResult<FileSearchResults>(
+                    $"Directory '{searchPath}' does not exist",
+                    "DIRECTORY_NOT_FOUND"
+                );
+            }
             
-            return CreateSuccessResult(results, $"Found {results.Files.Count} files");
+            if (IsRestrictedPath(searchPath))
+            {
+                return CreateErrorResult<FileSearchResults>(
+                    $"Access to '{searchPath}' is restricted for security reasons",
+                    "RESTRICTED_PATH"
+                );
+            }
+            
+            // Perform search with business rules
+            var results = await SearchFilesWithBusinessRulesAsync(
+                searchPath, pattern, maxResults, cancellationToken);
+            
+            return CreateSuccessResult(results, 
+                $"Found {results.Files.Count} files matching '{pattern}' in '{searchPath}'");
         }
-        catch (DirectoryNotFoundException)
+        catch (DirectoryNotFoundException ex)
         {
             return CreateErrorResult<FileSearchResults>(
-                "Search directory not found", 
+                $"Directory not found: {ex.Message}", 
                 "DIRECTORY_NOT_FOUND"
             );
         }
-        catch (UnauthorizedAccessException)
+        catch (UnauthorizedAccessException ex)
         {
             return CreateErrorResult<FileSearchResults>(
-                "Access denied to search directory", 
+                $"Access denied: {ex.Message}", 
                 "ACCESS_DENIED"
             );
         }
+        catch (SecurityException ex)
+        {
+            return CreateErrorResult<FileSearchResults>(
+                $"Security violation: {ex.Message}", 
+                "SECURITY_VIOLATION"
+            );
+        }
+    }
+    
+    private bool IsRestrictedPath(string path)
+    {
+        var restrictedPaths = new[] { "C:\\Windows\\System32", "/etc", "/root" };
+        return restrictedPaths.Any(restricted => 
+            path.StartsWith(restricted, StringComparison.OrdinalIgnoreCase));
+    }
+    
+    private async Task<FileSearchResults> SearchFilesWithBusinessRulesAsync(
+        string searchPath, string pattern, int maxResults, CancellationToken cancellationToken)
+    {
+        // Implementation with business rules
+        // - Filter out sensitive files
+        // - Apply access controls  
+        // - Log search activity
+        // - Etc.
     }
     
     private class FileSearchErrorMessages : ErrorMessageProvider
@@ -275,18 +551,40 @@ public class FileSearchTool : McpToolBase<FileSearchParams, ToolResult<FileSearc
                 {
                     Steps = new[]
                     {
-                        "Verify the search path exists",
-                        "Check for typos in the directory path",
-                        "Ensure the directory is accessible"
+                        "Verify the search path exists and is spelled correctly",
+                        "Check that the directory hasn't been moved or deleted",
+                        "Ensure you have permission to access the parent directory",
+                        "Try using an absolute path instead of a relative path"
                     }
                 },
                 "ACCESS_DENIED" => new RecoveryInfo
                 {
                     Steps = new[]
                     {
-                        "Check file system permissions",
-                        "Run with appropriate user privileges",
-                        "Verify the directory allows read access"
+                        "Check file system permissions for the directory",
+                        "Ensure your user account has read access",
+                        "Try running with elevated privileges if appropriate",
+                        "Contact your system administrator if this is a shared resource"
+                    }
+                },
+                "RESTRICTED_PATH" => new RecoveryInfo
+                {
+                    Steps = new[]
+                    {
+                        "Choose a different search location",
+                        "Avoid system directories and protected paths",
+                        "Use user directories or application-specific folders",
+                        "Contact administrator if business requirements need this path"
+                    }
+                },
+                "SECURITY_VIOLATION" => new RecoveryInfo
+                {
+                    Steps = new[]
+                    {
+                        "Review the search request for potential security issues",
+                        "Ensure search patterns don't attempt path traversal",
+                        "Use only trusted file paths and patterns",
+                        "Contact security team if this error persists"
                     }
                 },
                 _ => base.GetRecoveryInfo(errorCode, context, exception)
@@ -296,6 +594,39 @@ public class FileSearchTool : McpToolBase<FileSearchParams, ToolResult<FileSearc
 }
 ```
 
+### 4. Complete Validation Flow
+
+```
+1. Request arrives → TypeVerificationMiddleware checks types (if generating code)
+2. → TddEnforcementMiddleware checks test coverage (if implementing new features)
+3. → Framework validates [Required], [Range], etc. annotations  
+4. → Tool validates business rules and performs operation
+5. ← Tool returns domain-specific error with recovery steps
+6. ← Framework packages error with full context
+7. ← Middleware logs and potentially transforms error
+8. ← User receives comprehensive error with specific guidance
+```
+```
+
 ## Summary
 
-**Remember**: All validation and error helpers are **protected methods in `McpToolBase`**, not separate helper classes. Import `COA.Mcp.Framework.Base` and inherit from `McpToolBase<TParams, TResult>` to access these capabilities.
+The COA MCP Framework provides comprehensive, multi-layered validation:
+
+### Three Validation Layers:
+1. **Middleware**: Type verification and TDD enforcement before tool execution
+2. **Framework**: Automatic data annotation validation 
+3. **Tool**: Business logic validation using protected helper methods
+
+### Key Points:
+- **Middleware validation** runs first and handles infrastructure concerns
+- **Framework validation** handles basic data requirements automatically  
+- **Tool validation** focuses on business rules and domain logic
+- **All layers provide recovery guidance** to help users fix issues
+
+### Getting Started:
+1. Configure middleware in your server builder for infrastructure validation
+2. Use data annotations on parameter classes for basic validation
+3. Inherit from `McpToolBase<TParams, TResult>` to access validation helpers
+4. Override `ErrorMessages` property for custom error handling
+
+**Remember**: All tool validation helpers are **protected methods in `McpToolBase`**, not separate helper classes. Import `COA.Mcp.Framework.Base` and inherit from `McpToolBase<TParams, TResult>` to access these capabilities.

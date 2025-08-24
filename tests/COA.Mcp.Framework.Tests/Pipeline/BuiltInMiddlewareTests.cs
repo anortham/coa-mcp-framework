@@ -223,7 +223,7 @@ public class BuiltInMiddlewareTests
         private readonly IReadOnlyList<ISimpleMiddleware>? _middleware;
 
         public TestTool(ILogger<TestTool> logger, IReadOnlyList<ISimpleMiddleware>? middleware)
-            : base(logger)
+            : base(null, logger)
         {
             _middleware = middleware;
         }
@@ -244,7 +244,7 @@ public class BuiltInMiddlewareTests
         private readonly IReadOnlyList<ISimpleMiddleware>? _middleware;
 
         public FailingTool(ILogger<TestTool> logger, IReadOnlyList<ISimpleMiddleware>? middleware)
-            : base(logger)
+            : base(null, logger)
         {
             _middleware = middleware;
         }

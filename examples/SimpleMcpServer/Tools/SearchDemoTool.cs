@@ -158,7 +158,7 @@ public class SearchDemoTool : McpToolBase<SearchDemoParams, SearchDemoResult>, I
         }
     };
 
-    public SearchDemoTool(ILogger<SearchDemoTool>? logger = null) : base(logger)
+    public SearchDemoTool(ILogger<SearchDemoTool>? logger = null) : base(null, logger)
     {
     }
 

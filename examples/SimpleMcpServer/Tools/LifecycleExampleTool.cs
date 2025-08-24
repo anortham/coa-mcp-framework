@@ -21,7 +21,7 @@ public class LifecycleExampleTool : McpToolBase<LifecycleExampleParameters, Life
 {
     private readonly ILogger<LifecycleExampleTool> _logger;
 
-    public LifecycleExampleTool(ILogger<LifecycleExampleTool> logger) : base(logger)
+    public LifecycleExampleTool(ILogger<LifecycleExampleTool> logger) : base(null, logger)
     {
         _logger = logger;
     }
