@@ -1,8 +1,12 @@
 using System;
 using System.Linq;
 using System.Reflection;
+using COA.Mcp.Framework.Configuration;
 using COA.Mcp.Framework.Interfaces;
+using COA.Mcp.Framework.Pipeline.Middleware;
 using COA.Mcp.Framework.Server;
+using COA.Mcp.Framework.Services;
+using COA.Mcp.Framework.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -55,6 +59,62 @@ public static class ServiceCollectionExtensions
             RegisterToolTypes(services, assembly);
         }
 
+        return services;
+    }
+
+    /// <summary>
+    /// Adds type verification services to the service collection.
+    /// </summary>
+    public static IServiceCollection AddTypeVerification(
+        this IServiceCollection services,
+        Action<TypeVerificationOptions>? configure = null)
+    {
+        // Configure options
+        services.Configure<TypeVerificationOptions>(options =>
+        {
+            configure?.Invoke(options);
+            options.Validate();
+        });
+
+        // Register services
+        services.TryAddSingleton<IVerificationStateManager, VerificationStateManager>();
+        services.TryAddScoped<TypeVerificationMiddleware>();
+
+        return services;
+    }
+
+    /// <summary>
+    /// Adds TDD enforcement services to the service collection.
+    /// </summary>
+    public static IServiceCollection AddTddEnforcement(
+        this IServiceCollection services,
+        Action<TddEnforcementOptions>? configure = null)
+    {
+        // Configure options
+        services.Configure<TddEnforcementOptions>(options =>
+        {
+            configure?.Invoke(options);
+            options.Validate();
+        });
+
+        // Register services
+        services.TryAddSingleton<ITestStatusService, DefaultTestStatusService>();
+        services.TryAddScoped<TddEnforcementMiddleware>();
+
+        return services;
+    }
+
+    /// <summary>
+    /// Adds both type verification and TDD enforcement services.
+    /// </summary>
+    public static IServiceCollection AddAdvancedEnforcement(
+        this IServiceCollection services,
+        Action<TypeVerificationOptions>? configureTypeVerification = null,
+        Action<TddEnforcementOptions>? configureTddEnforcement = null)
+    {
+        services.AddTypeVerification(configureTypeVerification);
+        services.AddTddEnforcement(configureTddEnforcement);
+        
         return services;
     }
 

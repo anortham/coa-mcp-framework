@@ -375,3 +375,4 @@ docs/performance/
 docs/future/
 
 .claude/settings.local.json
+.claude/data/session_state.json
