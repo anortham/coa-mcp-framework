@@ -45,33 +45,58 @@ public class DefaultTestStatusServiceTests
         // Clean up temporary directory with retry logic for file handle issues
         if (Directory.Exists(_tempDirectory))
         {
-            TryDeleteDirectory(_tempDirectory, maxRetries: 5, delayMs: 100);
+            TryDeleteDirectory(_tempDirectory, maxRetries: 10, delayMs: 200);
         }
     }
 
     private static void TryDeleteDirectory(string directory, int maxRetries = 3, int delayMs = 100)
     {
+        Exception lastException = null;
+        
         for (int i = 0; i < maxRetries; i++)
         {
             try
             {
+                // Force garbage collection to help release any file handles
+                if (i > 0)
+                {
+                    GC.Collect();
+                    GC.WaitForPendingFinalizers();
+                    GC.Collect();
+                }
+
                 Directory.Delete(directory, true);
                 return; // Success
             }
-            catch (IOException) when (i < maxRetries - 1)
+            catch (IOException ex) when (i < maxRetries - 1)
             {
+                lastException = ex;
                 // Wait and retry - processes may still be releasing file handles
-                System.Threading.Thread.Sleep(delayMs);
+                System.Threading.Thread.Sleep(delayMs * (i + 1)); // Exponential backoff
             }
-            catch (UnauthorizedAccessException) when (i < maxRetries - 1)
+            catch (UnauthorizedAccessException ex) when (i < maxRetries - 1)
             {
+                lastException = ex;
                 // Wait and retry - processes may still be releasing file handles
-                System.Threading.Thread.Sleep(delayMs);
+                System.Threading.Thread.Sleep(delayMs * (i + 1)); // Exponential backoff
+            }
+            catch (DirectoryNotFoundException)
+            {
+                // Directory already deleted, success
+                return;
+            }
+            catch (Exception ex)
+            {
+                lastException = ex;
+                if (i < maxRetries - 1)
+                {
+                    System.Threading.Thread.Sleep(delayMs * (i + 1));
+                }
             }
         }
 
-        // If we get here, all retries failed - try one more time without catching
-        Directory.Delete(directory, true);
+        // If we get here, all retries failed - log warning instead of failing the test
+        Console.WriteLine($"Warning: Failed to delete directory '{directory}' after {maxRetries} retries. Last error: {lastException?.Message}");
     }
 
     [Test]
