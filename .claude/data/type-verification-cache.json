@@ -1,0 +1,107 @@
+{
+  "types": {
+    "DefaultTestStatusServiceTests": {
+      "methods": {},
+      "verified_at": "2025-08-25T08:31:55.7690548-05:00",
+      "kind": "class",
+      "extractedFrom": "source_file",
+      "properties": {},
+      "ttl_days": 7,
+      "file": "C:\\source\\COA MCP Framework\\tests\\COA.Mcp.Framework.Tests\\Testing\\DefaultTestStatusServiceTests.cs",
+      "mtime": 134005980493808467,
+      "constructors": []
+    },
+    "DefaultTestStatusService": {
+      "ttl_days": 7,
+      "extractedFrom": "source_file",
+      "properties": {},
+      "mtime": 134005209030656044,
+      "verified_at": "2025-08-24T16:50:24.4882302-05:00",
+      "kind": "class",
+      "methods": {},
+      "constructors": [],
+      "file": "C:\\source\\COA MCP Framework\\src\\COA.Mcp.Framework\\Testing\\DefaultTestStatusService.cs"
+    },
+    "LoggingSimpleMiddleware": {
+      "verified_at": "2025-08-25T08:32:01.3753079-05:00",
+      "properties": {},
+      "file": "C:\\source\\COA MCP Framework\\src\\COA.Mcp.Framework\\Pipeline\\SimpleMiddleware\\LoggingSimpleMiddleware.cs",
+      "constructors": [],
+      "extractedFrom": "source_file",
+      "kind": "class",
+      "methods": {},
+      "mtime": 133993346864181670,
+      "ttl_days": 7
+    },
+    "TypeVerificationMiddleware": {
+      "kind": "class",
+      "ttl_days": 7,
+      "file": "C:\\source\\COA MCP Framework\\src\\COA.Mcp.Framework\\Pipeline\\Middleware\\TypeVerificationMiddleware.cs",
+      "properties": {},
+      "methods": {},
+      "verified_at": "2025-08-25T08:32:18.1542932-05:00",
+      "mtime": 134005234132820462,
+      "extractedFrom": "source_file",
+      "constructors": []
+    },
+    "TddEnforcementMiddleware": {
+      "verified_at": "2025-08-25T08:32:24.8820349-05:00",
+      "methods": {},
+      "file": "C:\\source\\COA MCP Framework\\src\\COA.Mcp.Framework\\Pipeline\\Middleware\\TddEnforcementMiddleware.cs",
+      "mtime": 134005319116771749,
+      "constructors": [],
+      "properties": {},
+      "ttl_days": 7,
+      "kind": "class",
+      "extractedFrom": "source_file"
+    },
+    "McpServerBuilder": {
+      "mtime": 134005291574179429,
+      "file": "C:\\source\\COA MCP Framework\\src\\COA.Mcp.Framework\\Server\\McpServerBuilder.cs",
+      "extractedFrom": "source_file",
+      "properties": {},
+      "constructors": [],
+      "verified_at": "2025-08-25T08:32:40.5942361-05:00",
+      "ttl_days": 7,
+      "methods": {},
+      "kind": "class"
+    },
+    "ServerConfiguration": {
+      "extractedFrom": "source_file",
+      "verified_at": "2025-08-25T08:32:59.8726606-05:00",
+      "mtime": 134005291574179429,
+      "constructors": [],
+      "file": "C:\\source\\COA MCP Framework\\src\\COA.Mcp.Framework\\Server\\McpServerBuilder.cs",
+      "properties": {},
+      "ttl_days": 7,
+      "methods": {},
+      "kind": "class"
+    },
+    "McpServerBuilderExtensions": {
+      "extractedFrom": "source_file",
+      "verified_at": "2025-08-25T08:32:59.881425-05:00",
+      "mtime": 134005291574179429,
+      "constructors": [],
+      "file": "C:\\source\\COA MCP Framework\\src\\COA.Mcp.Framework\\Server\\McpServerBuilder.cs",
+      "properties": {},
+      "ttl_days": 7,
+      "methods": {},
+      "kind": "class"
+    },
+    "NoopDisposable": {
+      "ttl_days": 7,
+      "methods": {},
+      "constructors": [],
+      "mtime": 133993063563496114,
+      "kind": "class",
+      "properties": {},
+      "file": "C:\\source\\COA MCP Framework\\tests\\COA.Mcp.Framework.Tests\\Server\\Services\\ServiceLifecycleHostTests.cs",
+      "extractedFrom": "source_file",
+      "verified_at": "2025-08-25T08:40:07.4443740-05:00"
+    }
+  },
+  "created_at": "2025-08-24T16:50:08.0099542-05:00",
+  "version": 3,
+  "session_verifications": {},
+  "last_updated": "2025-08-25T08:40:07.4540426-05:00"
+}

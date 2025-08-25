@@ -88,6 +88,12 @@ var builder = new McpServerBuilder()
     {
         logging.AddConsole();
         logging.SetMinimumLevel(LogLevel.Information);
+    })
+    .ConfigureFramework(options =>
+    {
+        // Optional: Control framework logging verbosity
+        options.FrameworkLogLevel = LogLevel.Warning; // Reduce framework noise
+        options.EnableDetailedToolLogging = false;    // Minimize tool execution logs
     });
 
 // Register services
@@ -533,6 +539,76 @@ var builder = new McpServerBuilder()
         options.Host = "localhost";
         options.UseHttps = false;
     });
+```
+
+### Logging Configuration
+
+The framework provides granular control over logging to reduce noise and improve debugging experience:
+
+```csharp
+var builder = new McpServerBuilder()
+    .WithServerInfo("My Server", "1.0.0")
+    .ConfigureLogging(logging =>
+    {
+        // Standard logging configuration
+        logging.AddConsole();
+        logging.SetMinimumLevel(LogLevel.Information);
+        
+        // Optional: Configure specific categories
+        logging.AddFilter("COA.Mcp.Framework", LogLevel.Warning); // Quiet framework
+        logging.AddFilter("MyApp", LogLevel.Debug); // Verbose for your code
+    })
+    .ConfigureFramework(options =>
+    {
+        // Framework-specific logging options
+        options.FrameworkLogLevel = LogLevel.Warning;        // Default framework log level
+        options.EnableDetailedToolLogging = false;          // Reduce tool execution noise
+        options.EnableDetailedMiddlewareLogging = false;    // Reduce middleware noise
+        options.EnableDetailedTransportLogging = false;     // Reduce transport noise
+        
+        // Advanced options
+        options.EnableFrameworkLogging = true;              // Enable/disable framework logging entirely
+        options.ConfigureLoggingIfNotConfigured = true;     // Don't override existing logging config
+        options.SuppressStartupLogs = false;                // Show/hide startup messages
+    });
+```
+
+#### Logging Categories
+
+The framework uses these logging categories for fine-grained control:
+
+- `COA.Mcp.Framework.Pipeline.Middleware` - Middleware operations (type verification, TDD enforcement, etc.)
+- `COA.Mcp.Framework.Transport` - Transport layer operations (HTTP, WebSocket, stdio)
+- `COA.Mcp.Framework.Base` - Tool execution and lifecycle events
+- `COA.Mcp.Framework.Server` - Server startup and management
+- `COA.Mcp.Framework.Pipeline` - Request/response pipeline processing
+
+#### Quick Configuration Examples
+
+```csharp
+// Minimal logging (production)
+builder.ConfigureFramework(options =>
+{
+    options.FrameworkLogLevel = LogLevel.Error;
+    options.EnableDetailedToolLogging = false;
+    options.EnableDetailedMiddlewareLogging = false;
+    options.EnableDetailedTransportLogging = false;
+});
+
+// Debug mode (development)
+builder.ConfigureFramework(options =>
+{
+    options.FrameworkLogLevel = LogLevel.Debug;
+    options.EnableDetailedToolLogging = true;
+    options.EnableDetailedMiddlewareLogging = true;
+    options.EnableDetailedTransportLogging = true;
+});
+
+// Completely disable framework logging
+builder.ConfigureFramework(options =>
+{
+    options.EnableFrameworkLogging = false;
+});
 ```
 
 ### 🚀 Auto-Service Management

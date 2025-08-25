@@ -79,14 +79,16 @@ public class TypeVerificationMiddleware : SimpleMiddlewareBase
             return;
         }
 
-        _logger.LogDebug("TypeVerificationMiddleware: Checking tool {ToolName}", toolName);
+        if (_logger.IsEnabled(LogLevel.Debug))
+        {
+            _logger.LogDebug("TypeVerificationMiddleware: Checking tool {ToolName}", toolName);
+        }
 
         try
         {
             var extractedCode = ExtractCodeFromParameters(toolName, parameters);
             if (string.IsNullOrWhiteSpace(extractedCode))
             {
-                _logger.LogDebug("No code content found in {ToolName} parameters", toolName);
                 return;
             }
 
@@ -95,12 +97,14 @@ public class TypeVerificationMiddleware : SimpleMiddlewareBase
             
             if (!extractedTypes.Any())
             {
-                _logger.LogDebug("No types detected in code for {ToolName}", toolName);
                 return;
             }
 
-            _logger.LogDebug("Extracted {TypeCount} types from {ToolName}: {Types}", 
-                extractedTypes.Count, toolName, string.Join(", ", extractedTypes));
+            if (_logger.IsEnabled(LogLevel.Debug))
+            {
+                _logger.LogDebug("Extracted {TypeCount} types from {ToolName}: {Types}", 
+                    extractedTypes.Count, toolName, string.Join(", ", extractedTypes));
+            }
 
             var unverifiedTypes = new List<string>();
             var memberIssues = new List<MemberIssue>();
@@ -145,7 +149,10 @@ public class TypeVerificationMiddleware : SimpleMiddlewareBase
             }
             else
             {
-                _logger.LogDebug("All types verified for {ToolName}", toolName);
+                if (_logger.IsEnabled(LogLevel.Debug))
+                {
+                    _logger.LogDebug("All types verified for {ToolName}", toolName);
+                }
                 await _verificationStateManager.LogVerificationSuccessAsync(toolName, filePath, 
                     extractedTypes.Select(t => t.TypeName).Distinct().ToList());
             }

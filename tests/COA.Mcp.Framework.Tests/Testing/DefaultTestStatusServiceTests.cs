@@ -96,7 +96,7 @@ public class DefaultTestStatusServiceTests
         }
 
         // If we get here, all retries failed - log warning instead of failing the test
-        Console.WriteLine($"Warning: Failed to delete directory '{directory}' after {maxRetries} retries. Last error: {lastException?.Message}");
+        TestContext.WriteLine($"Warning: Failed to delete directory '{directory}' after {maxRetries} retries. Last error: {lastException?.Message}");
     }
 
     [Test]

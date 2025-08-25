@@ -254,6 +254,17 @@ public class McpServerBuilder
     }
 
     /// <summary>
+    /// Configures framework-wide options including logging behavior.
+    /// </summary>
+    /// <param name="configure">Action to configure framework options.</param>
+    /// <returns>The builder for chaining.</returns>
+    public McpServerBuilder ConfigureFramework(Action<FrameworkOptions> configure)
+    {
+        _services.Configure(configure);
+        return this;
+    }
+
+    /// <summary>
     /// Adds a custom service to the container.
     /// </summary>
     /// <typeparam name="TService">The service type.</typeparam>
@@ -609,15 +620,46 @@ public class McpServerBuilder
         _services.AddSingleton<ResourceRegistry>();
         _services.AddSingleton<IPromptRegistry, PromptRegistry>();
         
-        // Add default logging
+        // Configure framework options if not already configured
+        _services.Configure<FrameworkOptions>(options => { });
+        
+        // Add logging configuration only if not already configured
+        ConfigureFrameworkLogging();
+    }
+    
+    private void ConfigureFrameworkLogging()
+    {
+        var serviceProvider = _services.BuildServiceProvider();
+        var frameworkOptions = serviceProvider.GetService<IOptions<FrameworkOptions>>()?.Value ?? new FrameworkOptions();
+        
+        // Check if logging is already configured by looking for existing loggers
+        var existingLoggers = _services.Where(s => s.ServiceType == typeof(ILoggerProvider) || 
+                                                   s.ServiceType == typeof(ILoggingBuilder)).Any();
+        
+        if (!frameworkOptions.EnableFrameworkLogging || 
+            (!frameworkOptions.ConfigureLoggingIfNotConfigured && existingLoggers))
+        {
+            return;
+        }
+        
         _services.AddLogging(builder =>
         {
-            builder.SetMinimumLevel(LogLevel.Information);
+            // Set framework log level (default Warning to reduce verbosity)
+            builder.SetMinimumLevel(frameworkOptions.FrameworkLogLevel);
+            
+            // Add console logging with stderr output for MCP protocol compatibility
             builder.AddConsole(options =>
             {
-                // MCP protocol requires stderr for logging
                 options.LogToStandardErrorThreshold = LogLevel.Trace;
             });
+            
+            // Configure category-specific log levels for reduced framework verbosity
+            builder.AddFilter("COA.Mcp.Framework.Pipeline.Middleware", 
+                frameworkOptions.EnableDetailedMiddlewareLogging ? LogLevel.Debug : LogLevel.Warning);
+            builder.AddFilter("COA.Mcp.Framework.Transport", 
+                frameworkOptions.EnableDetailedTransportLogging ? LogLevel.Debug : LogLevel.Warning);
+            builder.AddFilter("COA.Mcp.Framework.Base", 
+                frameworkOptions.EnableDetailedToolLogging ? LogLevel.Information : LogLevel.Warning);
         });
     }
 

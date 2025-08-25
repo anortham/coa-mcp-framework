@@ -12,6 +12,13 @@ var builder = new McpServerBuilder()
         logging.ClearProviders();
         logging.AddConsole();
         logging.SetMinimumLevel(LogLevel.Information);
+    })
+    .ConfigureFramework(options =>
+    {
+        // Reduce framework logging noise for cleaner example output
+        options.FrameworkLogLevel = LogLevel.Warning;
+        options.EnableDetailedToolLogging = false;
+        options.EnableDetailedMiddlewareLogging = false;
     });
 
 // Register services

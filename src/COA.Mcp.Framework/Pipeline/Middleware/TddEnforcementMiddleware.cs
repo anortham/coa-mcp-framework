@@ -58,7 +58,10 @@ public class TddEnforcementMiddleware : SimpleMiddlewareBase
             return;
         }
 
-        _logger.LogDebug("TddEnforcementMiddleware: Checking tool {ToolName}", toolName);
+        if (_logger.IsEnabled(LogLevel.Debug))
+        {
+            _logger.LogDebug("TddEnforcementMiddleware: Checking tool {ToolName}", toolName);
+        }
 
         try
         {
@@ -68,14 +71,12 @@ public class TddEnforcementMiddleware : SimpleMiddlewareBase
             // Skip if no meaningful code or if editing test files
             if (string.IsNullOrWhiteSpace(code) || IsTestFile(filePath))
             {
-                _logger.LogDebug("Skipping TDD check - test file or no code: {FilePath}", filePath);
                 return;
             }
 
             // Skip if this is a refactoring operation (no new functionality)
             if (_options.AllowRefactoring && IsRefactoringOperation(code, filePath))
             {
-                _logger.LogDebug("Skipping TDD check - detected refactoring operation: {FilePath}", filePath);
                 return;
             }
 
@@ -105,8 +106,11 @@ public class TddEnforcementMiddleware : SimpleMiddlewareBase
         var workspaceRoot = FindWorkspaceRoot(filePath);
         var testStatus = await _testStatusService.GetTestStatusAsync(workspaceRoot);
         
-        _logger.LogDebug("TDD Check: Workspace={WorkspaceRoot}, HasFailingTests={HasFailingTests}, " +
-                        "LastTestRun={LastTestRun}", workspaceRoot, testStatus.HasFailingTests, testStatus.LastTestRun);
+        if (_logger.IsEnabled(LogLevel.Debug))
+        {
+            _logger.LogDebug("TDD Check: Workspace={WorkspaceRoot}, HasFailingTests={HasFailingTests}, " +
+                            "LastTestRun={LastTestRun}", workspaceRoot, testStatus.HasFailingTests, testStatus.LastTestRun);
+        }
 
         var violations = new List<string>();
 
@@ -143,7 +147,10 @@ public class TddEnforcementMiddleware : SimpleMiddlewareBase
         }
         else
         {
-            _logger.LogDebug("TDD check passed for {ToolName} on {FilePath}", toolName, filePath);
+            if (_logger.IsEnabled(LogLevel.Debug))
+            {
+                _logger.LogDebug("TDD check passed for {ToolName} on {FilePath}", toolName, filePath);
+            }
         }
     }
 

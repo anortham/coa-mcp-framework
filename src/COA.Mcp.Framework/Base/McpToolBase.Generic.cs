@@ -134,16 +134,22 @@ public abstract class McpToolBase<TParams, TResult> : IMcpTool<TParams, TResult>
             // Validate parameters
             ValidateParameters(parameters);
             
-            _logger?.LogDebug("Executing tool '{ToolName}' with parameters: {Parameters}", 
-                Name, JsonSerializer.Serialize(parameters, _jsonOptions));
+            if (_logger?.IsEnabled(LogLevel.Debug) == true)
+            {
+                _logger.LogDebug("Executing tool '{ToolName}' with parameters: {Parameters}", 
+                    Name, JsonSerializer.Serialize(parameters, _jsonOptions));
+            }
             
             // Execute with token management
             var result = await ExecuteWithTokenManagement(
                 () => ExecuteInternalAsync(parameters, cancellationToken),
                 cancellationToken);
             
-            _logger?.LogInformation("Tool '{ToolName}' executed successfully in {ElapsedMs}ms", 
-                Name, stopwatch.ElapsedMilliseconds);
+            if (_logger?.IsEnabled(LogLevel.Debug) == true)
+            {
+                _logger.LogDebug("Tool '{ToolName}' executed successfully in {ElapsedMs}ms", 
+                    Name, stopwatch.ElapsedMilliseconds);
+            }
             
             return result;
         }
@@ -195,16 +201,22 @@ public abstract class McpToolBase<TParams, TResult> : IMcpTool<TParams, TResult>
             // Validate parameters
             ValidateParameters(parameters);
             
-            _logger?.LogDebug("Executing tool '{ToolName}' with parameters: {Parameters}", 
-                Name, JsonSerializer.Serialize(parameters, _jsonOptions));
+            if (_logger?.IsEnabled(LogLevel.Debug) == true)
+            {
+                _logger.LogDebug("Executing tool '{ToolName}' with parameters: {Parameters}", 
+                    Name, JsonSerializer.Serialize(parameters, _jsonOptions));
+            }
             
             // Execute with token management
             result = await ExecuteWithTokenManagement(
                 () => ExecuteInternalAsync(parameters, cancellationToken),
                 cancellationToken);
             
-            _logger?.LogInformation("Tool '{ToolName}' executed successfully in {ElapsedMs}ms", 
-                Name, stopwatch.ElapsedMilliseconds);
+            if (_logger?.IsEnabled(LogLevel.Debug) == true)
+            {
+                _logger.LogDebug("Tool '{ToolName}' executed successfully in {ElapsedMs}ms", 
+                    Name, stopwatch.ElapsedMilliseconds);
+            }
 
             // Return result directly
 
@@ -361,15 +373,21 @@ public abstract class McpToolBase<TParams, TResult> : IMcpTool<TParams, TResult>
                         Name, tokenEstimate, budget.MaxTokens);
                     break;
                 case TokenLimitStrategy.Truncate:
-                    _logger?.LogInformation("Tool '{ToolName}' may truncate output to stay within {MaxTokens} token budget", 
-                        Name, budget.MaxTokens);
+                    if (_logger?.IsEnabled(LogLevel.Debug) == true)
+                    {
+                        _logger.LogDebug("Tool '{ToolName}' may truncate output to stay within {MaxTokens} token budget", 
+                            Name, budget.MaxTokens);
+                    }
                     break;
             }
         }
         else if (tokenEstimate > budget.WarningThreshold)
         {
-            _logger?.LogWarning("Tool '{ToolName}' approaching token limit. Estimated: {Tokens}, Warning: {Threshold}", 
-                Name, tokenEstimate, budget.WarningThreshold);
+            if (_logger?.IsEnabled(LogLevel.Debug) == true)
+            {
+                _logger.LogDebug("Tool '{ToolName}' approaching token limit. Estimated: {Tokens}, Warning: {Threshold}", 
+                    Name, tokenEstimate, budget.WarningThreshold);
+            }
         }
         
         return await operation();

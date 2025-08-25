@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+#### 🔇 Reduced Excessive Logging Output
+- **Default Log Level**: Changed framework default from `Information` to `Warning` to significantly reduce console output during test runs and normal operation
+- **Conditional Debug Logging**: Added `IsEnabled(LogLevel.Debug)` checks around debug logging statements in middleware to prevent string formatting costs when debug logging is disabled
+- **Framework Options**: Added new `FrameworkOptions` configuration class for granular control over framework logging behavior:
+  - `EnableFrameworkLogging`: Option to completely disable framework logging
+  - `FrameworkLogLevel`: Set framework log level independent of application log level (default: Warning)
+  - `EnableDetailedToolLogging`, `EnableDetailedMiddlewareLogging`, `EnableDetailedTransportLogging`: Fine-grained control over component verbosity
+  - `ConfigureLoggingIfNotConfigured`: Prevents framework from overriding consumer logging configuration
+- **Category-Specific Filtering**: Added separate log categories for framework components:
+  - `COA.Mcp.Framework.Pipeline.Middleware` - Middleware operations
+  - `COA.Mcp.Framework.Transport` - Transport layer operations  
+  - `COA.Mcp.Framework.Base` - Tool execution operations
+- **Test Output Cleanup**: Replaced `Console.WriteLine` calls in test files with `TestContext.WriteLine` to prevent console pollution during test runs
+- **Server Builder Enhancement**: Added `ConfigureFramework()` method to easily configure framework-wide options
+
+#### Impact
+- Test runs now produce significantly less output, making it easier to focus on actual test results and errors
+- Framework consumers can now fully control logging verbosity and disable framework logging if needed
+- Debug information is still available when needed but doesn't flood the output by default
+- Better performance due to reduced string formatting when debug logging is disabled
+
 ## [2.0.0] - 2025-08-24
 
 ### 🚨 BREAKING CHANGES

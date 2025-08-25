@@ -90,7 +90,13 @@ var builder = new McpServerBuilder()
     .WithServerInfo("my-mcp-server", "1.0.0")
     .UseStdioTransport()  // Default transport
     .RegisterToolType<CalculatorTool>()
-    .RegisterToolType<WeatherTool>();
+    .RegisterToolType<WeatherTool>()
+    .ConfigureFramework(options =>
+    {
+        // Control framework logging verbosity (new in v2.0.1)
+        options.FrameworkLogLevel = LogLevel.Warning;
+        options.EnableDetailedToolLogging = false;
+    });
 
 // Run the server
 await builder.RunAsync();
@@ -397,6 +403,52 @@ var builder = new McpServerBuilder()
         config.AutoRestart = true;
         config.StartupTimeoutSeconds = 30;
     });
+```
+
+## Logging Configuration
+
+Control framework logging verbosity with the new `FrameworkOptions`:
+
+```csharp
+var builder = new McpServerBuilder()
+    .WithServerInfo("My Server", "1.0.0")
+    .ConfigureLogging(logging =>
+    {
+        logging.AddConsole();
+        logging.SetMinimumLevel(LogLevel.Information);
+    })
+    .ConfigureFramework(options =>
+    {
+        // Reduce framework noise (default: Warning)
+        options.FrameworkLogLevel = LogLevel.Error;
+        
+        // Disable detailed logging for cleaner output
+        options.EnableDetailedToolLogging = false;          // Tool execution logs
+        options.EnableDetailedMiddlewareLogging = false;    // Middleware operations
+        options.EnableDetailedTransportLogging = false;     // Transport layer logs
+        
+        // Advanced options
+        options.EnableFrameworkLogging = true;              // Master switch
+        options.ConfigureLoggingIfNotConfigured = true;     // Respect existing config
+        options.SuppressStartupLogs = false;                // Hide startup messages
+    });
+```
+
+### Logging Categories
+
+Fine-tune logging by category:
+
+```csharp
+builder.ConfigureLogging(logging =>
+{
+    // Framework categories (use Warning+ to reduce noise)
+    logging.AddFilter("COA.Mcp.Framework.Pipeline.Middleware", LogLevel.Warning);
+    logging.AddFilter("COA.Mcp.Framework.Transport", LogLevel.Warning);
+    logging.AddFilter("COA.Mcp.Framework.Base", LogLevel.Warning);
+    
+    // Your application (use Debug for development)
+    logging.AddFilter("MyApp", LogLevel.Debug);
+});
 ```
 
 ## Resource Providers

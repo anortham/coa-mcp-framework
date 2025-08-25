@@ -191,10 +191,10 @@ public class MultipleServiceTests
 
         public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
         {
-            Console.WriteLine($"[{logLevel}] {formatter(state, exception)}");
+            TestContext.WriteLine($"[{logLevel}] {formatter(state, exception)}");
             if (exception != null)
             {
-                Console.WriteLine(exception.ToString());
+                TestContext.WriteLine(exception.ToString());
             }
         }
 
