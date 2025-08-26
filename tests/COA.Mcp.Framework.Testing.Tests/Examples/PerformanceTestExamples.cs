@@ -38,7 +38,7 @@ namespace COA.Mcp.Framework.Testing.Tests.Examples
 
             // Generate report for visibility
             var report = summary.GenerateReport();
-            TestContext.WriteLine(report);
+            TestContext.Out.WriteLine(report);
 
             // Check that fastest/slowest can be determined
             summary.Fastest.Should().NotBeNull();
@@ -73,7 +73,7 @@ namespace COA.Mcp.Framework.Testing.Tests.Examples
             result.P95Ms.Should().BeLessThan(100);
             result.StdDevMs.Should().BeLessThan(10); // Consistent performance
 
-            TestContext.WriteLine(result.ToString());
+            TestContext.Out.WriteLine(result.ToString());
         }
 
         [Test]
@@ -106,7 +106,7 @@ namespace COA.Mcp.Framework.Testing.Tests.Examples
 
             // Generate report
             var report = result.GenerateReport();
-            TestContext.WriteLine(report);
+            TestContext.Out.WriteLine(report);
         }
 
         [Test]
@@ -141,9 +141,9 @@ namespace COA.Mcp.Framework.Testing.Tests.Examples
             Math.Abs(result.MemoryAllocated).Should().BeLessThan(100 * 1024 * 1024); // Less than 100MB change
             result.Gen0Collections.Should().BeGreaterThanOrEqualTo(0);
 
-            TestContext.WriteLine($"Memory allocated: {result.MemoryAllocated / 1024.0:F2} KB");
-            TestContext.WriteLine($"Memory retained: {result.MemoryRetained / 1024.0:F2} KB");
-            TestContext.WriteLine($"Execution time: {result.ExecutionTime.TotalMilliseconds:F2} ms");
+            TestContext.Out.WriteLine($"Memory allocated: {result.MemoryAllocated / 1024.0:F2} KB");
+            TestContext.Out.WriteLine($"Memory retained: {result.MemoryRetained / 1024.0:F2} KB");
+            TestContext.Out.WriteLine($"Execution time: {result.ExecutionTime.TotalMilliseconds:F2} ms");
         }
 
         [Test]
@@ -171,7 +171,7 @@ namespace COA.Mcp.Framework.Testing.Tests.Examples
             analyzer.LeakSuspicions.Should().NotBeEmpty();
             
             var report = analyzer.GenerateReport();
-            TestContext.WriteLine(report);
+            TestContext.Out.WriteLine(report);
 
             // Clean up
             leakyList.Clear();
@@ -204,10 +204,10 @@ namespace COA.Mcp.Framework.Testing.Tests.Examples
             result.MemoryLeaked.Should().BeLessThan((long)(result.InitialMemory * 0.2));
             result.MemoryLeaked.Should().BeLessThan(1024 * 1024); // Less than 1MB leaked
 
-            TestContext.WriteLine($"Initial Memory: {result.InitialMemory / 1024.0 / 1024.0:F2} MB");
-            TestContext.WriteLine($"Peak Memory: {result.PeakMemory / 1024.0 / 1024.0:F2} MB");
-            TestContext.WriteLine($"Settled Memory: {result.SettledMemory / 1024.0 / 1024.0:F2} MB");
-            TestContext.WriteLine($"Potential Leak: {result.HasPotentialLeak}");
+            TestContext.Out.WriteLine($"Initial Memory: {result.InitialMemory / 1024.0 / 1024.0:F2} MB");
+            TestContext.Out.WriteLine($"Peak Memory: {result.PeakMemory / 1024.0 / 1024.0:F2} MB");
+            TestContext.Out.WriteLine($"Settled Memory: {result.SettledMemory / 1024.0 / 1024.0:F2} MB");
+            TestContext.Out.WriteLine($"Potential Leak: {result.HasPotentialLeak}");
         }
 
         [Test]
@@ -241,7 +241,7 @@ namespace COA.Mcp.Framework.Testing.Tests.Examples
 
             // Generate comparison report
             var report = comparison.GenerateReport();
-            TestContext.WriteLine(report);
+            TestContext.Out.WriteLine(report);
         }
 
         // Helper implementations

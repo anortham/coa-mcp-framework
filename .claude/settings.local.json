@@ -51,7 +51,8 @@
       "mcp__goldfish__update_todo",
       "mcp__codenav__csharp_find_all_references",
       "mcp__codesearch__recent_files",
-      "mcp__codenav__csharp_get_type_members"
+      "mcp__codenav__csharp_get_type_members",
+      "mcp__codesearch__search_and_replace"
     ],
     "deny": [],
     "defaultMode": "acceptEdits",

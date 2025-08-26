@@ -171,10 +171,10 @@ public class ServiceManagerTests : IDisposable
 
         public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
         {
-            TestContext.WriteLine($"[{logLevel}] {formatter(state, exception)}");
+            TestContext.Out.WriteLine($"[{logLevel}] {formatter(state, exception)}");
             if (exception != null)
             {
-                TestContext.WriteLine(exception.ToString());
+                TestContext.Out.WriteLine(exception.ToString());
             }
         }
 
