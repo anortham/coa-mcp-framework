@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using COA.Mcp.Framework.Configuration;
 using COA.Mcp.Framework.Exceptions;
 using COA.Mcp.Framework.Interfaces;
+using COA.Mcp.Framework.Utilities;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -109,37 +110,48 @@ public class TypeVerificationMiddleware : SimpleMiddlewareBase
             var unverifiedTypes = new List<string>();
             var memberIssues = new List<MemberIssue>();
 
-            foreach (var typeRef in extractedTypes)
+            // Filter whitelisted types first to avoid unnecessary async calls
+            var typesToVerify = extractedTypes
+                .Where(typeRef => !WhitelistedTypes.Contains(typeRef.TypeName) && 
+                                 _options.WhitelistedTypes?.Contains(typeRef.TypeName) != true)
+                .ToList();
+
+            if (typesToVerify.Any())
             {
-                if (WhitelistedTypes.Contains(typeRef.TypeName) || 
-                    _options.WhitelistedTypes?.Contains(typeRef.TypeName) == true)
-                {
-                    continue;
-                }
-
-                var isVerified = await _verificationStateManager.IsTypeVerifiedAsync(typeRef.TypeName);
-                if (!isVerified)
-                {
-                    unverifiedTypes.Add(typeRef.TypeName);
-                    continue;
-                }
-
-                // Check member access if verification is required
-                if (_options.RequireMemberVerification && !string.IsNullOrEmpty(typeRef.MemberName))
-                {
-                    var hasMember = await _verificationStateManager.HasVerifiedMemberAsync(
-                        typeRef.TypeName, typeRef.MemberName);
-                    
-                    if (!hasMember)
+                // Concurrent type verification for performance
+                var typeVerificationTasks = typesToVerify
+                    .Select(async typeRef => new
                     {
-                        var availableMembers = await _verificationStateManager.GetAvailableMembersAsync(typeRef.TypeName);
-                        memberIssues.Add(new MemberIssue
-                        {
-                            TypeName = typeRef.TypeName,
-                            MemberName = typeRef.MemberName,
-                            AvailableMembers = availableMembers?.ToList() ?? new List<string>()
-                        });
+                        TypeRef = typeRef,
+                        IsVerified = await _verificationStateManager.IsTypeVerifiedAsync(typeRef.TypeName)
+                    })
+                    .ToArray();
+
+                var verificationResults = await Task.WhenAll(typeVerificationTasks);
+
+                // Process results and handle member verification concurrently
+                var memberVerificationTasks = new List<Task<MemberVerificationResult>>();
+
+                foreach (var result in verificationResults)
+                {
+                    if (!result.IsVerified)
+                    {
+                        unverifiedTypes.Add(result.TypeRef.TypeName);
+                        continue;
                     }
+
+                    // Check member access if verification is required
+                    if (_options.RequireMemberVerification && !string.IsNullOrEmpty(result.TypeRef.MemberName))
+                    {
+                        memberVerificationTasks.Add(VerifyMemberAsync(result.TypeRef));
+                    }
+                }
+
+                // Process member verification results concurrently
+                if (memberVerificationTasks.Any())
+                {
+                    var memberResults = await Task.WhenAll(memberVerificationTasks);
+                    memberIssues.AddRange(memberResults.Where(r => r.Issue != null).Select(r => r.Issue!));
                 }
             }
 
@@ -551,6 +563,39 @@ public class TypeVerificationMiddleware : SimpleMiddlewareBase
         }
 
         return types;
+    }
+
+    /// <summary>
+    /// Verifies a member access asynchronously for concurrent processing.
+    /// </summary>
+    private async Task<MemberVerificationResult> VerifyMemberAsync(TypeReference typeRef)
+    {
+        var hasMember = await _verificationStateManager.HasVerifiedMemberAsync(
+            typeRef.TypeName, typeRef.MemberName!);
+        
+        if (!hasMember)
+        {
+            var availableMembers = await _verificationStateManager.GetAvailableMembersAsync(typeRef.TypeName);
+            return new MemberVerificationResult
+            {
+                Issue = new MemberIssue
+                {
+                    TypeName = typeRef.TypeName,
+                    MemberName = typeRef.MemberName!,
+                    AvailableMembers = availableMembers?.ToList() ?? new List<string>()
+                }
+            };
+        }
+
+        return new MemberVerificationResult { Issue = null };
+    }
+
+    /// <summary>
+    /// Represents the result of member verification.
+    /// </summary>
+    private class MemberVerificationResult
+    {
+        public MemberIssue? Issue { get; set; }
     }
 
     /// <summary>

@@ -4,7 +4,7 @@ A comprehensive .NET framework for building and consuming Model Context Protocol
 
 [![NuGet Version](https://img.shields.io/nuget/v/COA.Mcp.Framework)](https://www.nuget.org/packages/COA.Mcp.Framework)
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](https://github.com/anortham/COA-Mcp-Framework)
-[![Tests](https://img.shields.io/badge/tests-874%20passing-success)](https://github.com/anortham/COA-Mcp-Framework)
+[![Tests](https://img.shields.io/badge/tests-647%20passing-success)](https://github.com/anortham/COA-Mcp-Framework)
 [![.NET 9.0](https://img.shields.io/badge/.NET-9.0-blue)](https://dotnet.microsoft.com/download)
 
 ## 🚀 Quick Start
@@ -13,7 +13,7 @@ A comprehensive .NET framework for building and consuming Model Context Protocol
 
 ```xml
 <!-- Add to your .csproj file -->
-<PackageReference Include="COA.Mcp.Framework" Version="1.7.17" />
+<PackageReference Include="COA.Mcp.Framework" Version="1.7.22" />
 ```
 
 ### Create Your First MCP Server

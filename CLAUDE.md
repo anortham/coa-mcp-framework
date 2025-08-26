@@ -9,168 +9,159 @@
 4. Update consumer package references
 5. Restart MCP servers
 
-## 📁 Project Structure
+## ⚠️ AI-CRITICAL GOTCHAS (READ FIRST)
 
-```
-COA.Mcp.Framework/
-├── Base/McpToolBase.Generic.cs     # Generic tool base class
-├── Server/                          # Server infrastructure with prompt support
-├── Transport/                       # Multiple transport types (stdio, HTTP, WebSocket)
-├── Prompts/                        # Interactive prompt system
-├── Schema/                         # Type-safe schema system
-├── Registration/                   # Tool and prompt registries
-├── Pipeline/                       # Lifecycle hooks and middleware system
-├── Models/                         # Error models with recovery info
-└── COA.Mcp.Visualization/         # Visualization protocol contracts (NEW)
-```
+1. **NEVER assume types exist** - Always verify with CodeNav tools first
+2. **USE NUNIT ONLY** - `[Test]`, `[TestCase]`, `Assert.That()` - xUnit prohibited
+3. **Inherit from McpToolBase<TParams,TResult>** - Automatic validation included
+4. **Build-test-pack cycle** - Framework changes need full rebuild cycle
+5. **Validation helpers available** - `ValidateRequired()`, `ValidateRange()`, `ValidatePositive()`
+6. **Cache grows unbounded** - Configure `MaxCacheSize`, `EvictionStrategy` in TypeVerificationOptions
+7. **Sequential async kills performance** - Use `ConcurrentAsyncUtilities.ExecuteConcurrentlyAsync()`
 
-## ⚠️ Key Development Rules
+## 🚀 Quick Patterns (Copy-Paste Ready)
 
-1. **ALWAYS verify types/methods exist** - Never assume, always check
-2. **Build and test before committing** - All tests must pass
-3. **Use existing patterns** - Follow established code conventions
-4. **Include recovery steps in errors** - Help AI agents recover from failures
-5. **Prefer manual registration** - Explicit control over auto-discovery
-6. **USE NUNIT FOR TESTS ONLY** - This project uses NUnit exclusively! Use `[Test]`, `[TestCase]`, `Assert.That()`. xUnit is prohibited - all imports/usage will be flagged.
-
-## 🔧 Development Commands
-
-```bash
-# Essential commands for framework development
-dotnet build                        # Build framework
-dotnet test                         # Run all tests (must be 100% passing)
-dotnet pack -c Release              # Create NuGet packages
-```
-
-## 🛠️ Tool Development
-
-**Base Classes:**
-- `McpToolBase<TParams, TResult>` - Standard tools
-- `DisposableToolBase<TParams, TResult>` - Tools with resources (DB, files)
-
-**Key Patterns:**
-- Parameters validated automatically
-- Use validation helpers from McpToolBase: `ValidateRequired()`, `ValidateRange()`, `ValidatePositive()`, `ValidateNotEmpty()`
-- Return `ToolResultBase`-derived types
-- Override `ErrorMessages` for custom error messages with recovery steps
-- Override `TokenBudget` for per-tool token limits
-- Override `Middleware` for lifecycle hooks (logging, token counting)
-
-## 💬 Prompt Development
-
-**Base Class:** `PromptBase`
-- Use `CreateSystemMessage()`, `CreateUserMessage()` helpers
-- Implement argument validation
-- Support variable substitution with `{{variable}}` syntax
-
-## 📊 Current Status
-- **Version:** 1.7.22
-- **Tests:** 874 passing (100%) - NUnit framework
-- **Build:** 0 warnings
-- **Example:** `examples/SimpleMcpServer/` (5 tools + 2 prompts)
-- **NEW:** Advanced middleware system with type verification and TDD enforcement
-
-## 🛡️ Advanced Middleware System
-
-**NEW**: Comprehensive middleware for AI-assisted development:
-
-### TypeVerificationMiddleware
-Prevents AI-hallucinated types by verifying type existence before code operations:
-- **Smart Type Resolution**: Detects classes, interfaces, enums, member access
-- **Session-Scoped Caching**: Remembers verified types with file modification tracking
-- **Multi-Language Support**: C#, TypeScript, JavaScript with extensible patterns
-- **Enforcement Modes**: Strict (blocks), Warning (logs), Disabled
-- **Order:** 5 (runs very early in pipeline)
-
-### TddEnforcementMiddleware  
-Enforces Test-Driven Development by requiring failing tests before implementation:
-- **Red-Green-Refactor**: Implements proper TDD workflow
-- **Multi-Language Runners**: dotnet test, npm test, pytest, custom runners
-- **Smart Detection**: Distinguishes new features from refactoring
-- **Flexible Configuration**: Per-language test patterns and timeouts
-- **Order:** 10 (runs after type verification)
-
-### Configuration Example
+### Standard Tool Template
 ```csharp
-var builder = McpServerBuilder.Create("my-server")
-    .WithGlobalMiddleware(new List<ISimpleMiddleware>
+public class MyTool : McpToolBase<MyParams, MyResult>
+{
+    protected override async Task<MyResult> ExecuteAsync(MyParams parameters)
     {
-        new TypeVerificationMiddleware(typeService, stateManager, logger, typeOptions),
-        new TddEnforcementMiddleware(testService, logger, tddOptions),
-        new LoggingSimpleMiddleware(logger, LogLevel.Information)
-    });
+        ValidateRequired(parameters.RequiredField, nameof(parameters.RequiredField));
+        ValidateRange(parameters.Count, 1, 100, nameof(parameters.Count));
+        
+        // Implementation here
+        return new MyResult { Success = true };
+    }
+}
 ```
 
-## 🎨 Visualization Protocol
-
-Tools can provide structured visualization data for rich UI clients:
-- Implement `IVisualizationProvider` for tools that need visualization
-- Return `VisualizationDescriptor` with data and display hints
-- VS Code Bridge handles all rendering - no markdown generation needed
-- Protocol is language-agnostic (works with TypeScript/Python/Rust MCP servers)
-- See `docs/VISUALIZATION_PROTOCOL.md` for full specification
-
-## 🛑 Common Issues & Solutions
-
-| Issue | Solution |
-|-------|----------|
-| Changes not reflected | Rebuild, repack, update package reference |
-| Tool not found | Verify inheritance from McpToolBase |
-| Validation errors | Use validation helpers from McpToolBase (ValidateRequired, ValidateRange, etc.) |
-| Token limits | Configure TokenBudgets in server builder |
-| Custom error messages | Override ErrorMessages property in tool |
-| Lifecycle hooks not working | Override Middleware property with ISimpleMiddleware list |
-| Visualization not showing | Check IVisualizationProvider implementation |
-| **Type verification blocking** | **Configure TypeVerificationOptions, add to WhitelistedTypes, or set Mode = Warning** |
-| **TDD enforcement blocking** | **Run failing tests first, configure TddEnforcementOptions, or set Mode = Warning** |
-| **Middleware not running** | **Check Order property, ensure registered in WithGlobalMiddleware()** |
-| **Types flagged incorrectly** | **Use CodeNav tools to verify types exist, check namespaces/imports** |
-| **Tests not detected** | **Configure TestRunnerConfig for your language, check FailingTestPatterns** |
-
-## 📍 Key Files
-
-| Component | File Path |
-|-----------|-----------|
-| Tool base (includes validation helpers) | `src/COA.Mcp.Framework/Base/McpToolBase.Generic.cs` |
-| Prompt base | `src/COA.Mcp.Framework/Prompts/PromptBase.cs` |
-| Server builder | `src/COA.Mcp.Framework/Server/McpServerBuilder.cs` |
-| Middleware base | `src/COA.Mcp.Framework/Pipeline/SimpleMiddleware.cs` |
-| **Type verification middleware** | **`src/COA.Mcp.Framework/Pipeline/Middleware/TypeVerificationMiddleware.cs`** |
-| **TDD enforcement middleware** | **`src/COA.Mcp.Framework/Pipeline/Middleware/TddEnforcementMiddleware.cs`** |
-| **Verification state manager** | **`src/COA.Mcp.Framework/Services/VerificationStateManager.cs`** |
-| **Type verification options** | **`src/COA.Mcp.Framework/Configuration/TypeVerificationOptions.cs`** |
-| **TDD enforcement options** | **`src/COA.Mcp.Framework/Configuration/TddEnforcementOptions.cs`** |
-| Example server | `examples/SimpleMcpServer/` |
-
-## 🚀 Quick Start with Middleware
-
+### Disposable Tool (DB/Files)
 ```csharp
-// 1. Configure services
-services.AddSingleton<ITypeResolutionService, CodeNavTypeResolutionService>();
-services.AddSingleton<IVerificationStateManager, VerificationStateManager>();
-services.AddSingleton<ITestStatusService, DefaultTestStatusService>();
+public class DatabaseTool : DisposableToolBase<DbParams, DbResult>
+{
+    protected override async Task<DbResult> ExecuteAsync(DbParams parameters)
+    {
+        ValidateRequired(parameters.ConnectionString, nameof(parameters.ConnectionString));
+        
+        using var connection = new SqlConnection(parameters.ConnectionString);
+        // Implementation with automatic cleanup
+    }
+}
+```
 
-// 2. Configure options
+### Error with Recovery
+```csharp
+protected override Dictionary<string, string> ErrorMessages => new()
+{
+    ["validation_failed"] = "Required field missing. Add: parameters.RequiredField = 'value'",
+    ["range_error"] = "Count must be 1-100. Current: {0}. Fix: parameters.Count = 50"
+};
+```
+
+### Middleware Configuration
+```csharp
+// Essential setup - copy-paste and modify
 services.Configure<TypeVerificationOptions>(options =>
 {
     options.Enabled = true;
     options.Mode = TypeVerificationMode.Warning; // Start with warnings
+    options.MaxCacheSize = 10000;
+    options.EvictionStrategy = CacheEvictionStrategy.LRU;
+    options.MaxMemoryBytes = 50 * 1024 * 1024; // 50MB
 });
 
-services.Configure<TddEnforcementOptions>(options =>
-{
-    options.Enabled = false; // Enable when ready for TDD
-});
-
-// 3. Add middleware to server
 var builder = McpServerBuilder.Create("my-server", services)
     .WithGlobalMiddleware(new List<ISimpleMiddleware>
     {
         new TypeVerificationMiddleware(typeService, stateManager, logger, typeOptions),
-        new TddEnforcementMiddleware(testService, logger, tddOptions),
         new LoggingSimpleMiddleware(logger, LogLevel.Information)
     });
 ```
 
+## 📍 Essential Files (AI Priority Order)
+
+| When You Need | File |
+|---------------|------|
+| **Tool base class** | `src/COA.Mcp.Framework/Base/McpToolBase.Generic.cs` |
+| **Server setup** | `src/COA.Mcp.Framework/Server/McpServerBuilder.cs` |
+| **Type verification** | `src/COA.Mcp.Framework/Pipeline/Middleware/TypeVerificationMiddleware.cs` |
+| **Cache management** | `src/COA.Mcp.Framework/Services/VerificationStateManager.cs` |
+| **Async utilities** | `src/COA.Mcp.Framework/Utilities/ConcurrentAsyncUtilities.cs` |
+| **Configuration** | `src/COA.Mcp.Framework/Configuration/TypeVerificationOptions.cs` |
+| **Examples** | `examples/SimpleMcpServer/` |
+
+## 🛑 Troubleshooting (When Things Go Wrong)
+
+| Problem | Solution |
+|---------|----------|
+| **Changes not working** | `dotnet build && dotnet pack -c Release` → Update consumer |
+| **Type not found** | Use CodeNav to verify type exists, check namespaces |
+| **Tool not registering** | Verify inheritance from McpToolBase<TParams,TResult> |
+| **Tests failing** | Check NUnit syntax: `[Test]`, `Assert.That()` |
+| **Memory growing** | Configure MaxCacheSize, use LRU eviction |
+| **Slow async** | Replace `foreach+await` with `ConcurrentAsyncUtilities` |
+| **Middleware not running** | Check Order property, verify registration |
+
+## 📊 Current Status
+- **Version:** 1.7.22
+- **Tests:** 647 passing (100%) - NUnit framework
+- **Build:** 0 warnings
+- **Example:** `examples/SimpleMcpServer/` (5 tools + 2 prompts)
+
+## 🛠️ Tool Development Essentials
+
+**Base Classes:**
+- `McpToolBase<TParams, TResult>` - Standard tools with automatic validation
+- `DisposableToolBase<TParams, TResult>` - Tools with resources (DB, files, HTTP)
+
+**Validation Helpers (built-in):**
+- `ValidateRequired(value, paramName)` - Null/empty checks
+- `ValidateRange(value, min, max, paramName)` - Numeric ranges
+- `ValidatePositive(value, paramName)` - Positive numbers only
+- `ValidateNotEmpty(collection, paramName)` - Non-empty collections
+
+**Override Points:**
+- `ExecuteAsync()` - Main implementation (required)
+- `ErrorMessages` - Custom error messages with recovery steps
+- `TokenBudget` - Per-tool token limits
+- `Middleware` - Lifecycle hooks (logging, validation)
+
+## ⚡ Performance Essentials
+
+**Cache Configuration:**
+```csharp
+options.MaxCacheSize = 10000; // Entries limit
+options.EvictionStrategy = CacheEvictionStrategy.LRU; // LRU recommended
+options.MaxMemoryBytes = 50 * 1024 * 1024; // Memory limit
+options.EnableFileWatching = true; // Auto-invalidate on changes
+```
+
+**Concurrent Processing:**
+```csharp
+// Instead of slow sequential:
+foreach (var item in items) await ProcessAsync(item);
+
+// Use concurrent:
+await ConcurrentAsyncUtilities.ExecuteConcurrentlyAsync(items, ProcessAsync, maxConcurrency: 10);
+```
+
+## 🎨 Advanced Features
+
+**Visualization:** Implement `IVisualizationProvider` for rich UI data
+**Prompts:** Use `PromptBase` with `{{variable}}` substitution
+**Middleware:** Order matters - TypeVerification(5), TDD(10), Logging(100)
+
+## 📁 Project Structure
+```
+COA.Mcp.Framework/
+├── Base/                    # Tool base classes with validation
+├── Server/                  # Server infrastructure
+├── Pipeline/Middleware/     # TypeVerification, TDD enforcement
+├── Services/               # Cache management, utilities
+├── Configuration/          # Options and settings
+└── examples/               # Working examples
+```
+
 ---
-**Remember**: This is a framework - changes require rebuild + repack + consumer update!
+**Remember**: Framework changes require rebuild + repack + consumer update!

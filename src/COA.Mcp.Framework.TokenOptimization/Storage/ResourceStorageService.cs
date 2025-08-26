@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Concurrent;
+using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using COA.Mcp.Framework.TokenOptimization.Storage.Strategies;
+using COA.Mcp.Framework.Utilities;
 
 namespace COA.Mcp.Framework.TokenOptimization.Storage;
 
@@ -125,21 +127,28 @@ public class ResourceStorageService : IResourceStorageService
     {
         var now = DateTime.UtcNow;
         
-        // Clean up expired metadata
-        foreach (var kvp in _metadata)
+        // Find expired resources to clean up
+        var expiredResources = _metadata
+            .Where(kvp => kvp.Value.ExpiresAt.HasValue && kvp.Value.ExpiresAt.Value <= now)
+            .ToArray();
+        
+        // Clean up expired metadata concurrently with limited concurrency to avoid overwhelming storage
+        if (expiredResources.Any())
         {
-            if (kvp.Value.ExpiresAt.HasValue && kvp.Value.ExpiresAt.Value <= now)
-            {
-                _metadata.TryRemove(kvp.Key, out _);
-                await DeleteAsync(kvp.Value.Uri);
-            }
+            await ConcurrentAsyncUtilities.ExecuteConcurrentlyAsync(
+                expiredResources,
+                async kvp =>
+                {
+                    _metadata.TryRemove(kvp.Key, out _);
+                    await DeleteAsync(kvp.Value.Uri);
+                },
+                maxConcurrency: 5); // Limit to 5 concurrent deletions to avoid overwhelming storage
         }
         
-        // Clean up each strategy
-        foreach (var strategy in _strategies.Values)
-        {
-            await strategy.CleanupAsync();
-        }
+        // Clean up each strategy concurrently
+        await ConcurrentAsyncUtilities.ExecuteConcurrentlyAsync(
+            _strategies.Values,
+            async strategy => await strategy.CleanupAsync());
     }
     
     private IStorageStrategy? GetStrategy(string storageType)

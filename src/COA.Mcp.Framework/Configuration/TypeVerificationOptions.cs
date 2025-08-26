@@ -51,6 +51,26 @@ public class TypeVerificationOptions
     public int MaxCacheSize { get; set; } = 10000;
 
     /// <summary>
+    /// Gets or sets the cache eviction strategy to use when MaxCacheSize is exceeded.
+    /// Default: LRU (Least Recently Used)
+    /// </summary>
+    public CacheEvictionStrategy EvictionStrategy { get; set; } = CacheEvictionStrategy.LRU;
+
+    /// <summary>
+    /// Gets or sets the percentage of entries to evict when cache limit is exceeded.
+    /// For example, 0.25 means evict 25% of entries when limit is reached.
+    /// Default: 0.20 (20%)
+    /// </summary>
+    public double EvictionPercentage { get; set; } = 0.20;
+
+    /// <summary>
+    /// Gets or sets the maximum memory usage in bytes before triggering eviction.
+    /// Set to 0 to disable memory-based eviction (count-based only).
+    /// Default: 50MB (52,428,800 bytes)
+    /// </summary>
+    public long MaxMemoryBytes { get; set; } = 50 * 1024 * 1024;
+
+    /// <summary>
     /// Gets or sets whether to enable file watching for automatic cache invalidation.
     /// Default: true
     /// </summary>
@@ -133,6 +153,16 @@ public class TypeVerificationOptions
         if (MaxCacheSize <= 0)
         {
             MaxCacheSize = 10000;
+        }
+
+        if (EvictionPercentage <= 0.0 || EvictionPercentage >= 1.0)
+        {
+            EvictionPercentage = 0.20;
+        }
+
+        if (MaxMemoryBytes < 0)
+        {
+            MaxMemoryBytes = 50 * 1024 * 1024; // 50MB default
         }
 
         if (ConfidenceThreshold < 0.0 || ConfidenceThreshold > 1.0)
@@ -227,4 +257,30 @@ public enum TypeVerificationMode
     /// Block operations that use unverified types (default).
     /// </summary>
     Strict = 2
+}
+
+/// <summary>
+/// Enumeration of cache eviction strategies.
+/// </summary>
+public enum CacheEvictionStrategy
+{
+    /// <summary>
+    /// Least Recently Used - evict entries that haven't been accessed recently.
+    /// </summary>
+    LRU = 1,
+
+    /// <summary>
+    /// Least Frequently Used - evict entries with the lowest access count.
+    /// </summary>
+    LFU = 2,
+
+    /// <summary>
+    /// First In, First Out - evict the oldest entries by creation time.
+    /// </summary>
+    FIFO = 3,
+
+    /// <summary>
+    /// Random - evict random entries (fastest, least optimal).
+    /// </summary>
+    Random = 4
 }

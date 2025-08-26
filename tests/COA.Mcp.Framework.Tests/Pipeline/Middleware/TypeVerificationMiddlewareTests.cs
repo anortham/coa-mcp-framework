@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 using COA.Mcp.Framework.Configuration;
@@ -418,6 +419,110 @@ public class TypeVerificationMiddlewareTests
 
         // Assert
         _mockVerificationStateManager.Verify(x => x.IsTypeVerifiedAsync("CustomFrameworkType"), Times.Never);
+    }
+
+    /// <summary>
+    /// BUG REPRODUCTION: Tests sequential async performance killer in TypeVerificationMiddleware.
+    /// This test SHOULD FAIL due to sequential await calls in foreach loops (lines 112-144).
+    /// Expected behavior: Concurrent verification of multiple types for performance.
+    /// Actual behavior: Each type verification blocks the next, causing O(n) sequential delays.
+    /// </summary>
+    [Test]
+    public async Task OnBeforeExecutionAsync_WithManyTypes_ShouldFailDueToSequentialAsyncPerformance()
+    {
+        // Arrange - Create code with many custom types to trigger sequential verification bottleneck
+        var typeCount = 20;
+        var typeNames = Enumerable.Range(0, typeCount).Select(i => $"CustomType{i}").ToList();
+        var code = string.Join(" ", typeNames.Select(t => $"{t} {t.ToLower()} = new {t}();"));
+        var parameters = CreateEditParameters(code, "test.cs");
+        
+        // Setup mock to simulate realistic verification delays
+        var verificationDelayMs = 100; // Simulate realistic async operation delay
+        foreach (var typeName in typeNames)
+        {
+            _mockVerificationStateManager
+                .Setup(x => x.IsTypeVerifiedAsync(typeName))
+                .Returns(async () =>
+                {
+                    await Task.Delay(verificationDelayMs); // Simulate network/disk I/O delay
+                    return true;
+                });
+        }
+        
+        // Act - Measure execution time to prove sequential bottleneck
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        await _middleware.OnBeforeExecutionAsync("Edit", parameters);
+        stopwatch.Stop();
+        
+        // Assert - This SHOULD PASS with concurrent execution but WILL FAIL with sequential
+        var actualTimeMs = stopwatch.ElapsedMilliseconds;
+        var expectedSequentialTimeMs = typeCount * verificationDelayMs; // 20 * 100ms = 2000ms
+        var expectedConcurrentTimeMs = verificationDelayMs + 50; // ~150ms with proper concurrency
+        
+        // BUG: Sequential foreach loops cause actual time to be close to sequential time
+        Assert.That(actualTimeMs, Is.LessThan(expectedConcurrentTimeMs * 2), // Allow some tolerance
+            $"CRITICAL PERFORMANCE BUG: TypeVerificationMiddleware took {actualTimeMs}ms " +
+            $"but should take ~{expectedConcurrentTimeMs}ms with concurrent execution. " +
+            $"Root cause: Lines 112-144 use sequential 'foreach (var typeRef in extractedTypes) await _verificationStateManager.IsTypeVerifiedAsync(...)' " +
+            $"Expected: Task.WhenAll() or Parallel.ForEachAsync() for concurrent verification. " +
+            $"Impact: {typeCount} types verified sequentially = {expectedSequentialTimeMs}ms instead of {expectedConcurrentTimeMs}ms");
+            
+        // Verify all types were actually checked (correctness preserved)
+        foreach (var typeName in typeNames)
+        {
+            _mockVerificationStateManager.Verify(x => x.IsTypeVerifiedAsync(typeName), Times.Once);
+        }
+    }
+
+    /// <summary>
+    /// BUG REPRODUCTION: Tests member verification also suffers from sequential performance.
+    /// Lines 130-142 also use sequential await in foreach for member verification.
+    /// </summary>
+    [Test]
+    public async Task OnBeforeExecutionAsync_WithManyMemberAccess_ShouldFailDueToSequentialMemberVerification()
+    {
+        // Arrange - Create code with many member accesses to trigger member verification bottleneck
+        var memberCount = 15;
+        var memberAccesses = Enumerable.Range(0, memberCount).Select(i => $"User.Property{i}").ToList();
+        var code = string.Join("; ", memberAccesses.Select(m => $"{m} = \"test\"")) + ";";
+        var parameters = CreateEditParameters(code, "test.cs");
+        
+        // Setup User type as verified
+        _mockVerificationStateManager
+            .Setup(x => x.IsTypeVerifiedAsync("User"))
+            .ReturnsAsync(true);
+            
+        // Setup member verification with delays
+        var memberDelayMs = 50;
+        for (int i = 0; i < memberCount; i++)
+        {
+            var memberName = $"Property{i}";
+            _mockVerificationStateManager
+                .Setup(x => x.HasVerifiedMemberAsync("User", memberName))
+                .Returns(async () =>
+                {
+                    await Task.Delay(memberDelayMs); // Simulate member lookup delay
+                    return true;
+                });
+        }
+        
+        // Act - Measure member verification performance
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        await _middleware.OnBeforeExecutionAsync("Edit", parameters);
+        stopwatch.Stop();
+        
+        // Assert - Member verification should be concurrent but isn't
+        var actualTimeMs = stopwatch.ElapsedMilliseconds;
+        var expectedSequentialTimeMs = memberCount * memberDelayMs; // 15 * 50ms = 750ms
+        var expectedConcurrentTimeMs = memberDelayMs + 25; // ~75ms with concurrency
+        
+        // BUG: Lines 130-142 sequential member verification
+        Assert.That(actualTimeMs, Is.LessThan(expectedConcurrentTimeMs * 2),
+            $"CRITICAL PERFORMANCE BUG: Member verification took {actualTimeMs}ms " +
+            $"but should take ~{expectedConcurrentTimeMs}ms with concurrent execution. " +
+            $"Root cause: Lines 130-142 use sequential 'await _verificationStateManager.HasVerifiedMemberAsync()' in foreach loop. " +
+            $"Expected: Concurrent member verification using Task.WhenAll(). " +
+            $"Impact: Each member verification blocks the next causing O(n) delays!");
     }
 
     private static object CreateEditParameters(string code, string filePath)

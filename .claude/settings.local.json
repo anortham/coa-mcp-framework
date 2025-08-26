@@ -43,7 +43,15 @@
       "Read(/C:\\source\\COA CodeNav MCP\\docs/**)",
       "Bash(csc:*)",
       "Bash(debug_regex.exe)",
-      "Bash(dotnet script:*)"
+      "Bash(dotnet script:*)",
+      "mcp__goldfish__remember",
+      "mcp__goldfish__recall",
+      "mcp__goldfish__create_todo_list",
+      "mcp__codenav__csharp_find_symbol",
+      "mcp__goldfish__update_todo",
+      "mcp__codenav__csharp_find_all_references",
+      "mcp__codesearch__recent_files",
+      "mcp__codenav__csharp_get_type_members"
     ],
     "deny": [],
     "defaultMode": "acceptEdits",

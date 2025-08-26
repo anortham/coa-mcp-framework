@@ -24,6 +24,7 @@ public class VerificationStateManager : IVerificationStateManager, IHostedServic
     private readonly ILogger<VerificationStateManager> _logger;
     private readonly TypeVerificationOptions _options;
     private readonly ConcurrentDictionary<string, TypeVerificationState> _typeCache = new();
+    private readonly object _evictionLock = new();
     private readonly ConcurrentDictionary<string, FileSystemWatcher> _fileWatchers = new();
     private readonly object _persistenceLock = new();
     
@@ -110,6 +111,7 @@ public class VerificationStateManager : IVerificationStateManager, IHostedServic
             TypeName = typeName,
             FilePath = typeInfo.FilePath,
             VerifiedAt = DateTime.UtcNow,
+            LastAccessedAt = DateTime.UtcNow, // Initialize for proper LRU ordering
             VerificationMethod = VerificationMethod.ExplicitVerification,
             Namespace = typeInfo.Namespace,
             AssemblyName = typeInfo.AssemblyName,
@@ -144,6 +146,12 @@ public class VerificationStateManager : IVerificationStateManager, IHostedServic
             }
             return state;
         });
+
+        // Enforce cache limits (both count and memory-based)
+        if (ShouldTriggerEviction())
+        {
+            EnforceCacheLimits();
+        }
 
         _logger.LogDebug("Marked type {TypeName} as verified via {Method}", 
             typeName, state.VerificationMethod);
@@ -277,8 +285,8 @@ public class VerificationStateManager : IVerificationStateManager, IHostedServic
         var totalAge = validStates.Sum(s => (now - s.VerifiedAt).TotalHours);
         var averageAge = validStates.Count > 0 ? totalAge / validStates.Count : 0;
 
-        // Estimate memory usage
-        var estimatedMemoryBytes = _typeCache.Count * 1024; // Rough estimate per entry
+        // Estimate memory usage with more accurate calculation
+        var estimatedMemoryBytes = EstimateCacheMemoryUsage();
 
         return new VerificationCacheStatistics
         {
@@ -553,6 +561,420 @@ public class VerificationStateManager : IVerificationStateManager, IHostedServic
         if (index <= 0) return 1;
         var lastNewline = text.LastIndexOf('\n', index - 1);
         return index - lastNewline;
+    }
+
+    /// <summary>
+    /// Estimates the memory usage of the cache with more accurate calculation.
+    /// </summary>
+    private long EstimateCacheMemoryUsage()
+    {
+        try
+        {
+            if (_typeCache.IsEmpty)
+                return 0;
+
+            long totalMemory = 0;
+
+            // Take a snapshot to avoid concurrent modification issues
+            var cacheSnapshot = _typeCache.ToList();
+
+            foreach (var kvp in cacheSnapshot)
+            {
+                try
+                {
+                    var state = kvp.Value;
+                    if (state == null)
+                        continue;
+
+                    // Base object overhead and fixed fields
+                    long stateMemory = 200; // Base TypeVerificationState object
+
+                    // String fields (TypeName, FilePath, Namespace, AssemblyName, BaseType)
+                    stateMemory += EstimateStringMemory(state.TypeName);
+                    stateMemory += EstimateStringMemory(state.FilePath);
+                    stateMemory += EstimateStringMemory(state.Namespace);
+                    stateMemory += EstimateStringMemory(state.AssemblyName);
+                    stateMemory += EstimateStringMemory(state.BaseType);
+
+                    // Interface collection
+                    if (state.Interfaces?.Any() == true)
+                    {
+                        stateMemory += 50; // Collection overhead
+                        try
+                        {
+                            stateMemory += state.Interfaces.Sum(i => EstimateStringMemory(i));
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogDebug("Error estimating interface memory for {TypeName}: {Error}", 
+                                state.TypeName, ex.Message);
+                        }
+                    }
+
+                    // Members dictionary (major memory contributor)
+                    if (state.Members?.Any() == true)
+                    {
+                        stateMemory += 100; // Dictionary overhead
+                        try
+                        {
+                            foreach (var member in state.Members)
+                            {
+                                stateMemory += EstimateStringMemory(member.Key); // Member name
+                                stateMemory += 150; // MemberInfo object overhead
+                                stateMemory += EstimateStringMemory(member.Value?.Name);
+                                stateMemory += EstimateStringMemory(member.Value?.DataType);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogDebug("Error estimating member memory for {TypeName}: {Error}", 
+                                state.TypeName, ex.Message);
+                        }
+                    }
+
+                    // Metadata dictionary
+                    if (state.Metadata?.Any() == true)
+                    {
+                        stateMemory += 50; // Dictionary overhead
+                        try
+                        {
+                            stateMemory += state.Metadata.Sum(kvp => 
+                                EstimateStringMemory(kvp.Key) + EstimateObjectMemory(kvp.Value));
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogDebug("Error estimating metadata memory for {TypeName}: {Error}", 
+                                state.TypeName, ex.Message);
+                        }
+                    }
+
+                    totalMemory += stateMemory;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogDebug("Error estimating memory for entry {Key}: {Error}", kvp.Key, ex.Message);
+                    // Continue with other entries - don't let one bad entry break everything
+                }
+            }
+
+            return totalMemory;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Error estimating cache memory usage, returning conservative estimate");
+            // Return a conservative estimate based on entry count
+            return Math.Max(0, _typeCache.Count * 2048); // 2KB per entry as fallback
+        }
+    }
+
+    /// <summary>
+    /// Estimates memory usage of a string.
+    /// </summary>
+    private static long EstimateStringMemory(string? str)
+    {
+        if (string.IsNullOrEmpty(str))
+            return 0;
+        
+        // String object overhead (24 bytes on 64-bit) + character data (2 bytes per char)
+        return 24 + (str.Length * 2);
+    }
+
+    /// <summary>
+    /// Estimates memory usage of an object in metadata.
+    /// </summary>
+    private static long EstimateObjectMemory(object? obj)
+    {
+        if (obj == null)
+            return 0;
+
+        return obj switch
+        {
+            string str => EstimateStringMemory(str),
+            int or long or double or float or bool => 8, // Basic primitive types
+            DateTime => 16, // DateTime struct
+            Guid => 16, // Guid struct
+            _ => 50 // Generic object overhead for other types
+        };
+    }
+
+    /// <summary>
+    /// Determines if cache eviction should be triggered based on size and memory limits.
+    /// </summary>
+    private bool ShouldTriggerEviction()
+    {
+        // Count-based eviction check
+        if (_typeCache.Count > _options.MaxCacheSize)
+            return true;
+
+        // Memory-based eviction check (if enabled)
+        if (_options.MaxMemoryBytes > 0)
+        {
+            var currentMemory = EstimateCacheMemoryUsage();
+            if (currentMemory > _options.MaxMemoryBytes)
+                return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Enforces cache limits using the configured eviction strategy.
+    /// </summary>
+    private void EnforceCacheLimits()
+    {
+        try
+        {
+            lock (_evictionLock)
+            {
+                try
+                {
+                    // Double-check after acquiring lock
+                    if (!ShouldTriggerEviction())
+                        return;
+
+                    var currentCount = _typeCache.Count;
+                    var currentMemory = 0L;
+                    
+                    // Safely get memory usage
+                    try
+                    {
+                        currentMemory = _options.MaxMemoryBytes > 0 ? EstimateCacheMemoryUsage() : 0;
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to estimate memory usage during eviction, using count-based eviction only");
+                        currentMemory = 0; // Fallback to count-based eviction only
+                    }
+                    
+                    // Calculate how many entries to evict
+                    var targetEvictCount = CalculateEvictionCount(currentCount, currentMemory);
+                    if (targetEvictCount <= 0)
+                        return;
+
+                    // Limit eviction count to prevent excessive removal
+                    var maxSafeEviction = Math.Max(1, currentCount / 2); // Never evict more than half
+                    targetEvictCount = Math.Min(targetEvictCount, maxSafeEviction);
+
+                    // Select entries to evict based on strategy
+                    List<TypeVerificationState> entriesToEvict;
+                    try
+                    {
+                        entriesToEvict = SelectEntriesForEviction(targetEvictCount);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Failed to select entries for eviction using {Strategy} strategy, " +
+                            "falling back to LRU", _options.EvictionStrategy);
+                        
+                        // Fallback to LRU if configured strategy fails
+                        try
+                        {
+                            entriesToEvict = _typeCache.Values
+                                .OrderBy(state => state.LastAccessedAt)
+                                .Take(targetEvictCount)
+                                .ToList();
+                        }
+                        catch (Exception fallbackEx)
+                        {
+                            _logger.LogError(fallbackEx, "Fallback LRU eviction also failed, aborting eviction");
+                            return;
+                        }
+                    }
+
+                    if (!entriesToEvict?.Any() == true)
+                        return;
+
+                    // Perform eviction with retry logic
+                    var evictedCount = PerformEvictionWithRetry(entriesToEvict!);
+
+                    if (evictedCount > 0)
+                    {
+                        var finalMemory = 0L;
+                        try
+                        {
+                            finalMemory = _options.MaxMemoryBytes > 0 ? EstimateCacheMemoryUsage() : 0;
+                        }
+                        catch
+                        {
+                            // Ignore memory estimation errors in success logging
+                        }
+
+                        _logger.LogDebug("Evicted {EvictedCount}/{TargetCount} entries using {Strategy} strategy. " +
+                            "Cache size: {CurrentSize}/{MaxSize}, Memory: ~{CurrentMemory}/{MaxMemory} bytes", 
+                            evictedCount, targetEvictCount, _options.EvictionStrategy, _typeCache.Count, _options.MaxCacheSize,
+                            finalMemory, _options.MaxMemoryBytes);
+                    }
+                    else
+                    {
+                        _logger.LogWarning("Cache eviction failed - no entries could be removed despite exceeding limits. " +
+                            "Cache size: {CurrentSize}/{MaxSize}", _typeCache.Count, _options.MaxCacheSize);
+                    }
+                }
+                catch (Exception innerEx)
+                {
+                    _logger.LogError(innerEx, "Critical error during cache eviction process");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to acquire lock for cache eviction - cache may continue growing beyond limits");
+        }
+    }
+
+    /// <summary>
+    /// Calculates how many entries to evict based on current cache state.
+    /// </summary>
+    private int CalculateEvictionCount(int currentCount, long currentMemory)
+    {
+        var countBasedEviction = Math.Max(0, currentCount - _options.MaxCacheSize);
+        
+        // Use eviction percentage for more aggressive cleanup
+        var percentageBasedEviction = (int)(currentCount * _options.EvictionPercentage);
+        
+        // Memory-based eviction (rough estimate)
+        var memoryBasedEviction = 0;
+        if (_options.MaxMemoryBytes > 0 && currentMemory > _options.MaxMemoryBytes)
+        {
+            // Estimate entries to remove based on average entry size
+            var avgEntrySize = currentCount > 0 ? currentMemory / currentCount : 1024;
+            var excessMemory = currentMemory - _options.MaxMemoryBytes;
+            memoryBasedEviction = (int)((excessMemory / avgEntrySize) * 1.2); // 20% extra for safety
+        }
+
+        // Use the maximum of the calculated eviction counts
+        return Math.Max(countBasedEviction, Math.Max(percentageBasedEviction, memoryBasedEviction));
+    }
+
+    /// <summary>
+    /// Selects entries for eviction based on the configured strategy.
+    /// </summary>
+    private List<TypeVerificationState> SelectEntriesForEviction(int targetCount)
+    {
+        if (targetCount <= 0)
+            return new List<TypeVerificationState>();
+
+        try
+        {
+            // Take a snapshot to avoid concurrent modification
+            var allEntries = _typeCache.Values.ToList();
+            
+            if (!allEntries.Any())
+                return new List<TypeVerificationState>();
+
+            // Limit target count to available entries
+            var actualTargetCount = Math.Min(targetCount, allEntries.Count);
+
+            return _options.EvictionStrategy switch
+            {
+                CacheEvictionStrategy.LRU => allEntries
+                    .Where(state => state != null)
+                    .OrderBy(state => state.LastAccessedAt)
+                    .Take(actualTargetCount)
+                    .ToList(),
+
+                CacheEvictionStrategy.LFU => allEntries
+                    .Where(state => state != null)
+                    .OrderBy(state => state.AccessCount)
+                    .ThenBy(state => state.LastAccessedAt)
+                    .Take(actualTargetCount)
+                    .ToList(),
+
+                CacheEvictionStrategy.FIFO => allEntries
+                    .Where(state => state != null)
+                    .OrderBy(state => state.VerifiedAt)
+                    .Take(actualTargetCount)
+                    .ToList(),
+
+                CacheEvictionStrategy.Random => allEntries
+                    .Where(state => state != null)
+                    .OrderBy(_ => Guid.NewGuid())
+                    .Take(actualTargetCount)
+                    .ToList(),
+
+                _ => allEntries
+                    .Where(state => state != null)
+                    .OrderBy(state => state.LastAccessedAt)
+                    .Take(actualTargetCount)
+                    .ToList()
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error selecting entries for eviction with strategy {Strategy}", _options.EvictionStrategy);
+            throw; // Let the caller handle fallback
+        }
+    }
+
+    /// <summary>
+    /// Performs the actual eviction of selected entries with retry logic.
+    /// </summary>
+    private int PerformEvictionWithRetry(List<TypeVerificationState> entriesToEvict)
+    {
+        if (entriesToEvict?.Any() != true)
+            return 0;
+
+        var evictedCount = 0;
+        var failures = new List<string>();
+        
+        foreach (var state in entriesToEvict)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(state?.TypeName))
+                {
+                    failures.Add("null or empty type name");
+                    continue;
+                }
+
+                // Attempt to remove with multiple retries for concurrent scenarios
+                var attempts = 0;
+                const int maxAttempts = 3;
+                bool removed = false;
+
+                while (attempts < maxAttempts && !removed)
+                {
+                    attempts++;
+                    
+                    if (_typeCache.TryRemove(state.TypeName, out var removedState))
+                    {
+                        removed = true;
+                        evictedCount++;
+                        
+                        // Log successful eviction at debug level
+                        if (_logger.IsEnabled(LogLevel.Trace))
+                        {
+                            _logger.LogTrace("Evicted type {TypeName} (last accessed: {LastAccessed}, access count: {AccessCount})",
+                                state.TypeName, state.LastAccessedAt, state.AccessCount);
+                        }
+                    }
+                    else if (attempts < maxAttempts)
+                    {
+                        // Brief pause before retry to handle race conditions
+                        Thread.Sleep(1);
+                    }
+                }
+
+                if (!removed)
+                {
+                    failures.Add($"{state.TypeName} (failed after {maxAttempts} attempts)");
+                }
+            }
+            catch (Exception ex)
+            {
+                failures.Add($"{state?.TypeName ?? "unknown"} ({ex.GetType().Name}: {ex.Message})");
+                _logger.LogDebug(ex, "Error evicting cache entry {TypeName}", state?.TypeName);
+            }
+        }
+
+        // Log failures if any occurred
+        if (failures.Any())
+        {
+            _logger.LogDebug("Failed to evict {FailureCount} entries: {Failures}", 
+                failures.Count, string.Join(", ", failures.Take(5))); // Limit logged failures
+        }
+
+        return evictedCount;
     }
 
     /// <inheritdoc/>

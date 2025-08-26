@@ -474,6 +474,110 @@ public class VerificationStateManagerTests
         await _manager.StopAsync(CancellationToken.None);
     }
 
+    /// <summary>
+    /// Tests that cache enforces size limits using LRU eviction.
+    /// This test should PASS after the cache eviction fix.
+    /// </summary>
+    [Test]
+    public async Task CacheGrowth_WithSmallMaxSize_ShouldEnforceLRUEviction()
+    {
+        // Arrange - Create a new manager with small cache size limit
+        var smallCacheOptions = new TypeVerificationOptions
+        {
+            Enabled = true,
+            CacheExpirationHours = 24,
+            AutoVerifyOnHover = true,
+            RequireMemberVerification = true,
+            MaxCacheSize = 5 // Small limit to test eviction
+        };
+        
+        using var smallCacheManager = new VerificationStateManager(_mockLogger.Object, Options.Create(smallCacheOptions));
+        
+        var typesToAdd = 10; // Double the configured limit
+        var expectedMaxCacheSize = smallCacheOptions.MaxCacheSize;
+        
+        // Act - Add more types than the limit allows
+        for (int i = 0; i < typesToAdd; i++)
+        {
+            var typeInfo = CreateTestTypeInfo($"TestType{i}", $"Models/TestType{i}.cs");
+            await smallCacheManager.MarkTypeVerifiedAsync($"TestType{i}", typeInfo);
+        }
+        
+        // Assert - Cache should enforce size limit with LRU eviction  
+        var stats = await smallCacheManager.GetCacheStatisticsAsync();
+        
+        // Cache should be limited to MaxCacheSize
+        Assert.That(stats.TotalTypes, Is.LessThanOrEqualTo(expectedMaxCacheSize),
+            $"Cache should be limited to {expectedMaxCacheSize} types but contains {stats.TotalTypes}. " +
+            $"LRU eviction policy should prevent unbounded growth.");
+        
+        // Additional verification - check that oldest entries were evicted (LRU behavior)
+        // These should be false if LRU eviction worked properly
+        var oldestTypeExists = await smallCacheManager.IsTypeVerifiedAsync("TestType0");
+        var newestTypeExists = await smallCacheManager.IsTypeVerifiedAsync($"TestType{typesToAdd - 1}");
+        
+        Assert.That(oldestTypeExists, Is.False, 
+            "Oldest cache entry should be evicted by LRU policy");
+        Assert.That(newestTypeExists, Is.True, 
+            "Newest cache entry should still exist after eviction");
+    }
+
+    /// <summary>
+    /// Tests memory usage estimation accuracy with realistic type data.
+    /// This validates that memory estimation is now accurate after the fix.
+    /// </summary>
+    [Test]
+    public async Task MemoryUsage_WithRealisticTypes_ShouldProvideAccurateEstimation()
+    {
+        // Arrange - Create types with substantial memory footprint
+        var initialStats = await _manager.GetCacheStatisticsAsync();
+        var initialMemory = initialStats.MemoryUsageBytes;
+        
+        var typesCount = 100;
+        var membersPerType = 20;
+        
+        // Act - Add many types with large member dictionaries (realistic scenario)
+        for (int i = 0; i < typesCount; i++)
+        {
+            var typeInfo = CreateTestTypeInfo($"LargeType{i}", $"Models/LargeType{i}.cs");
+            
+            // Add many members to increase memory footprint per type
+            for (int j = 0; j < membersPerType; j++)
+            {
+                typeInfo.Members[$"Property{j}"] = new MemberInfo
+                {
+                    Name = $"Property{j}",
+                    MemberType = MemberType.Property,
+                    DataType = "string",
+                    IsPublic = true
+                };
+            }
+            
+            await _manager.MarkTypeVerifiedAsync($"LargeType{i}", typeInfo);
+        }
+        
+        // Assert - Memory estimation should be realistic for the data size
+        var finalStats = await _manager.GetCacheStatisticsAsync();
+        var memoryGrowth = finalStats.MemoryUsageBytes - initialMemory;
+        
+        // With accurate estimation: 100 types * 20 members = 2000+ objects
+        // Each type ~5-6KB realistic = ~500-600KB total
+        var minimumExpectedMemory = 400 * 1024; // 400KB minimum (conservative)
+        var maximumExpectedMemory = 800 * 1024; // 800KB maximum (reasonable upper bound)
+        
+        Assert.That(finalStats.MemoryUsageBytes, Is.GreaterThan(minimumExpectedMemory),
+            $"Memory estimation seems too low: {finalStats.MemoryUsageBytes} bytes " +
+            $"for {typesCount} types with {membersPerType} members each.");
+            
+        Assert.That(finalStats.MemoryUsageBytes, Is.LessThan(maximumExpectedMemory),
+            $"Memory estimation seems too high: {finalStats.MemoryUsageBytes} bytes " +
+            $"for {typesCount} types with {membersPerType} members each.");
+            
+        // Verify all types are cached (since MaxCacheSize=1000 > 100)
+        Assert.That(finalStats.TotalTypes, Is.EqualTo(typesCount),
+            $"All {typesCount} types should be cached since MaxCacheSize (1000) > types added ({typesCount})");
+    }
+
     private static TypeInfo CreateTestTypeInfo(string name, string filePath)
     {
         return new TypeInfo
