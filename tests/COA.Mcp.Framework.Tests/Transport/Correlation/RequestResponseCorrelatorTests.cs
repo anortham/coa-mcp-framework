@@ -137,7 +137,9 @@ namespace COA.Mcp.Framework.Tests.Transport.Correlation
 
             // Act
             var responseTask = _correlator.RegisterRequestAsync<string>(correlationId);
-            await Task.Delay(50);
+            
+            // Ensure the request is registered
+            _correlator.IsRequestPending(correlationId).Should().BeTrue();
             
             var cancelled = _correlator.CancelRequest(correlationId);
 

@@ -152,21 +152,23 @@ public class MultipleServiceTests
         {
             ServiceId = "parallel-service1",
             ExecutablePath = "nonexistent1.exe",
-            Port = 6001
+            Port = 6001,
+            StartupTimeoutSeconds = 2 // Short timeout for test
         };
 
         var config2 = new ServiceConfiguration
         {
             ServiceId = "parallel-service2",
             ExecutablePath = "nonexistent2.exe",
-            Port = 6002
+            Port = 6002,
+            StartupTimeoutSeconds = 2 // Short timeout for test
         };
 
         // Act - Start both services in parallel
         var task1 = Task.Run(async () => await _serviceManager.EnsureServiceRunningAsync(config1));
         var task2 = Task.Run(async () => await _serviceManager.EnsureServiceRunningAsync(config2));
 
-        // Wait for both with timeout
+        // Wait for both with timeout (longer than startup timeout)
         var allTasks = Task.WhenAll(task1, task2);
         var completedTask = await Task.WhenAny(allTasks, Task.Delay(TimeSpan.FromSeconds(5)));
 
