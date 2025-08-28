@@ -9,112 +9,73 @@ A comprehensive .NET framework for building and consuming Model Context Protocol
 
 ## 🚀 Quick Start
 
-### Install the Framework
+**Never used MCP before?** Follow our **[5-Minute Quickstart Guide](QUICKSTART.md)** 👈
 
-```xml
-<!-- Add to your .csproj file -->
-<PackageReference Include="COA.Mcp.Framework" Version="1.7.22" />
-```
+### Super Simple Example
 
-### Create Your First MCP Server
+1. **Install:** `dotnet add package COA.Mcp.Framework`
+
+2. **Copy this code** into Program.cs:
 
 ```csharp
 using COA.Mcp.Framework.Server;
 using COA.Mcp.Framework.Base;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
+using COA.Mcp.Framework.Models;
 
-// 1. Define your tool parameters
-public class WeatherParameters
+public class EchoTool : McpToolBase<EchoParams, EchoResult>
 {
-    [Required]
-    [Description("City name or coordinates")]
-    public string Location { get; set; }
+    public override string Name => "echo";
+    public override string Description => "Echoes back your message";
     
-    [Range(1, 10)]
-    [Description("Number of forecast days (1-10)")]
-    public int ForecastDays { get; set; } = 3;
-}
-
-// 2. Define your result type
-public class WeatherResult : ToolResultBase
-{
-    public override string Operation => "get_weather";
-    public string Location { get; set; }
-    public double Temperature { get; set; }
-    public string Condition { get; set; }
-    public List<ForecastDay> Forecast { get; set; }
-}
-
-// 3. Implement your tool with full type safety
-public class WeatherTool : McpToolBase<WeatherParameters, WeatherResult>
-{
-    private readonly IWeatherService _weatherService;
-    
-    public override string Name => "get_weather";
-    public override string Description => "Get weather for a location";
-    public override ToolCategory Category => ToolCategory.Query;
-    
-    public WeatherTool(IWeatherService weatherService)
+    protected override async Task<EchoResult> ExecuteInternalAsync(
+        EchoParams parameters, CancellationToken cancellationToken)
     {
-        _weatherService = weatherService;
-    }
-    
-    protected override async Task<WeatherResult> ExecuteInternalAsync(
-        WeatherParameters parameters,
-        CancellationToken cancellationToken)
-    {
-        // Parameters are already validated!
-        var weather = await _weatherService.GetWeatherAsync(
-            parameters.Location, 
-            parameters.ForecastDays);
-        
-        return new WeatherResult
-        {
-            Success = true,
-            Location = parameters.Location,
-            Temperature = weather.Current.Temperature,
-            Condition = weather.Current.Condition,
-            Forecast = weather.GetForecast(parameters.ForecastDays)
+        await Task.CompletedTask;
+        return new EchoResult 
+        { 
+            Success = true, 
+            Response = $"You said: {parameters.Text}" 
         };
     }
 }
 
-// 4. Create and run your server
-// Program.cs
-var builder = new McpServerBuilder()
-    .WithServerInfo("Weather Server", "1.0.0")
-    .ConfigureLogging(logging =>
-    {
-        logging.AddConsole();
-        logging.SetMinimumLevel(LogLevel.Information);
-    })
-    .ConfigureFramework(options =>
-    {
-        // Optional: Control framework logging verbosity
-        options.FrameworkLogLevel = LogLevel.Warning; // Reduce framework noise
-        options.EnableDetailedToolLogging = false;    // Minimize tool execution logs
-    });
+public class EchoParams { public string Text { get; set; } = ""; }
+public class EchoResult : ToolResultBase 
+{ 
+    public override string Operation => "echo";
+    public string Response { get; set; } = "";
+}
 
-// Register services
-builder.Services.AddSingleton<IWeatherService, WeatherService>();
-
-// Register tools
-builder.RegisterToolType<WeatherTool>();
-
-// Optional: Configure token budgets for tools
-builder.ConfigureTokenBudgets(budgets =>
+class Program
 {
-    budgets.ForTool<WeatherTool>().MaxTokens(5000).Apply();
-    budgets.ForCategory(ToolCategory.Analysis).MaxTokens(15000).Apply();
-    budgets.Default().MaxTokens(10000).Apply();
-});
-
-// Build and run
-await builder.RunAsync();
+    static async Task Main(string[] args)
+    {
+        var builder = new McpServerBuilder()
+            .WithServerInfo("My First MCP Server", "1.0.0");
+        
+        builder.RegisterToolType<EchoTool>();
+        await builder.RunAsync();
+    }
+}
 ```
 
-Your MCP server is ready! 🎉
+3. **Run it:** `dotnet run`
+
+**🎉 That's it!** You have a working MCP server.
+
+### Next Steps
+
+**Want more examples?**
+- [Hello World Example](examples/1-HelloWorld/) - Even simpler
+- [Multiple Tools Example](examples/2-BasicTools/) - Calculator, text processing, etc.
+- [Full-Featured Example](examples/SimpleMcpServer/) - All the bells and whistles
+
+**Need help?**
+- [5-Minute Quickstart](QUICKSTART.md) - Step-by-step tutorial
+- [Common Issues](docs/COMMON_PITFALLS.md) - Solutions to typical problems
+- [Transport Guide](docs/WHICH_TRANSPORT.md) - STDIO vs HTTP vs WebSocket
+
+**Ready for production?** See [Advanced Features](#-advanced-features) below.
 
 ### 🆕 Enable AI-Powered Middleware
 
