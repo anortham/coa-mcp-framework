@@ -53,7 +53,9 @@
       "mcp__codesearch__recent_files",
       "mcp__codenav__csharp_get_type_members",
       "mcp__codesearch__search_and_replace",
-      "Bash(git log:*)"
+      "Bash(git log:*)",
+      "mcp__codenav__csharp_dependency_analysis",
+      "Bash(dotnet pack:*)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits",
