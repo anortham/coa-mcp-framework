@@ -13,6 +13,7 @@ using System.Collections.Generic;
 using TestingInsightBuilder = COA.Mcp.Framework.Testing.Builders.InsightBuilder;
 using System.Linq;
 using System.Threading.Tasks;
+using TokenSafetyMode = COA.Mcp.Framework.TokenOptimization.TokenSafetyMode;
 
 namespace COA.Mcp.Framework.Testing.Tests.Examples
 {

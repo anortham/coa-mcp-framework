@@ -3,7 +3,7 @@ using System.Linq;
 using System.Reflection;
 using COA.Mcp.Framework.Configuration;
 using COA.Mcp.Framework.Interfaces;
-using COA.Mcp.Framework.Pipeline.Middleware;
+// using COA.Mcp.Framework.Pipeline.Middleware; // removed: no such namespace, use Pipeline.SimpleMiddleware where needed
 using COA.Mcp.Framework.Server;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;

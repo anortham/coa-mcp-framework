@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using COA.Mcp.Framework.TokenOptimization;
+using COA.Mcp.Framework.Interfaces;
 using COA.Mcp.Framework.TokenOptimization.Intelligence;
 using COA.Mcp.Framework.TokenOptimization.Models;
 using Microsoft.Extensions.Logging;

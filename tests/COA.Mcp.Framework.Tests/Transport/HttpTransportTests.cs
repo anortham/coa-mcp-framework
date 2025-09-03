@@ -334,7 +334,7 @@ namespace COA.Mcp.Framework.Tests.Transport
                 x => x.Log(
                     It.IsAny<LogLevel>(),
                     It.IsAny<EventId>(),
-                    It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains("https://")),
+                    It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains("HTTPS: True") || v.ToString()!.Contains("Failed to configure HTTPS")),
                     It.IsAny<Exception>(),
                     It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
                 Times.AtLeastOnce);

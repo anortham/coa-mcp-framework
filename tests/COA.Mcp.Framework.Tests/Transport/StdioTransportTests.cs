@@ -15,16 +15,16 @@ namespace COA.Mcp.Framework.Tests.Transport
     public class StdioTransportTests
     {
         private Mock<ILogger<StdioTransport>> _loggerMock;
-        private StringReader _input;
-        private StringWriter _output;
+        private MemoryStream _input;
+        private MemoryStream _output;
         private StdioTransport _transport;
 
         [SetUp]
         public void SetUp()
         {
             _loggerMock = new Mock<ILogger<StdioTransport>>();
-            _input = new StringReader("");
-            _output = new StringWriter();
+            _input = new MemoryStream();
+            _output = new MemoryStream();
             _transport = new StdioTransport(_input, _output, _loggerMock.Object);
         }
 
@@ -134,7 +134,7 @@ namespace COA.Mcp.Framework.Tests.Transport
             await _transport.WriteMessageAsync(message);
 
             // Assert
-            var output = _output.ToString();
+            var output = Encoding.UTF8.GetString(_output.ToArray());
             output.Should().Contain("{\"test\":\"message\"}");
         }
 
@@ -153,7 +153,7 @@ namespace COA.Mcp.Framework.Tests.Transport
             await _transport.WriteMessageAsync(message);
 
             // Assert
-            var output = _output.ToString();
+            var output = Encoding.UTF8.GetString(_output.ToArray());
             output.Should().Contain(largeContent);
         }
 
@@ -164,7 +164,7 @@ namespace COA.Mcp.Framework.Tests.Transport
             var jsonContent = "{\"jsonrpc\":\"2.0\",\"method\":\"test\",\"id\":1}";
             
             _input.Dispose();
-            _input = new StringReader(jsonContent);
+            _input = new MemoryStream(Encoding.UTF8.GetBytes(jsonContent));
             _transport.Dispose();
             _transport = new StdioTransport(_input, _output, _loggerMock.Object);
             
@@ -183,7 +183,7 @@ namespace COA.Mcp.Framework.Tests.Transport
         {
             // Arrange
             _input.Dispose();
-            _input = new StringReader("");
+            _input = new MemoryStream(Array.Empty<byte>());
             _transport.Dispose();
             _transport = new StdioTransport(_input, _output, _loggerMock.Object);
             
@@ -234,10 +234,10 @@ namespace COA.Mcp.Framework.Tests.Transport
             cts.Cancel();
 
             // Act
-            var result = await _transport.ReadMessageAsync(cts.Token);
+            var act = async () => await _transport.ReadMessageAsync(cts.Token);
 
             // Assert
-            result.Should().BeNull();
+            await act.Should().ThrowAsync<TaskCanceledException>();
         }
 
         [Test]
@@ -294,23 +294,29 @@ namespace COA.Mcp.Framework.Tests.Transport
             // Arrange
             var json1 = "{\"id\":1}";
             var json2 = "{\"id\":2}";
-            var messages = $"{json1}\n{json2}";
-            
+            var frame1 = $"Content-Length: {Encoding.UTF8.GetByteCount(json1)}\r\n\r\n{json1}";
+            var frame2 = $"Content-Length: {Encoding.UTF8.GetByteCount(json2)}\r\n\r\n{json2}";
+
+            // First message
             _input.Dispose();
-            _input = new StringReader(messages);
+            _input = new MemoryStream(Encoding.UTF8.GetBytes(frame1));
             _transport.Dispose();
             _transport = new StdioTransport(_input, _output, _loggerMock.Object);
-            
             await _transport.StartAsync();
-
-            // Act
             var result1 = await _transport.ReadMessageAsync();
+
+            // Second message (new stream)
+            _input.Dispose();
+            _input = new MemoryStream(Encoding.UTF8.GetBytes(frame2));
+            _transport.Dispose();
+            _transport = new StdioTransport(_input, _output, _loggerMock.Object);
+            await _transport.StartAsync();
             var result2 = await _transport.ReadMessageAsync();
 
             // Assert
             result1.Should().NotBeNull();
             result1!.Content.Should().Be(json1);
-            
+
             result2.Should().NotBeNull();
             result2!.Content.Should().Be(json2);
         }

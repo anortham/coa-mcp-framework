@@ -31,6 +31,7 @@ public class McpToolRegistry : IAsyncDisposable
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<McpToolRegistry>? _logger;
     private readonly JsonSerializerOptions _jsonOptions;
+    private readonly ITokenEstimator? _tokenEstimator;
 
     /// <summary>
     /// Initializes a new instance of the McpToolRegistry class.
@@ -47,6 +48,7 @@ public class McpToolRegistry : IAsyncDisposable
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
             WriteIndented = false
         };
+        _tokenEstimator = serviceProvider.GetService<ITokenEstimator>();
     }
 
     /// <summary>
@@ -354,70 +356,59 @@ public class McpToolRegistry : IAsyncDisposable
         }
         else
         {
-            // Serialize complex objects as JSON but still use "text" type
+            // Serialize complex objects as JSON but still use "text" type.
             content = JsonSerializer.Serialize(result, _jsonOptions);
-            
-            // Token limits optimized for Claude
-            const int OPTIMAL_TOKENS = 3000;    // Best performance, instant responses
-            const int TARGET_TOKENS = 5000;     // Good balance, still fast
-            // const int WARNING_TOKENS = 10000;   // Getting slow, should switch to summary (currently unused)
-            const int CRITICAL_TOKENS = 20000;  // Must use resources or truncate
-            const int HARD_LIMIT = 24000;       // 1K safety buffer before Claude's 25K limit
 
-            // Use estimator for more accurate sizing
-            var estimator = new COA.Mcp.Framework.TokenOptimization.DefaultTokenEstimator();
-            int estimatedTokens = estimator.EstimateString(content);
-            
-            // Determine actual response mode based on size and request
-            var actualResponseMode = DetermineResponseMode(requestedResponseMode, estimatedTokens, result);
-            
-            // Handle based on token size and response mode
-            if (estimatedTokens > HARD_LIMIT)
+            // If a token estimator is available, apply size-aware behavior.
+            if (_tokenEstimator != null)
             {
-                // Always error if exceeding hard limit
-                _logger?.LogError("Tool result exceeds hard token limit. Estimated: {Tokens}, Max: {MaxTokens}, RequestedMode: {Mode}", 
-                    estimatedTokens, HARD_LIMIT, requestedResponseMode);
-                
-                return CreateTokenLimitError(estimatedTokens, HARD_LIMIT, result);
-            }
-            else if (estimatedTokens > CRITICAL_TOKENS)
-            {
-                if (actualResponseMode == "full")
+                const int OPTIMAL_TOKENS = 3000;
+                const int TARGET_TOKENS = 5000;
+                const int CRITICAL_TOKENS = 20000;
+                const int HARD_LIMIT = 24000;
+
+                int estimatedTokens = 0;
+                try { estimatedTokens = _tokenEstimator.EstimateString(content); } catch { /* ignore */ }
+
+                var actualResponseMode = DetermineResponseMode(requestedResponseMode, estimatedTokens, result);
+
+                if (estimatedTokens > HARD_LIMIT)
                 {
-                    // User explicitly requested full mode but it's too large
-                    _logger?.LogError("Full mode requested but result exceeds safe limit. Tokens: {Tokens}, Limit: {Limit}", 
-                        estimatedTokens, CRITICAL_TOKENS);
-                    
-                    return CreateTokenLimitError(estimatedTokens, CRITICAL_TOKENS, result);
+                    _logger?.LogError("Tool result exceeds hard token limit. Estimated: {Tokens}, Max: {MaxTokens}, RequestedMode: {Mode}",
+                        estimatedTokens, HARD_LIMIT, requestedResponseMode);
+                    return CreateTokenLimitError(estimatedTokens, HARD_LIMIT, result);
                 }
-                else
+                else if (estimatedTokens > CRITICAL_TOKENS)
                 {
-                    // Auto-switch to summary
-                    _logger?.LogWarning("Auto-switching to summary mode due to size. Tokens: {Tokens}", estimatedTokens);
-                    content = CreateSummaryResponse(result, estimatedTokens);
+                    if (actualResponseMode == "full")
+                    {
+                        _logger?.LogError("Full mode requested but result exceeds safe limit. Tokens: {Tokens}, Limit: {Limit}",
+                            estimatedTokens, CRITICAL_TOKENS);
+                        return CreateTokenLimitError(estimatedTokens, CRITICAL_TOKENS, result);
+                    }
+                    else
+                    {
+                        _logger?.LogWarning("Auto-switching to summary mode due to size. Tokens: {Tokens}", estimatedTokens);
+                        content = CreateSummaryResponse(result, estimatedTokens);
+                    }
                 }
-            }
-            else if (estimatedTokens > TARGET_TOKENS && actualResponseMode == "auto")
-            {
-                // Suggest summary mode but still return full if not too large
-                _logger?.LogInformation("Response size ({Tokens} tokens) exceeds target ({Target}). Consider using responseMode='summary'", 
-                    estimatedTokens, TARGET_TOKENS);
-                
-                // Optionally add metadata hint if result is ToolResultBase
-                if (result is ToolResultBase toolResult && toolResult.Meta != null)
+                else if (estimatedTokens > TARGET_TOKENS && actualResponseMode == "auto")
                 {
-                    toolResult.Meta.Mode = "full";
-                    toolResult.Meta.Tokens = estimatedTokens;
-                    toolResult.Insights ??= new List<string>();
-                    toolResult.Insights.Add($"Response contains {estimatedTokens} tokens. Use responseMode='summary' for faster responses.");
-                    
-                    // Re-serialize with the metadata
-                    content = JsonSerializer.Serialize(result, _jsonOptions);
+                    _logger?.LogInformation("Response size ({Tokens} tokens) exceeds target ({Target}). Consider using responseMode='summary'",
+                        estimatedTokens, TARGET_TOKENS);
+                    if (result is ToolResultBase toolResult && toolResult.Meta != null)
+                    {
+                        toolResult.Meta.Mode = "full";
+                        toolResult.Meta.Tokens = estimatedTokens;
+                        toolResult.Insights ??= new List<string>();
+                        toolResult.Insights.Add($"Response contains {estimatedTokens} tokens. Use responseMode='summary' for faster responses.");
+                        content = JsonSerializer.Serialize(result, _jsonOptions);
+                    }
                 }
-            }
-            else if (estimatedTokens <= OPTIMAL_TOKENS)
-            {
-                _logger?.LogDebug("Response size optimal at {Tokens} tokens", estimatedTokens);
+                else if (estimatedTokens <= OPTIMAL_TOKENS)
+                {
+                    _logger?.LogDebug("Response size optimal at {Tokens} tokens", estimatedTokens);
+                }
             }
         }
 
@@ -434,6 +425,8 @@ public class McpToolRegistry : IAsyncDisposable
             }
         };
     }
+
+    // Size estimation is optional and provided via DI (ITokenEstimator).
 
     private string DetermineResponseMode(string? requestedMode, int estimatedTokens, object? result)
     {

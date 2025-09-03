@@ -6,7 +6,7 @@ using System.Reflection;
 using COA.Mcp.Framework.Configuration;
 using COA.Mcp.Framework.Interfaces;
 using COA.Mcp.Framework.Pipeline;
-using COA.Mcp.Framework.Pipeline.Middleware;
+// using COA.Mcp.Framework.Pipeline.Middleware; // removed: not a valid namespace
 using COA.Mcp.Framework.Pipeline.SimpleMiddleware;
 using COA.Mcp.Framework.Prompts;
 using COA.Mcp.Framework.Registration;

@@ -36,7 +36,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\COA.Mcp.Protocol\COA.Mcp.Protocol.csproj" />
-    <ProjectReference Include="..\COA.Mcp.Framework.TokenOptimization\COA.Mcp.Framework.TokenOptimization.csproj" />
   </ItemGroup>
 
 </Project>
