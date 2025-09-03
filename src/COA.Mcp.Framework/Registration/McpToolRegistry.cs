@@ -363,9 +363,10 @@ public class McpToolRegistry : IAsyncDisposable
             // const int WARNING_TOKENS = 10000;   // Getting slow, should switch to summary (currently unused)
             const int CRITICAL_TOKENS = 20000;  // Must use resources or truncate
             const int HARD_LIMIT = 24000;       // 1K safety buffer before Claude's 25K limit
-            const int CHARS_PER_TOKEN = 4;
-            
-            int estimatedTokens = content.Length / CHARS_PER_TOKEN;
+
+            // Use estimator for more accurate sizing
+            var estimator = new COA.Mcp.Framework.TokenOptimization.DefaultTokenEstimator();
+            int estimatedTokens = estimator.EstimateString(content);
             
             // Determine actual response mode based on size and request
             var actualResponseMode = DetermineResponseMode(requestedResponseMode, estimatedTokens, result);

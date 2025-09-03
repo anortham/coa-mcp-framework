@@ -133,12 +133,5 @@ public abstract class DisposableToolBase<TParams, TResult> : McpToolBase<TParams
         ObjectDisposedException.ThrowIf(_disposed, GetType().FullName ?? nameof(DisposableToolBase<TParams, TResult>));
     }
 
-    /// <summary>
-    /// Finalizer for cleanup of unmanaged resources.
-    /// </summary>
-    ~DisposableToolBase()
-    {
-        // Do not change this code. Put cleanup code in 'DisposeAsync(bool disposing)' method
-        DisposeAsync(false).AsTask().GetAwaiter().GetResult();
-    }
+    // Finalizer intentionally omitted. Async cleanup should not occur in a finalizer path.
 }

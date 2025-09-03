@@ -28,6 +28,14 @@ using COA.Mcp.Framework.Base;
 using COA.Mcp.Framework.Models;
 
 // Define parameters
+public enum Operation
+{
+    add,
+    subtract,
+    multiply,
+    divide
+}
+
 public class CalculatorParams
 {
     [Required]
@@ -37,8 +45,7 @@ public class CalculatorParams
     public double B { get; set; }
     
     [Required]
-    [AllowedValues("add", "subtract", "multiply", "divide")]
-    public string Operation { get; set; }
+    public Operation Operation { get; set; }
 }
 
 // Define result
@@ -61,10 +68,10 @@ public class CalculatorTool : McpToolBase<CalculatorParams, CalculatorResult>
     {
         double result = parameters.Operation switch
         {
-            "add" => parameters.A + parameters.B,
-            "subtract" => parameters.A - parameters.B,
-            "multiply" => parameters.A * parameters.B,
-            "divide" => parameters.A / parameters.B,
+            Operation.add => parameters.A + parameters.B,
+            Operation.subtract => parameters.A - parameters.B,
+            Operation.multiply => parameters.A * parameters.B,
+            Operation.divide => parameters.A / parameters.B,
             _ => throw new ArgumentException($"Unknown operation: {parameters.Operation}")
         };
         
@@ -158,7 +165,7 @@ public class MyResult : ToolResultBase
 }
 ```
 
-### Parameter Validation Attributes
+### Parameter Validation with DataAnnotations
 
 Validate parameters automatically using attributes:
 
@@ -167,28 +174,19 @@ public class MyParams
 {
     [Required]
     [StringLength(100)]
-    public string Name { get; set; }
+    public string Name { get; set; } = string.Empty;
     
     [Range(1, 100)]
     public int Count { get; set; }
     
-    [Email]
-    public string EmailAddress { get; set; }
+    [EmailAddress]
+    public string? EmailAddress { get; set; }
     
     [Url]
-    public string Website { get; set; }
+    public string? Website { get; set; }
     
     [RegularExpression(@"^\d{3}-\d{3}-\d{4}$")]
-    public string PhoneNumber { get; set; }
-    
-    [AllowedValues("small", "medium", "large")]
-    public string Size { get; set; }
-    
-    [FileExists]
-    public string FilePath { get; set; }
-    
-    [DirectoryExists]
-    public string DirectoryPath { get; set; }
+    public string? PhoneNumber { get; set; }
 }
 ```
 
@@ -311,8 +309,8 @@ For command-line integration and process communication:
 var builder = new McpServerBuilder()
     .UseStdioTransport(options =>
     {
-        options.Input = Console.OpenStandardInput();
-        options.Output = Console.OpenStandardOutput();
+        options.InputStream = Console.OpenStandardInput();
+        options.OutputStream = Console.OpenStandardOutput();
     });
 
 // Or with DI
@@ -554,17 +552,31 @@ protected override async Task<MyResult> ExecuteInternalAsync(
 ```
 
 ### Custom Validators
-Create custom parameter validators:
+Create custom validators by deriving from `System.ComponentModel.DataAnnotations.ValidationAttribute`:
 
 ```csharp
-public class PrimeNumberAttribute : ParameterValidationAttribute
+using System.ComponentModel.DataAnnotations;
+
+public class PrimeNumberAttribute : ValidationAttribute
 {
-    public override ValidationResult Validate(object value, ValidationContext context)
+    protected override ValidationResult? IsValid(object? value, ValidationContext validationContext)
     {
         if (value is int number && IsPrime(number))
             return ValidationResult.Success;
-            
-        return new ValidationResult("Value must be a prime number");
+
+        return new ValidationResult($"{validationContext.MemberName} must be a prime number");
+    }
+
+    private static bool IsPrime(int n)
+    {
+        if (n <= 1) return false;
+        if (n <= 3) return true;
+        if (n % 2 == 0 || n % 3 == 0) return false;
+        for (int i = 5; i * i <= n; i += 6)
+        {
+            if (n % i == 0 || n % (i + 2) == 0) return false;
+        }
+        return true;
     }
 }
 ```

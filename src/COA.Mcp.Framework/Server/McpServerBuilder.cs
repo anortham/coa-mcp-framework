@@ -30,6 +30,7 @@ public class McpServerBuilder
 {
     private readonly IServiceCollection _services;
     private readonly ServerConfiguration _configuration;
+    private bool _transportConfigured;
     private Action<McpToolRegistry>? _toolConfiguration;
     private Action<ResourceRegistry>? _resourceConfiguration;
     private Action<IPromptRegistry>? _promptConfiguration;
@@ -76,11 +77,15 @@ public class McpServerBuilder
     {
         var options = new StdioTransportOptions();
         configure?.Invoke(options);
-        
-        var logger = _services.BuildServiceProvider().GetService<ILogger<StdioTransport>>();
-        _transport = new StdioTransport(options.Input, options.Output, logger);
-        _services.AddSingleton(_transport);
-        
+        // Register transport via factory to avoid building a provider at configuration time
+        _services.AddSingleton<IMcpTransport>(sp =>
+        {
+            var inputStream = options.InputStream ?? (options.Input as StreamReader)?.BaseStream;
+            var outputStream = options.OutputStream ?? (options.Output as StreamWriter)?.BaseStream;
+            return new StdioTransport(inputStream, outputStream, sp.GetService<ILogger<StdioTransport>>());
+        });
+        _transportConfigured = true;
+
         return this;
     }
     
@@ -93,12 +98,15 @@ public class McpServerBuilder
     {
         var options = new HttpTransportOptions();
         configure?.Invoke(options);
-        
-        var logger = _services.BuildServiceProvider().GetService<ILogger<HttpTransport>>();
-        _transport = new HttpTransport(options, logger);
-        _services.AddSingleton(_transport);
+        // Register transport via factory to avoid building a provider at configuration time
+        _services.AddSingleton<IMcpTransport>(sp =>
+        {
+            var logger = sp.GetService<ILogger<HttpTransport>>();
+            return new HttpTransport(options, logger);
+        });
         _services.AddSingleton(options);
-        
+        _transportConfigured = true;
+
         return this;
     }
     
@@ -114,12 +122,15 @@ public class McpServerBuilder
         
         // Ensure WebSocket is enabled in the options
         options.EnableWebSocket = true;
-        
-        var logger = _services.BuildServiceProvider().GetService<ILogger<WebSocketTransport>>();
-        _transport = new WebSocketTransport(options, logger);
-        _services.AddSingleton(_transport);
+        // Register transport via factory to avoid building a provider at configuration time
+        _services.AddSingleton<IMcpTransport>(sp =>
+        {
+            var logger = sp.GetService<ILogger<WebSocketTransport>>();
+            return new WebSocketTransport(options, logger);
+        });
         _services.AddSingleton(options);
-        
+        _transportConfigured = true;
+
         return this;
     }
     
@@ -132,6 +143,7 @@ public class McpServerBuilder
     {
         _transport = transport ?? throw new ArgumentNullException(nameof(transport));
         _services.AddSingleton(_transport);
+        _transportConfigured = true;
         return this;
     }
 
@@ -364,35 +376,7 @@ public class McpServerBuilder
         return this;
     }
 
-    /// <summary>
-    /// Convenience method to add the built-in TypeVerificationMiddleware.
-    /// </summary>
-    /// <param name="configure">Optional configuration action.</param>
-    /// <returns>The builder for chaining.</returns>
-    public McpServerBuilder AddTypeVerificationMiddleware(Action<TypeVerificationOptions>? configure = null)
-    {
-        if (configure != null)
-        {
-            _services.Configure(configure);
-        }
-        
-        return AddGlobalMiddleware<TypeVerificationMiddleware>();
-    }
-
-    /// <summary>
-    /// Convenience method to add the built-in TddEnforcementMiddleware.
-    /// </summary>
-    /// <param name="configure">Optional configuration action.</param>
-    /// <returns>The builder for chaining.</returns>
-    public McpServerBuilder AddTddEnforcementMiddleware(Action<TddEnforcementOptions>? configure = null)
-    {
-        if (configure != null)
-        {
-            _services.Configure(configure);
-        }
-        
-        return AddGlobalMiddleware<TddEnforcementMiddleware>();
-    }
+    // Removed experimental enforcement middleware (TypeVerification/TDD)
 
     /// <summary>
     /// Convenience method to add the built-in LoggingSimpleMiddleware.
@@ -476,7 +460,7 @@ public class McpServerBuilder
     public McpServer Build()
     {
         // If no transport specified, use stdio by default
-        if (_transport == null)
+        if (!_transportConfigured)
         {
             UseStdioTransport();
         }
@@ -506,7 +490,7 @@ public class McpServerBuilder
         // Configure prompts
         if (_promptAssembly != null)
         {
-            DiscoverAndRegisterPrompts(promptRegistry, _promptAssembly);
+            DiscoverAndRegisterPrompts(serviceProvider, promptRegistry, _promptAssembly);
         }
         
         _promptConfiguration?.Invoke(promptRegistry);
@@ -532,7 +516,7 @@ public class McpServerBuilder
     public async Task RunAsync(CancellationToken cancellationToken = default)
     {
         // If no transport specified, use stdio by default
-        if (_transport == null)
+        if (!_transportConfigured)
         {
             UseStdioTransport();
         }
@@ -663,7 +647,7 @@ public class McpServerBuilder
         });
     }
 
-    private void DiscoverAndRegisterPrompts(IPromptRegistry registry, Assembly assembly)
+    private void DiscoverAndRegisterPrompts(IServiceProvider serviceProvider, IPromptRegistry registry, Assembly assembly)
     {
         var promptTypes = assembly.GetTypes()
             .Where(t => t.IsClass && !t.IsAbstract && typeof(IPrompt).IsAssignableFrom(t))
@@ -673,13 +657,13 @@ public class McpServerBuilder
         {
             try
             {
-                // Create instance using DI
-                var prompt = (IPrompt)ActivatorUtilities.CreateInstance(_services.BuildServiceProvider(), promptType);
+                // Create instance using the existing service provider
+                var prompt = (IPrompt)ActivatorUtilities.CreateInstance(serviceProvider, promptType);
                 registry.RegisterPrompt(prompt);
             }
             catch (Exception ex)
             {
-                var logger = _services.BuildServiceProvider().GetService<ILogger<McpServerBuilder>>();
+                var logger = serviceProvider.GetService<ILogger<McpServerBuilder>>();
                 logger?.LogWarning(ex, "Failed to register prompt type {PromptType}", promptType.Name);
             }
         }

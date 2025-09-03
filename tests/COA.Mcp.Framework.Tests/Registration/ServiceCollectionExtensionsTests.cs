@@ -36,10 +36,6 @@ namespace COA.Mcp.Framework.Tests.Registration
 
             // Assert
             provider.GetService<McpToolRegistry>().Should().NotBeNull();
-#pragma warning disable CS0618 // Type or member is obsolete - testing backward compatibility
-            provider.GetService<IParameterValidator>().Should().NotBeNull();
-            provider.GetService<IParameterValidator>().Should().BeOfType<DefaultParameterValidator>();
-#pragma warning restore CS0618 // Type or member is obsolete
         }
 
         [Test]

@@ -68,8 +68,9 @@ var loggingMiddleware = new LoggingSimpleMiddleware(logger, LogLevel.Information
 builder.WithGlobalMiddleware(loggingMiddleware);
 
 // Multiple middleware instances
-var middleware1 = new TypeVerificationMiddleware(typeService, stateManager, logger, typeOptions);
-var middleware2 = new TddEnforcementMiddleware(testService, logger, tddOptions);
+// Example: logging + token counting
+var middleware1 = new LoggingSimpleMiddleware(logger, LogLevel.Information);
+var middleware2 = new TokenCountingSimpleMiddleware(logger);
 builder.WithGlobalMiddleware(middleware1, middleware2);
 
 // From a collection
@@ -101,16 +102,6 @@ builder.AddGlobalMiddleware<TokenCountingSimpleMiddleware>(ServiceLifetime.Trans
 var builder = new McpServerBuilder();
 
 // Add built-in middleware with sensible defaults
-builder.AddTypeVerificationMiddleware(options => {
-    options.Mode = TypeVerificationMode.Strict;
-    options.EnableDetailedLogging = true;
-});
-
-builder.AddTddEnforcementMiddleware(options => {
-    options.Mode = TddEnforcementMode.Warning;
-    options.RequireFailingTest = true;
-});
-
 builder.AddLoggingMiddleware(LogLevel.Information);
 builder.AddTokenCountingMiddleware();
 ```
@@ -209,8 +200,7 @@ Add global middleware configuration to your server setup:
 // In your Program.cs or server configuration
 var builder = new McpServerBuilder()
     .WithServerInfo("My Server", "1.0.0")
-    .AddTypeVerificationMiddleware() // Prevent AI type hallucination
-    .AddTddEnforcementMiddleware()   // Enforce TDD practices
+    // Removed: experimental enforcement middleware
     .AddLoggingMiddleware()          // Add execution logging
     .AddTokenCountingMiddleware()    // Monitor token usage
     .RegisterTool<MyTool>()
@@ -335,7 +325,7 @@ protected override IReadOnlyList<ISimpleMiddleware>? ToolSpecificMiddleware =>
 ```csharp
 // Recommended order values:
 // 1-10:   Security, authentication, type verification
-// 11-50:  Logging, TDD enforcement, business validation  
+// 11-50:  Logging, business validation
 // 51-100: Token counting, performance monitoring, cleanup
 ```
 

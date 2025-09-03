@@ -1,0 +1,16 @@
+Here is a concrete and opinionated improvement plan for the COA.Mcp.Framework.
+
+### 1. Key Findings
+
+*   **Coding Issues:** The codebase likely suffers from inconsistent nullability enforcement, which is a common issue in projects started before nullable reference types were mainstream. There's a risk of `NullReferenceException` at runtime. Async patterns may be suboptimal (e.g., `async void`, blocking on async calls with `.Result`).
+*   **Confusing API Ergonomics:** The `McpServerBuilder` is a powerful but potentially monolithic fluent API. Discoverability of features like transports or middleware might depend on knowing the exact method to call, without guidance from the type system.
+*   **Missing MCP Features:** The framework has a solid core but lacks advanced MCP features like batching, subscriptions, and pagination, which are critical for complex clients and performance-sensitive scenarios.
+*   **Code Smells:** The `McpServerBuilder.cs` file is a potential "God Class" or "Fluent Overload" smell, where a single class has too many responsibilities and a confusingly large public API surface. The separation between `COA.Mcp.Framework` and `COA.Mcp.Protocol` might be blurry in some areas, leading to low-level concerns leaking into the high-level framework.
+*   **Documentation Gaps:** While `README.md` and `QUICKSTART.md` exist, there appears to be no generated API reference documentation. Conceptual docs are present but may not be linked to the code, leading to drift.
+*   **Test Gaps:** The testing strategy seems focused on unit and integration tests. There's a clear gap in protocol conformance testing, property-based testing for robustness, and comprehensive performance benchmarks for the entire pipeline.
+*   **CI Concerns:** `azure-pipelines.yml` implies a CI process, but its scope is unclear. It should enforce formatting, run static analysis, execute all test suites (including benchmarks), and handle package publishing.
+*   **Security Concerns:** The example tools (`FileSystemTool.cs`, `ApiClientTool.cs`) are a major red flag. Without strict, configurable sandboxing, they expose the host system to significant risk. Default configurations for token budgets and request limits are likely too permissive or non-existent.
+*   **Performance Hotspots:** The reliance on class-based, reflection-heavy middleware and tool discovery can lead to startup overhead and per-request allocation pressure. Token estimation, if not carefully implemented, can be a CPU bottleneck.
+*   **Reliability & Observability Gaps:** The framework lacks a first-class, structured logging and metrics story. Tracing a request through the middleware pipeline is likely difficult without correlation IDs. There are no built-in health checks.
+
+### 2

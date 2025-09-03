@@ -1,0 +1,1277 @@
+[2025-09-03T12:36:23] Code v0.2.56
+--------
+workdir: /Users/murphy/Source/coa-mcp-framework
+model: gpt-5
+provider: openai
+approval: never
+sandbox: read-only
+reasoning effort: medium
+reasoning summaries: auto
+--------
+[2025-09-03T12:36:23] User instructions:
+You are one of three planning agents (running in parallel) tasked with analyzing and improving a real C#/.NET 9 codebase for the Model Context Protocol (MCP). Produce a concrete, opinionated, and detailed improvement plan. Keep recommendations precise and actionable.
+
+Goal:
+- Examine the codebase for: coding problems, usability problems, missing MCP features, confusing patterns, code smells.
+- Propose a comprehensive, prioritized plan to improve architecture, APIs, ergonomics, performance, documentation, tests, and CI.
+
+Repo context (high level):
+- Language: C# targeting .NET 9.0 across multiple projects.
+- Solution: COA.Mcp.Framework.sln
+- Core projects:
+  - src/COA.Mcp.Framework (framework: server builder, DI, middleware, resources, prompts, validation, token optimization integration)
+  - src/COA.Mcp.Protocol (low-level MCP types, JSON-RPC)
+  - src/COA.Mcp.Client (typed client)
+  - src/COA.Mcp.Framework.TokenOptimization (token budgets, optimization)
+  - src/COA.Mcp.Framework.Testing (testing helpers)
+  - src/COA.Mcp.Framework.Templates (project templates)
+  - src/COA.Mcp.Framework.Migration (migration tooling)
+- Tests located under tests/* with several *Tests.csproj and a Benchmarks project.
+- Examples under examples/* including HelloWorld, BasicTools, SimpleMcpServer, HttpMcpServer, McpClientExample.
+- CI: azure-pipelines.yml present at repo root.
+
+General directory structure (abridged, depth ≤2):
+- src/
+  - COA.Mcp.Framework/
+  - COA.Mcp.Protocol/
+  - COA.Mcp.Client/
+  - COA.Mcp.Framework.TokenOptimization/
+  - COA.Mcp.Framework.Testing/
+  - COA.Mcp.Framework.Templates/
+  - COA.Mcp.Framework.Migration/
+- tests/
+  - COA.Mcp.Framework.Tests/
+  - COA.Mcp.Framework.Testing.Tests/
+  - COA.Mcp.Framework.TokenOptimization.Tests/
+  - COA.Mcp.Protocol.Tests/
+  - COA.Mcp.Client.Tests/
+  - COA.Mcp.Framework.TokenOptimization.Benchmarks/
+- examples/
+  - 1-HelloWorld/
+  - 2-BasicTools/
+  - SimpleMcpServer/
+  - HttpMcpServer/
+  - McpClientExample/
+- docs/ (future, technical, snippets), QUICKSTART.md, README.md, CHANGELOG.md, CLAUDE.md
+
+Key files to glance at:
+1) src/COA.Mcp.Framework/Server/McpServerBuilder.cs — fluent server builder; config for transports (stdio/http/websocket), DI setup, tool/resource/prompt registration, middleware (TypeVerification, TddEnforcement, SimpleMiddleware), uses Microsoft.Extensions.* libraries.
+2) src/COA.Mcp.Protocol/JsonRpc.cs, McpTypes.cs — protocol and JSON-RPC primitives.
+
+Current feature highlights (from README/inspect):
+- Attribute-based tool discovery, validators, type verification (Strict/Warning modes), TDD enforcement, prompt registry, resource registry, in-memory caching, token budget configuration, simple middleware (logging, token counting).
+- Transports: STDIO, HTTP, WebSocket. Server builder supports custom transports.
+- NuGet packages for Framework, Protocol, Client, TokenOptimization, Testing, Templates, Migration.
+
+What to deliver (structure your answer):
+1) Key Findings (bulleted): coding issues, anti-patterns, confusing API ergonomics, documentation gaps, test gaps, CI concerns, security concerns, performance hotspots, reliability/observability gaps.
+2) MCP Feature Coverage: what’s implemented vs missing (e.g., resources, prompts, tools, SSE/WS semantics, JSON-RPC semantics, error codes, batching, progress events, cancellation, subscriptions, pagination, server discovery). Mark items as fully supported, partial, or missing with rationale and file pointers to verify.
+3) Code Smells & Refactors: concrete refactors with example diffs or C# signatures (don’t change files, just propose). Include DI/service lifetimes, builder API consistency, async patterns, nullability, exceptions vs Result types, interface segregation, internal vs public visibility.
+4) API/UX Improvements: surface-level ergonomics for developers using the framework (naming, defaults, sensible overloads, discoverability), template upgrades, examples hardening, guardrails for AI-assisted dev (type verification/TDD) with clearer messages.
+5) Testing Strategy: unit/integration balance, deterministic transport tests, protocol conformance tests, fuzz/property tests for JSON-RPC, golden tests for prompts/resources, benchmarks expansion. Call out flaky-test risks.
+6) Docs & Guides: table of contents, task-based guides (migrate to HTTP/WS, add custom transport, write validator), reference docs completeness, “pitfalls” section alignment with code.
+7) Observability & Ops: structured logging, correlation IDs, metrics (counters, histograms), health, debug tools, compatibility matrices, versioning strategy.
+8) Security & Safety: input validation, resource sandboxing, DOS concerns, timeouts/cancellation, schema validation, logging of PII, default safe limits for token budgets.
+9) Roadmap: prioritized phases (Quick Wins: 1–2d; Near-Term: 1–2w; Strategic: 1–2q) with clear acceptance criteria.
+10) Migration/Back-Compat: note breaking changes and propose shims, `[Obsolete]` phases, codemods.
+
+Important:
+- Use concrete references to file paths and plausible classes derived from the structure above. If unsure, state assumptions and how to verify.
+- Prefer patterns idiomatic for modern .NET 9, Microsoft.Extensions.*, and high-performance async.
+- Keep the plan scoped to this repo; do not access the network.
+- Output should be self-contained and directly usable as an implementation backlog.
+
+
+[Running in read-only mode - no modifications allowed]
+[2025-09-03T12:36:30] codex
+
+I’ll quickly scan the solution and key files to ground recommendations, then draft the plan.
+[2025-09-03T12:36:35] exec bash -lc 'ls -la' "rg -n --hidden --glob '"'!**/bin/**'"' --glob '"'!**/obj/**'"' \"COA.Mcp.Framework.sln|azure-pipelines.yml|McpServerBuilder|JsonRpc|McpTypes|README.md|QUICKSTART.md|CHANGELOG.md|CLAUDE.md\" -S" "sed -n '1,200p' src/COA.Mcp.Framework/Server/McpServerBuilder.cs" "sed -n '1,200p' src/COA.Mcp.Protocol/JsonRpc.cs" "sed -n '1,200p' src/COA.Mcp.Protocol/McpTypes.cs" "sed -n '1,200p' README.md" "sed -n '1,200p' QUICKSTART.md" "sed -n '1,200p' azure-pipelines.yml" in /Users/murphy/Source/coa-mcp-framework
+[2025-09-03T12:36:35] bash -lc 'ls -la' "rg -n --hidden --glob '"'!**/bin/**'"' --glob '"'!**/obj/**'"' \"COA.Mcp.Framework.sln|azure-pipelines.yml|McpServerBuilder|JsonRpc|McpTypes|README.md|QUICKSTART.md|CHANGELOG.md|CLAUDE.md\" -S" "sed -n '1,200p' src/COA.Mcp.Framework/Server/McpServerBuilder.cs" "sed -n '1,200p' src/COA.Mcp.Protocol/JsonRpc.cs" "sed -n '1,200p' src/COA.Mcp.Protocol/McpTypes.cs" "sed -n '1,200p' README.md" "sed -n '1,200p' QUICKSTART.md" "sed -n '1,200p' azure-pipelines.yml" succeeded in 21ms:
+total 312
+drwxr-xr-x@ 20 501  staff    640 Sep  3 07:16 .
+drwxr-xr-x@ 28 501  staff    896 Sep  3 07:21 ..
+drwxr-xr-x@  6 501  staff    192 Sep  3 07:16 .claude
+drwxr-xr-x@ 12 501  staff    384 Sep  3 07:36 .git
+-rw-r--r--@  1 501  staff    443 Sep  3 07:16 .gitattributes
+-rw-r--r--@  1 501  staff   6581 Sep  3 07:16 .gitignore
+-rw-r--r--@  1 501  staff  18660 Sep  3 07:16 azure-pipelines.yml
+-rw-r--r--@  1 501  staff  16391 Sep  3 07:16 CHANGELOG.md
+-rw-r--r--@  1 501  staff   6386 Sep  3 07:16 CLAUDE.md
+-rw-r--r--@  1 501  staff  18588 Sep  3 07:16 COA.Mcp.Framework.sln
+-rw-r--r--@  1 501  staff   1724 Sep  3 07:16 Directory.Build.props
+drwxr-xr-x@ 13 501  staff    416 Sep  3 07:16 docs
+drwxr-xr-x@  8 501  staff    256 Sep  3 07:16 examples
+-rw-r--r--@  1 501  staff   1076 Sep  3 07:16 LICENSE
+-rw-r--r--@  1 501  staff    219 Sep  3 07:16 NuGet.config
+-rw-r--r--@  1 501  staff   4037 Sep  3 07:16 QUICKSTART.md
+-rw-r--r--@  1 501  staff  49359 Sep  3 07:16 README.md
+drwxr-xr-x@  9 501  staff    288 Sep  3 07:16 src
+-rw-r--r--@  1 501  staff   5805 Sep  3 07:16 test_results.txt
+[2025-09-03T12:36:35] tokens used: 12613
+[2025-09-03T12:36:46] exec rg -n --hidden --glob '!**/bin/**' --glob '!**/obj/**' 'COA.Mcp.Framework.sln|azure-pipelines.yml|McpServerBuilder|JsonRpc.cs|McpTypes.cs|README.md|QUICKSTART.md|CHANGELOG.md|CLAUDE.md' -S in /Users/murphy/Source/coa-mcp-framework
+[2025-09-03T12:36:46] rg -n --hidden --glob '!**/bin/**' --glob '!**/obj/**' 'COA.Mcp.Framework.sln|azure-pipelines.yml|McpServerBuilder|JsonRpc.cs|McpTypes.cs|README.md|QUICKSTART.md|CHANGELOG.md|CLAUDE.md' -S exited -1 in 0ms:
+No such file or directory (os error 2)
+[2025-09-03T12:36:46] tokens used: 1205
+
+[2025-09-03T12:36:52] thinking
+
+**Troubleshooting command syntax**
+
+I need to clarify how I'm passing the arguments. The command must be a list of strings, so it seems I have to provide a single command followed by its arguments. I ran into an error saying "No such file or directory" which might indicate that a specific argument is invalid, or perhaps "rg" isn't installed. I should consider alternatives like "fd," but if that's not available, then using "find" and "grep" for searches is a solid backup plan.
+**Executing grep command**
+
+I want to run the command "grep -R -n." This command will search recursively through directories and show the line numbers of the occurrences, which is really helpful for pinpointing exactly where things are. It's a straightforward approach, and I'm expecting it to yield useful results! I just need to make sure I have the correct directory targeted and that I'm ready to analyze the output once it runs. Let's see what I find!
+[2025-09-03T12:36:56] codex
+**Executing grep command**
+
+I want to run the command "grep -R -n." This command will search recursively through directories and show the line numbers of the occurrences, which is really helpful for pinpointing exactly where things are. It's a straightforward approach, and I'm expecting it to yield useful results! I just need to make sure I have the correct directory targeted and that I'm ready to analyze the output once it runs. Let's see what I find!
+[2025-09-03T12:36:58] exec bash -lc 'grep -R -n --exclude-dir=.git --exclude-dir=bin --exclude-dir=obj -E "COA.Mcp.Framework.sln|azure-pipelines.yml|McpServerBuilder|JsonRpc.cs|McpTypes.cs|README.md|QUICKSTART.md|CHANGELOG.md|CLAUDE.md" . | head -n 50' in /Users/murphy/Source/coa-mcp-framework
+[2025-09-03T12:36:59] bash -lc 'grep -R -n --exclude-dir=.git --exclude-dir=bin --exclude-dir=obj -E "COA.Mcp.Framework.sln|azure-pipelines.yml|McpServerBuilder|JsonRpc.cs|McpTypes.cs|README.md|QUICKSTART.md|CHANGELOG.md|CLAUDE.md" . | head -n 50' succeeded in 144ms:
+./CHANGELOG.md:54:- **McpServerBuilder Extensions**: Comprehensive middleware registration methods with flexible configuration options
+./CHANGELOG.md:229:- Enhanced `McpServerBuilder` with transport configuration methods
+./CHANGELOG.md:259:- **McpServerBuilder**: Fluent API for server configuration
+./CHANGELOG.md:284:- CLAUDE.md for AI assistant guidance
+./Directory.Build.props:23:    <PackageReadmeFile>README.md</PackageReadmeFile>
+./Directory.Build.props:30:    <None Include="$(MSBuildThisFileDirectory)README.md" Pack="true" PackagePath="\" />
+./tests/COA.Mcp.Framework.Tests/Pipeline/GlobalMiddlewareIntegrationTests.cs:45:        var builder = new McpServerBuilder();
+./tests/COA.Mcp.Framework.Tests/Pipeline/GlobalMiddlewareIntegrationTests.cs:65:        var builder = new McpServerBuilder();
+./tests/COA.Mcp.Framework.Tests/Pipeline/GlobalMiddlewareIntegrationTests.cs:85:        var builder = new McpServerBuilder();
+./tests/COA.Mcp.Framework.Tests/Pipeline/GlobalMiddlewareIntegrationTests.cs:102:        var builder = new McpServerBuilder();
+./tests/COA.Mcp.Framework.Tests/Pipeline/GlobalMiddlewareIntegrationTests.cs:122:        var builder = new McpServerBuilder();
+./tests/COA.Mcp.Framework.Tests/Pipeline/GlobalMiddlewareIntegrationTests.cs:146:        var builder = new McpServerBuilder();
+./tests/COA.Mcp.Framework.Tests/Pipeline/GlobalMiddlewareIntegrationTests.cs:183:        var builder = new McpServerBuilder();
+./tests/COA.Mcp.Framework.Tests/Pipeline/GlobalMiddlewareIntegrationTests.cs:208:        var builder = new McpServerBuilder();
+./tests/COA.Mcp.Framework.Tests/Server/McpServerBuilderAutoServiceTests.cs:13:public class McpServerBuilderAutoServiceTests
+./tests/COA.Mcp.Framework.Tests/Server/McpServerBuilderAutoServiceTests.cs:15:    private McpServerBuilder _builder;
+./tests/COA.Mcp.Framework.Tests/Server/McpServerBuilderAutoServiceTests.cs:20:        _builder = new McpServerBuilder();
+./tests/COA.Mcp.Framework.Tests/Server/McpServerBuilderTests.cs:22:    public class McpServerBuilderTests
+./tests/COA.Mcp.Framework.Tests/Server/McpServerBuilderTests.cs:24:        private McpServerBuilder _builder;
+./tests/COA.Mcp.Framework.Tests/Server/McpServerBuilderTests.cs:29:            _builder = new McpServerBuilder();
+[2025-09-03T12:36:59] tokens used: 444
+[2025-09-03T12:37:04] exec bash -lc "sed -n '1,240p' src/COA.Mcp.Framework/Server/McpServerBuilder.cs" in /Users/murphy/Source/coa-mcp-framework
+[2025-09-03T12:37:04] bash -lc "sed -n '1,240p' src/COA.Mcp.Framework/Server/McpServerBuilder.cs" succeeded in 8ms:
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Reflection;
+using COA.Mcp.Framework.Configuration;
+using COA.Mcp.Framework.Interfaces;
+using COA.Mcp.Framework.Pipeline;
+using COA.Mcp.Framework.Pipeline.Middleware;
+using COA.Mcp.Framework.Pipeline.SimpleMiddleware;
+using COA.Mcp.Framework.Prompts;
+using COA.Mcp.Framework.Registration;
+using COA.Mcp.Framework.Resources;
+using COA.Mcp.Framework.Server.Services;
+using COA.Mcp.Framework.Transport;
+using COA.Mcp.Framework.Transport.Configuration;
+using COA.Mcp.Protocol;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+[2025-09-03T12:37:05] tokens used: 1598
+[2025-09-03T12:37:12] exec bash -lc "sed -n '240,520p' src/COA.Mcp.Framework/Server/McpServerBuilder.cs" in /Users/murphy/Source/coa-mcp-framework
+[2025-09-03T12:37:12] bash -lc "sed -n '240,520p' src/COA.Mcp.Framework/Server/McpServerBuilder.cs" succeeded in 8ms:
+        _services.AddScoped<TPrompt>();
+        _promptConfiguration += registry => registry.RegisterPromptType<TPrompt>();
+        return this;
+    }
+
+    /// <summary>
+    /// Configures logging for the server.
+    /// </summary>
+    /// <param name="configure">Action to configure logging.</param>
+    /// <returns>The builder for chaining.</returns>
+    public McpServerBuilder ConfigureLogging(Action<ILoggingBuilder> configure)
+    {
+        _services.AddLogging(configure);
+        return this;
+    }
+
+    /// <summary>
+    /// Configures framework-wide options including logging behavior.
+    /// </summary>
+    /// <param name="configure">Action to configure framework options.</param>
+[2025-09-03T12:37:12] tokens used: 2201
+[2025-09-03T12:37:17] exec bash -lc "sed -n '520,1040p' src/COA.Mcp.Framework/Server/McpServerBuilder.cs" in /Users/murphy/Source/coa-mcp-framework
+[2025-09-03T12:37:17] bash -lc "sed -n '520,1040p' src/COA.Mcp.Framework/Server/McpServerBuilder.cs" succeeded in 10ms:
+        
+        var logger = serviceProvider.GetService<ILogger<McpServer>>();
+        var transport = serviceProvider.GetRequiredService<IMcpTransport>();
+        var server = new McpServer(transport, toolRegistry, resourceRegistry, promptRegistry, serverInfo, logger);
+        
+        return server;
+    }
+
+    /// <summary>
+    /// Builds and runs the MCP server as a hosted service.
+    /// </summary>
+    /// <returns>A task that completes when the server stops.</returns>
+    public async Task RunAsync(CancellationToken cancellationToken = default)
+    {
+        // If no transport specified, use stdio by default
+        if (_transport == null)
+        {
+            UseStdioTransport();
+        }
+        
+[2025-09-03T12:37:17] tokens used: 2618
+
+[2025-09-03T12:37:23] thinking
+
+**Analyzing code issues**
+
+I’m noticing some potential problems in the code. The BuildServiceProvider is used multiple times within builder methods, which could be a red flag. Also, the ServiceCollection copy from the host builder seems off, as enumerating "services" and then using builder.Services.Add(service) might lead to duplications or wrong lifetimes. Plus, it adds hosted services in a way that appears redundant. I need to recommend improvements and take a closer look at Protocol JsonRpc.cs and McpTypes.cs for feature coverage.
+[2025-09-03T12:37:28] exec bash -lc "sed -n '1,280p' src/COA.Mcp.Protocol/JsonRpc.cs" in /Users/murphy/Source/coa-mcp-framework
+[2025-09-03T12:37:28] bash -lc "sed -n '1,280p' src/COA.Mcp.Protocol/JsonRpc.cs" succeeded in 9ms:
+using System.Text.Json.Serialization;
+
+namespace COA.Mcp.Protocol;
+
+/// <summary>
+/// Base class for all JSON-RPC messages conforming to JSON-RPC 2.0 specification.
+/// </summary>
+public abstract class JsonRpcMessage
+{
+    /// <summary>
+    /// Gets or sets the JSON-RPC protocol version. Always "2.0" for JSON-RPC 2.0.
+    /// </summary>
+    [JsonPropertyName("jsonrpc")]
+    public string JsonRpc { get; set; } = "2.0";
+}
+
+/// <summary>
+/// Represents a JSON-RPC 2.0 request message.
+/// </summary>
+/// <remarks>
+[2025-09-03T12:37:28] tokens used: 2004
+[2025-09-03T12:37:41] exec bash -lc "sed -n '1,280p' src/COA.Mcp.Protocol/McpTypes.cs" in /Users/murphy/Source/coa-mcp-framework
+[2025-09-03T12:37:41] bash -lc "sed -n '1,280p' src/COA.Mcp.Protocol/McpTypes.cs" succeeded in 7ms:
+using System.Text.Json.Serialization;
+
+namespace COA.Mcp.Protocol;
+
+/// <summary>
+/// Defines the capabilities supported by an MCP server.
+/// </summary>
+public class ServerCapabilities
+{
+    /// <summary>
+    /// Gets or sets the tools capability marker.
+    /// </summary>
+    /// <value>An empty object {} indicates tool support is available.</value>
+    [JsonPropertyName("tools")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public object? Tools { get; set; }
+
+    /// <summary>
+    /// Gets or sets the resource capabilities supported by the server.
+    /// </summary>
+[2025-09-03T12:37:41] tokens used: 2679
+[2025-09-03T12:37:46] exec bash -lc "sed -n '280,800p' src/COA.Mcp.Protocol/McpTypes.cs" in /Users/murphy/Source/coa-mcp-framework
+[2025-09-03T12:37:46] bash -lc "sed -n '280,800p' src/COA.Mcp.Protocol/McpTypes.cs" succeeded in 20ms:
+    [JsonPropertyName("arguments")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public object? Arguments { get; set; }
+}
+
+/// <summary>
+/// Result returned from a tool invocation.
+/// </summary>
+public class CallToolResult
+{
+    /// <summary>
+    /// Gets or sets the content returned by the tool.
+    /// </summary>
+    [JsonPropertyName("content")]
+    public List<ToolContent> Content { get; set; } = new();
+
+    /// <summary>
+    /// Gets or sets whether the tool encountered an error.
+    /// </summary>
+    /// <value>If true, the content contains error information.</value>
+[2025-09-03T12:37:46] tokens used: 2400
+[2025-09-03T12:37:53] exec bash -lc "sed -n '800,1320p' src/COA.Mcp.Protocol/McpTypes.cs" in /Users/murphy/Source/coa-mcp-framework
+[2025-09-03T12:37:53] bash -lc "sed -n '800,1320p' src/COA.Mcp.Protocol/McpTypes.cs" succeeded in 13ms:
+
+    /// <summary>
+    /// Initializes a new instance of the TypedToolResponse class with an error.
+    /// </summary>
+    /// <param name="id">The request identifier.</param>
+    /// <param name="error">The error information.</param>
+    public TypedToolResponse(object id, JsonRpcError error)
+        : base(id, error)
+    {
+    }
+}
+
+#endregion
+[2025-09-03T12:37:53] tokens used: 4420
+[2025-09-03T12:38:00] exec bash -lc "sed -n '1,180p' README.md" in /Users/murphy/Source/coa-mcp-framework
+[2025-09-03T12:38:00] bash -lc "sed -n '1,180p' README.md" succeeded in 11ms:
+# COA MCP Framework
+
+A comprehensive .NET framework for building and consuming Model Context Protocol (MCP) servers with built-in token optimization, AI-friendly responses, strong typing, and developer-first design.
+
+[![NuGet Version](https://img.shields.io/nuget/v/COA.Mcp.Framework)](https://www.nuget.org/packages/COA.Mcp.Framework)
+[![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](https://github.com/anortham/COA-Mcp-Framework)
+[![Tests](https://img.shields.io/badge/tests-647%20passing-success)](https://github.com/anortham/COA-Mcp-Framework)
+[![.NET 9.0](https://img.shields.io/badge/.NET-9.0-blue)](https://dotnet.microsoft.com/download)
+
+## 🚀 Quick Start
+
+**Never used MCP before?** Follow our **[5-Minute Quickstart Guide](QUICKSTART.md)** 👈
+
+### Super Simple Example
+
+1. **Install:** `dotnet add package COA.Mcp.Framework`
+
+2. **Copy this code** into Program.cs:
+
+```csharp
+[2025-09-03T12:38:00] tokens used: 221
+[2025-09-03T12:38:05] exec bash -lc "sed -n '180,420p' README.md" in /Users/murphy/Source/coa-mcp-framework
+[2025-09-03T12:38:05] bash -lc "sed -n '180,420p' README.md" succeeded in 19ms:
+
+## 🎯 Client Library
+
+### Consuming MCP Servers with COA.Mcp.Client
+
+The framework includes a strongly-typed C# client library for interacting with MCP servers:
+
+```csharp
+// Create a typed client with fluent configuration
+var client = await McpClientBuilder
+    .Create("http://localhost:5000")
+    .WithTimeout(TimeSpan.FromSeconds(30))
+    .WithRetry(maxAttempts: 3, delayMs: 1000)
+    .WithApiKey("your-api-key")
+    .BuildAndInitializeAsync();
+
+// List available tools
+var tools = await client.ListToolsAsync();
+
+// Call a tool with type safety
+[2025-09-03T12:38:05] tokens used: 2079
+[2025-09-03T12:38:11] exec bash -lc "sed -n '420,840p' README.md" in /Users/murphy/Source/coa-mcp-framework
+[2025-09-03T12:38:11] bash -lc "sed -n '420,840p' README.md" succeeded in 13ms:
+            "subtract" or "-" => a - b,
+            "multiply" or "*" => a * b,
+            "divide" or "/" => b != 0 ? a / b : 
+                throw new DivideByZeroException("Cannot divide by zero"),
+            _ => throw new NotSupportedException($"Operation '{parameters.Operation}' is not supported")
+        };
+
+        return new CalculatorResult
+        {
+            Success = true,
+            Operation = parameters.Operation,
+            Expression = $"{a} {parameters.Operation} {b}",
+            Result = result,
+            Meta = new ToolMetadata
+            {
+                ExecutionTime = $"{stopwatch.ElapsedMilliseconds}ms"
+            }
+        };
+    }
+}
+[2025-09-03T12:38:11] tokens used: 2054
+[2025-09-03T12:38:24] exec bash -lc "sed -n '1,220p' QUICKSTART.md" in /Users/murphy/Source/coa-mcp-framework
+[2025-09-03T12:38:24] bash -lc "sed -n '1,220p' QUICKSTART.md" succeeded in 12ms:
+# 5-Minute MCP Server Quickstart
+
+Get a working MCP server running in **5 minutes or less**. No prior knowledge needed.
+
+## Step 1: Create a New Project (1 minute)
+
+```bash
+# Create a new console app
+dotnet new console -n MyMcpServer
+cd MyMcpServer
+
+# Add the MCP framework
+dotnet add package COA.Mcp.Framework
+```
+
+## Step 2: Replace Program.cs (2 minutes)
+
+Delete everything in `Program.cs` and paste this:
+
+```csharp
+[2025-09-03T12:38:24] tokens used: 3583
+
+[2025-09-03T12:38:30] thinking
+
+**Considering CI improvements**
+
+I want to take a look at the `azure-pipelines.yml` file to see how I can suggest improvements for continuous integration. It’s about understanding the current setup and identifying potential enhancements that could streamline processes or boost efficiency. By examining it closely, I hope to uncover areas that might benefit from tweaks or updates that align with best practices. Time to dive into the details!
+[2025-09-03T12:38:32] exec bash -lc "sed -n '1,240p' azure-pipelines.yml" in /Users/murphy/Source/coa-mcp-framework
+[2025-09-03T12:38:32] bash -lc "sed -n '1,240p' azure-pipelines.yml" succeeded in 10ms:
+# Azure Pipelines for COA MCP Framework
+# Supports both CI builds (automatic) and Release builds (manual)
+# CI: Builds and publishes to Azure DevOps feed only
+# Release: Manual trigger with option to publish to NuGet.org
+
+name: 'COA MCP Framework - v$(majorVersion).$(minorVersion).$(patchVersion)'
+
+# Automatic triggers for CI builds
+trigger:
+  branches:
+    include:
+      - main
+      - develop
+      - release/*
+  paths:
+    exclude:
+      - '*.md'
+      - 'docs/*'
+
+# Run on pull requests for validation
+[2025-09-03T12:38:32] tokens used: 1387
+[2025-09-03T12:38:38] exec bash -lc "sed -n '240,720p' azure-pipelines.yml" in /Users/murphy/Source/coa-mcp-framework
+[2025-09-03T12:38:38] bash -lc "sed -n '240,720p' azure-pipelines.yml" succeeded in 12ms:
+              nobuild: true
+              versioningScheme: "off"
+              arguments: "$(versionArguments) --no-restore"
+
+          # Pack Core Framework
+          - task: DotNetCoreCLI@2
+            displayName: "Pack COA.Mcp.Framework"
+            inputs:
+              command: "pack"
+              packagesToPack: "src/COA.Mcp.Framework/COA.Mcp.Framework.csproj"
+              configuration: $(buildConfiguration)
+              packDirectory: "$(Build.ArtifactStagingDirectory)/packages"
+              nobuild: true
+              versioningScheme: "off"
+              arguments: "$(versionArguments) --no-restore"
+
+          # Pack Token Optimization
+          - task: DotNetCoreCLI@2
+            displayName: "Pack COA.Mcp.Framework.TokenOptimization"
+            inputs:
+[2025-09-03T12:38:38] tokens used: 2540
+
+[2025-09-03T12:38:44] thinking
+
+**Analyzing test file patterns**
+
+I think it’s important to check one test file to identify any patterns. I’ll look for `FrameworkOptions` in the definition to better understand the framework options available. This way, I can ensure I'm using the right parameters and configurations. It's all about gathering the details to get everything set up correctly! Let’s see what I find in that test file and how it can guide our next steps.
+[2025-09-03T12:38:47] exec bash -lc 'grep -R -n --exclude-dir=.git --exclude-dir=bin --exclude-dir=obj "class FrameworkOptions|TypeVerificationOptions|TddEnforcementOptions|ISimpleMiddleware" src | head -n 50' in /Users/murphy/Source/coa-mcp-framework
+[2025-09-03T12:38:47] bash -lc 'grep -R -n --exclude-dir=.git --exclude-dir=bin --exclude-dir=obj "class FrameworkOptions|TypeVerificationOptions|TddEnforcementOptions|ISimpleMiddleware" src | head -n 50' succeeded in 48ms:
+
+[2025-09-03T12:38:47] tokens used: 2373
+[2025-09-03T12:38:54] exec bash -lc 'ls -la src/COA.Mcp.Framework/Pipeline' 'ls -la src/COA.Mcp.Framework/Pipeline/Middleware' 'ls -la src/COA.Mcp.Framework/Pipeline/SimpleMiddleware' 'ls -la src/COA.Mcp.Framework/Server' 'ls -la src/COA.Mcp.Framework/Transport' 'ls -la src/COA.Mcp.Framework/Transport/Configuration' 'ls -la src/COA.Mcp.Framework/Resources' 'ls -la src/COA.Mcp.Framework/Prompts' 'ls -la src/COA.Mcp.Framework/Registration' 'ls -la src/COA.Mcp.Framework/Server/Services' in /Users/murphy/Source/coa-mcp-framework
+[2025-09-03T12:38:54] bash -lc 'ls -la src/COA.Mcp.Framework/Pipeline' 'ls -la src/COA.Mcp.Framework/Pipeline/Middleware' 'ls -la src/COA.Mcp.Framework/Pipeline/SimpleMiddleware' 'ls -la src/COA.Mcp.Framework/Server' 'ls -la src/COA.Mcp.Framework/Transport' 'ls -la src/COA.Mcp.Framework/Transport/Configuration' 'ls -la src/COA.Mcp.Framework/Resources' 'ls -la src/COA.Mcp.Framework/Prompts' 'ls -la src/COA.Mcp.Framework/Registration' 'ls -la src/COA.Mcp.Framework/Server/Services' succeeded in 22ms:
+total 8
+drwxr-xr-x@  5 501  staff   160 Sep  3 07:16 .
+drwxr-xr-x@ 21 501  staff   672 Sep  3 07:16 ..
+drwxr-xr-x@  4 501  staff   128 Sep  3 07:16 Middleware
+drwxr-xr-x@  4 501  staff   128 Sep  3 07:16 SimpleMiddleware
+-rw-r--r--@  1 501  staff  2644 Sep  3 07:16 SimpleMiddleware.cs
+[2025-09-03T12:38:54] tokens used: 284
+[2025-09-03T12:38:59] exec bash -lc "sed -n '1,240p' src/COA.Mcp.Framework/Pipeline/SimpleMiddleware.cs" in /Users/murphy/Source/coa-mcp-framework
+[2025-09-03T12:38:59] bash -lc "sed -n '1,240p' src/COA.Mcp.Framework/Pipeline/SimpleMiddleware.cs" succeeded in 11ms:
+using System;
+using System.Threading.Tasks;
+
+namespace COA.Mcp.Framework.Pipeline;
+
+/// <summary>
+/// Simplified middleware interface for tool execution.
+/// </summary>
+public interface ISimpleMiddleware
+{
+    /// <summary>
+    /// Gets the order in which this middleware should run (lower numbers run first).
+    /// </summary>
+    int Order { get; }
+
+    /// <summary>
+    /// Gets whether this middleware is enabled.
+    /// </summary>
+    bool IsEnabled { get; }
+
+[2025-09-03T12:38:59] tokens used: 381
+[2025-09-03T12:39:06] exec bash -lc 'ls -la src/COA.Mcp.Framework/Pipeline/Middleware' "sed -n '1,220p' src/COA.Mcp.Framework/Pipeline/Middleware/TypeVerificationMiddleware.cs" "sed -n '1,220p' src/COA.Mcp.Framework/Pipeline/Middleware/TddEnforcementMiddleware.cs" "sed -n '1,200p' src/COA.Mcp.Framework/Pipeline/SimpleMiddleware/LoggingSimpleMiddleware.cs" "sed -n '1,200p' src/COA.Mcp.Framework/Pipeline/SimpleMiddleware/TokenCountingSimpleMiddleware.cs" in /Users/murphy/Source/coa-mcp-framework
+[2025-09-03T12:39:06] bash -lc 'ls -la src/COA.Mcp.Framework/Pipeline/Middleware' "sed -n '1,220p' src/COA.Mcp.Framework/Pipeline/Middleware/TypeVerificationMiddleware.cs" "sed -n '1,220p' src/COA.Mcp.Framework/Pipeline/Middleware/TddEnforcementMiddleware.cs" "sed -n '1,200p' src/COA.Mcp.Framework/Pipeline/SimpleMiddleware/LoggingSimpleMiddleware.cs" "sed -n '1,200p' src/COA.Mcp.Framework/Pipeline/SimpleMiddleware/TokenCountingSimpleMiddleware.cs" succeeded in 19ms:
+total 88
+drwxr-xr-x@ 4 501  staff    128 Sep  3 07:16 .
+drwxr-xr-x@ 5 501  staff    160 Sep  3 07:16 ..
+-rw-r--r--@ 1 501  staff  17877 Sep  3 07:16 TddEnforcementMiddleware.cs
+-rw-r--r--@ 1 501  staff  24454 Sep  3 07:16 TypeVerificationMiddleware.cs
+[2025-09-03T12:39:06] tokens used: 942
+[2025-09-03T12:39:13] exec bash -lc "sed -n '1,120p' src/COA.Mcp.Framework/Pipeline/Middleware/TypeVerificationMiddleware.cs" in /Users/murphy/Source/coa-mcp-framework
+[2025-09-03T12:39:13] bash -lc "sed -n '1,120p' src/COA.Mcp.Framework/Pipeline/Middleware/TypeVerificationMiddleware.cs" succeeded in 11ms:
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text.Json;
+using System.Text.RegularExpressions;
+using System.Threading.Tasks;
+using COA.Mcp.Framework.Configuration;
+using COA.Mcp.Framework.Exceptions;
+using COA.Mcp.Framework.Interfaces;
+using COA.Mcp.Framework.Utilities;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+
+namespace COA.Mcp.Framework.Pipeline.Middleware;
+
+/// <summary>
+/// Middleware that enforces type verification before allowing code generation operations.
+/// Blocks Edit, Write, and MultiEdit tools that use unverified types, forcing Claude to use
+/// CodeNav tools for proper type verification first.
+/// </summary>
+[2025-09-03T12:39:13] tokens used: 365
+[2025-09-03T12:39:18] exec bash -lc "sed -n '120,240p' src/COA.Mcp.Framework/Pipeline/Middleware/TypeVerificationMiddleware.cs" in /Users/murphy/Source/coa-mcp-framework
+[2025-09-03T12:39:18] bash -lc "sed -n '120,240p' src/COA.Mcp.Framework/Pipeline/Middleware/TypeVerificationMiddleware.cs" succeeded in 10ms:
+            {
+                // Concurrent type verification for performance
+                var typeVerificationTasks = typesToVerify
+                    .Select(async typeRef => new
+                    {
+                        TypeRef = typeRef,
+                        IsVerified = await _verificationStateManager.IsTypeVerifiedAsync(typeRef.TypeName)
+                    })
+                    .ToArray();
+
+                var verificationResults = await Task.WhenAll(typeVerificationTasks);
+
+                // Process results and handle member verification concurrently
+                var memberVerificationTasks = new List<Task<MemberVerificationResult>>();
+
+                foreach (var result in verificationResults)
+                {
+                    if (!result.IsVerified)
+                    {
+                        unverifiedTypes.Add(result.TypeRef.TypeName);
+[2025-09-03T12:39:19] tokens used: 1291
+[2025-09-03T12:39:25] exec bash -lc "sed -n '240,480p' src/COA.Mcp.Framework/Pipeline/Middleware/TypeVerificationMiddleware.cs" in /Users/murphy/Source/coa-mcp-framework
+[2025-09-03T12:39:25] bash -lc "sed -n '240,480p' src/COA.Mcp.Framework/Pipeline/Middleware/TypeVerificationMiddleware.cs" succeeded in 8ms:
+            message.Add("1. Verify types using CodeNav tools:");
+            
+            var firstType = unverifiedTypes.First();
+            message.Add($"   mcp__codenav__csharp_symbol_search query:\"{firstType}\"");
+            message.Add($"   mcp__codenav__csharp_goto_definition <file> <line> <col>");
+            message.Add($"   mcp__codenav__csharp_hover <file> <line> <col>");
+            message.Add("");
+            message.Add("2. For complete type information:");
+            message.Add($"   mcp__codenav__csharp_get_type_members <file> <line> <col>");
+            message.Add("");
+        }
+
+        if (memberIssues.Any())
+        {
+            message.Add("🚫 BLOCKED: Unknown type members detected");
+            message.Add("");
+            
+            foreach (var issue in memberIssues.Take(3))
+            {
+                message.Add($"❌ {issue.TypeName}.{issue.MemberName} does not exist");
+[2025-09-03T12:39:25] tokens used: 1226
+
+[2025-09-03T12:39:29] thinking
+
+**Assessing transports**
+
+I'm concluding that I have enough information to assess the situation. I should focus on scanning transport options to better understand the HTTP/WebSocket mechanics. By doing this, I'll be gathering the insights I need to move forward effectively. It seems like a good next step, so I’ll dive into it and see what I can find out about those mechanics! Let's get to work on this.
+[2025-09-03T12:39:32] exec bash -lc 'ls -la src/COA.Mcp.Framework/Transport' "sed -n '1,200p' src/COA.Mcp.Framework/Transport/HttpTransport.cs" "sed -n '1,200p' src/COA.Mcp.Framework/Transport/StdioTransport.cs" "sed -n '1,240p' src/COA.Mcp.Framework/Transport/WebSocketTransport.cs" "sed -n '1,200p' src/COA.Mcp.Framework/Transport/Configuration/HttpTransportOptions.cs" "sed -n '1,200p' src/COA.Mcp.Framework/Transport/Configuration/StdioTransportOptions.cs" in /Users/murphy/Source/coa-mcp-framework
+[2025-09-03T12:39:32] bash -lc 'ls -la src/COA.Mcp.Framework/Transport' "sed -n '1,200p' src/COA.Mcp.Framework/Transport/HttpTransport.cs" "sed -n '1,200p' src/COA.Mcp.Framework/Transport/StdioTransport.cs" "sed -n '1,240p' src/COA.Mcp.Framework/Transport/WebSocketTransport.cs" "sed -n '1,200p' src/COA.Mcp.Framework/Transport/Configuration/HttpTransportOptions.cs" "sed -n '1,200p' src/COA.Mcp.Framework/Transport/Configuration/StdioTransportOptions.cs" succeeded in 19ms:
+total 152
+drwxr-xr-x@ 11 501  staff    352 Sep  3 07:16 .
+drwxr-xr-x@ 21 501  staff    672 Sep  3 07:16 ..
+drwxr-xr-x@  4 501  staff    128 Sep  3 07:16 Configuration
+drwxr-xr-x@  4 501  staff    128 Sep  3 07:16 Correlation
+-rw-r--r--@  1 501  staff  37400 Sep  3 07:16 HttpTransport.cs
+-rw-r--r--@  1 501  staff   1460 Sep  3 07:16 IMcpTransport.cs
+-rw-r--r--@  1 501  staff   3902 Sep  3 07:16 StdioTransport.cs
+-rw-r--r--@  1 501  staff    721 Sep  3 07:16 TransportDisconnectedEventArgs.cs
+-rw-r--r--@  1 501  staff   1125 Sep  3 07:16 TransportMessage.cs
+-rw-r--r--@  1 501  staff    709 Sep  3 07:16 TransportType.cs
+-rw-r--r--@  1 501  staff  16141 Sep  3 07:16 WebSocketTransport.cs
+[2025-09-03T12:39:32] tokens used: 2780
+[2025-09-03T12:39:39] exec bash -lc "sed -n '1,140p' src/COA.Mcp.Framework/Transport/HttpTransport.cs" in /Users/murphy/Source/coa-mcp-framework
+[2025-09-03T12:39:39] bash -lc "sed -n '1,140p' src/COA.Mcp.Framework/Transport/HttpTransport.cs" succeeded in 9ms:
+using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Net;
+using System.Net.WebSockets;
+using System.Linq;
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
+using System.Text;
+using System.Text.Json;
+using System.Text.Json.Nodes;
+using System.Threading;
+using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using COA.Mcp.Framework.Transport.Configuration;
+using COA.Mcp.Framework.Transport.Correlation;
+
+namespace COA.Mcp.Framework.Transport
+[2025-09-03T12:39:39] tokens used: 634
+
+[2025-09-03T12:39:50] thinking
+
+**Checking message models and tests**
+
+I'm realizing we're using HttpListener instead of ASP.NET Core, which is an important detail to note. I should look at IMcpTransport for the message model, but I think it's better to skip that for now. Instead, I want to check the tests to see how well they cover the JSON-RPC semantics and transports. Let me list the test names to get a clearer picture of what's covered.
+[2025-09-03T12:39:54] exec bash -lc "find tests -maxdepth 2 -type f -name \"*.cs\" | wc -l && find tests -maxdepth 2 -type f -name \"*.cs\" | sed -n '1,60p' && sed -n '1,160p' tests/COA.Mcp.Protocol.Tests/JsonRpcTests.cs" in /Users/murphy/Source/coa-mcp-framework
+[2025-09-03T12:39:54] bash -lc "find tests -maxdepth 2 -type f -name \"*.cs\" | wc -l && find tests -maxdepth 2 -type f -name \"*.cs\" | sed -n '1,60p' && sed -n '1,160p' tests/COA.Mcp.Protocol.Tests/JsonRpcTests.cs" exited -1 in 0ms:
+sed: tests/COA.Mcp.Protocol.Tests/JsonRpcTests.cs: No such file or directory
+[2025-09-03T12:39:55] tokens used: 1339
+
+[2025-09-03T12:40:02] thinking
+
+**Reviewing test files**
+
+I see we have a list of test files from stdout, but it seems we're missing JsonRpcTests.cs. That’s interesting! I should check the other existing tests to understand what they actually cover. Opening some of those test files could help me see their content and functionality. Let's explore those tests and gather more information to see if there's any overlap or relevance to what I’m looking for!
+[2025-09-03T12:40:04] exec bash -lc "sed -n '1,160p' tests/COA.Mcp.Protocol.Tests/TypedJsonRpcTests.cs" "sed -n '1,200p' tests/COA.Mcp.Protocol.Tests/JsonRpcErrorCodesTests.cs" "sed -n '1,200p' tests/COA.Mcp.Client.Tests/McpHttpClientTests.cs" in /Users/murphy/Source/coa-mcp-framework
+[2025-09-03T12:40:04] bash -lc "sed -n '1,160p' tests/COA.Mcp.Protocol.Tests/TypedJsonRpcTests.cs" "sed -n '1,200p' tests/COA.Mcp.Protocol.Tests/JsonRpcErrorCodesTests.cs" "sed -n '1,200p' tests/COA.Mcp.Client.Tests/McpHttpClientTests.cs" succeeded in 18ms:
+using System.Text.Json;
+using COA.Mcp.Protocol;
+using FluentAssertions;
+
+namespace COA.Mcp.Protocol.Tests;
+
+[TestFixture]
+public class TypedJsonRpcTests
+{
+    // Test parameter types for strongly-typed tests
+    public class TestParams
+    {
+        public string Name { get; set; } = string.Empty;
+        public int Value { get; set; }
+        public bool IsActive { get; set; }
+    }
+
+    public class TestResult
+    {
+        public string Status { get; set; } = string.Empty;
+[2025-09-03T12:40:04] tokens used: 650
+[2025-09-03T12:40:09] exec bash -lc "sed -n '160,400p' tests/COA.Mcp.Protocol.Tests/TypedJsonRpcTests.cs" in /Users/murphy/Source/coa-mcp-framework
+[2025-09-03T12:40:09] bash -lc "sed -n '160,400p' tests/COA.Mcp.Protocol.Tests/TypedJsonRpcTests.cs" succeeded in 8ms:
+        var response = new TypedJsonRpcResponse<TestResult>(
+            "resp-1", 
+            new TestResult { Status = "Complete", Items = new[] { "A", "B" } }
+        );
+
+        // Act
+        var json = JsonSerializer.Serialize(response, new JsonSerializerOptions 
+        { 
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase 
+        });
+
+        // Assert
+        json.Should().Contain("\"jsonrpc\":\"2.0\"");
+        json.Should().Contain("\"id\":\"resp-1\"");
+        json.Should().Contain("\"status\":\"Complete\"");
+        json.Should().Contain("[\"A\",\"B\"]");
+        json.Should().NotContain("error");
+    }
+
+    [Test]
+[2025-09-03T12:40:09] tokens used: 1495
+[2025-09-03T12:40:16] exec bash -lc "sed -n '1,200p' tests/COA.Mcp.Protocol.Tests/JsonRpcErrorCodesTests.cs" in /Users/murphy/Source/coa-mcp-framework
+[2025-09-03T12:40:16] bash -lc "sed -n '1,200p' tests/COA.Mcp.Protocol.Tests/JsonRpcErrorCodesTests.cs" succeeded in 13ms:
+using COA.Mcp.Protocol;
+using FluentAssertions;
+
+namespace COA.Mcp.Protocol.Tests;
+
+[TestFixture]
+public class JsonRpcErrorCodesTests
+{
+    [Test]
+    public void Constants_ShouldHaveCorrectValues()
+    {
+        // JSON-RPC 2.0 Standard Error Codes
+        JsonRpcErrorCodes.ParseError.Should().Be(-32700);
+        JsonRpcErrorCodes.InvalidRequest.Should().Be(-32600);
+        JsonRpcErrorCodes.MethodNotFound.Should().Be(-32601);
+        JsonRpcErrorCodes.InvalidParams.Should().Be(-32602);
+        JsonRpcErrorCodes.InternalError.Should().Be(-32603);
+
+        // Server Error Range
+        JsonRpcErrorCodes.ServerError.Should().Be(-32000);
+[2025-09-03T12:40:16] tokens used: 2135
+[2025-09-03T12:40:25] exec bash -lc "sed -n '1,220p' tests/COA.Mcp.Client.Tests/McpHttpClientTests.cs" in /Users/murphy/Source/coa-mcp-framework
+[2025-09-03T12:40:25] bash -lc "sed -n '1,220p' tests/COA.Mcp.Client.Tests/McpHttpClientTests.cs" succeeded in 12ms:
+using System;
+using System.Net;
+using System.Net.Http;
+using System.Text;
+using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
+using COA.Mcp.Client;
+using COA.Mcp.Client.Configuration;
+using COA.Mcp.Protocol;
+using FluentAssertions;
+using Microsoft.Extensions.Logging;
+using Moq;
+using Moq.Protected;
+using NUnit.Framework;
+
+namespace COA.Mcp.Client.Tests
+{
+    [TestFixture]
+    public class McpHttpClientTests
+[2025-09-03T12:40:25] tokens used: 2187
+[2025-09-03T12:40:33] exec bash -lc "sed -n '220,520p' tests/COA.Mcp.Client.Tests/McpHttpClientTests.cs" in /Users/murphy/Source/coa-mcp-framework
+[2025-09-03T12:40:33] bash -lc "sed -n '220,520p' tests/COA.Mcp.Client.Tests/McpHttpClientTests.cs" succeeded in 8ms:
+        [Test]
+        public async Task SendRequestAsync_WithJsonRpcError_ShouldThrowJsonRpcException()
+        {
+            // Arrange
+            var errorResponse = new
+            {
+                jsonrpc = "2.0",
+                error = new
+                {
+                    code = -32601,
+                    message = "Method not found",
+                    data = "Additional error info"
+                },
+                id = 1
+            };
+
+            SetupHttpResponse("/mcp/health", HttpStatusCode.OK, "{\"status\":\"healthy\"}");
+            SetupHttpResponse("/mcp/rpc", HttpStatusCode.OK, JsonSerializer.Serialize(errorResponse));
+            
+            _client = new McpHttpClient(_options, _httpClient, _mockLogger.Object);
+[2025-09-03T12:40:33] tokens used: 2040
+
+[2025-09-03T12:40:41] thinking
+
+**Checking WebSocket details**
+
+I’m diving into the protocol details, starting with typed JSON-RPC and client HTTP, which we have coverage on. Next, I should explore WebSocket transport specifics, including cancellation, progress, and batching. I'll look into whether the protocol classes have any cancellation tokens or mechanisms for request cancellation. There seems to be a `RequestResponseCorrelator` in the transport — that could handle some of this. I’ll open up the correlator for further details.
+[2025-09-03T12:40:44] exec bash -lc "sed -n '1,240p' src/COA.Mcp.Framework/Transport/Correlation/RequestResponseCorrelator.cs" in /Users/murphy/Source/coa-mcp-framework
+[2025-09-03T12:40:44] bash -lc "sed -n '1,240p' src/COA.Mcp.Framework/Transport/Correlation/RequestResponseCorrelator.cs" succeeded in 9ms:
+using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+
+namespace COA.Mcp.Framework.Transport.Correlation
+{
+    /// <summary>
+    /// Manages request-response correlation for async messaging in transports.
+    /// </summary>
+    public class RequestResponseCorrelator : IDisposable
+    {
+        private readonly ConcurrentDictionary<string, PendingRequest> _pendingRequests = new();
+        private readonly ILogger<RequestResponseCorrelator>? _logger;
+        private readonly Timer _cleanupTimer;
+        private readonly TimeSpan _defaultTimeout;
+        private bool _disposed;
+
+[2025-09-03T12:40:44] tokens used: 1438
+[2025-09-03T12:40:48] exec bash -lc "sed -n '240,520p' src/COA.Mcp.Framework/Transport/Correlation/RequestResponseCorrelator.cs" in /Users/murphy/Source/coa-mcp-framework
+[2025-09-03T12:40:48] bash -lc "sed -n '240,520p' src/COA.Mcp.Framework/Transport/Correlation/RequestResponseCorrelator.cs" succeeded in 11ms:
+                    }
+                    catch (Exception ex)
+                    {
+                        throw new InvalidOperationException(
+                            $"Failed to deserialize response to {typeof(TResponse).Name}", ex);
+                    }
+                }
+
+                throw new InvalidCastException(
+                    $"Cannot convert response of type {result?.GetType().Name} to {typeof(TResponse).Name}");
+            }
+
+            public void Dispose()
+            {
+                TimeoutCancellation?.Dispose();
+            }
+        }
+    }
+}
+[2025-09-03T12:40:48] tokens used: 1924
+
+[2025-09-03T12:40:54] thinking
+
+**Inspecting implementation**
+
+Alright, I think it's important to take a closer look at the COA.Mcp.Client implementation. It could provide insights or reveal potential issues that need addressing. I wonder what specific aspects to focus on—maybe its functionality, performance, or any existing bugs? I’ll ensure that I thoroughly analyze it so that I can present the user with clear, useful information. It's all about getting it right!
+[2025-09-03T12:40:58] exec bash -lc 'ls -la src/COA.Mcp.Client' "sed -n '1,200p' src/COA.Mcp.Client/McpHttpClient.cs" "sed -n '1,200p' src/COA.Mcp.Client/McpClientBuilder.cs" in /Users/murphy/Source/coa-mcp-framework
+[2025-09-03T12:40:58] bash -lc 'ls -la src/COA.Mcp.Client' "sed -n '1,200p' src/COA.Mcp.Client/McpHttpClient.cs" "sed -n '1,200p' src/COA.Mcp.Client/McpClientBuilder.cs" succeeded in 18ms:
+total 128
+drwxr-xr-x@ 9 501  staff    288 Sep  3 07:16 .
+drwxr-xr-x@ 9 501  staff    288 Sep  3 07:16 ..
+-rw-r--r--@ 1 501  staff   1720 Sep  3 07:16 COA.Mcp.Client.csproj
+drwxr-xr-x@ 3 501  staff     96 Sep  3 07:16 Configuration
+drwxr-xr-x@ 4 501  staff    128 Sep  3 07:16 Interfaces
+-rw-r--r--@ 1 501  staff  14201 Sep  3 07:16 McpClientBuilder.cs
+-rw-r--r--@ 1 501  staff  17565 Sep  3 07:16 McpHttpClient.cs
+-rw-r--r--@ 1 501  staff   8142 Sep  3 07:16 README.md
+-rw-r--r--@ 1 501  staff  13166 Sep  3 07:16 TypedMcpClient.cs
+[2025-09-03T12:40:58] tokens used: 348
+[2025-09-03T12:41:04] exec bash -lc "sed -n '1,220p' src/COA.Mcp.Client/McpHttpClient.cs" in /Users/murphy/Source/coa-mcp-framework
+[2025-09-03T12:41:04] bash -lc "sed -n '1,220p' src/COA.Mcp.Client/McpHttpClient.cs" succeeded in 14ms:
+using System;
+using System.Collections.Concurrent;
+using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Text;
+using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
+using COA.Mcp.Client.Configuration;
+using COA.Mcp.Client.Interfaces;
+using COA.Mcp.Protocol;
+using Microsoft.Extensions.Logging;
+using Polly;
+using Polly.CircuitBreaker;
+
+namespace COA.Mcp.Client
+{
+    /// <summary>
+    /// HTTP-based MCP client implementation.
+    /// </summary>
+[2025-09-03T12:41:04] tokens used: 439
+[2025-09-03T12:41:19] exec bash -lc "sed -n '220,520p' src/COA.Mcp.Client/McpHttpClient.cs" in /Users/murphy/Source/coa-mcp-framework
+[2025-09-03T12:41:19] bash -lc "sed -n '220,520p' src/COA.Mcp.Client/McpHttpClient.cs" succeeded in 8ms:
+            _logger?.LogInformation("Disconnected from MCP server");
+            return Task.CompletedTask;
+        }
+
+        public async Task<InitializeResult> InitializeAsync(CancellationToken cancellationToken = default)
+        {
+            if (!_isConnected)
+            {
+                await ConnectAsync(cancellationToken);
+            }
+
+            var request = new InitializeRequest
+            {
+                ProtocolVersion = "2024-11-05",
+                Capabilities = new ClientCapabilities
+                {
+                    // ClientCapabilities has different properties
+                },
+                ClientInfo = new Implementation
+                {
+[2025-09-03T12:41:19] tokens used: 1921
+[2025-09-03T12:41:24] exec bash -lc "sed -n '1,220p' src/COA.Mcp.Client/McpClientBuilder.cs" in /Users/murphy/Source/coa-mcp-framework
+[2025-09-03T12:41:24] bash -lc "sed -n '1,220p' src/COA.Mcp.Client/McpClientBuilder.cs" succeeded in 7ms:
+using System;
+using System.Net.Http;
+using System.Text.Json;
+using COA.Mcp.Client.Configuration;
+using COA.Mcp.Client.Interfaces;
+using COA.Mcp.Framework.Models;
+using COA.Mcp.Protocol;
+using Microsoft.Extensions.Logging;
+
+namespace COA.Mcp.Client
+{
+    /// <summary>
+    /// Fluent builder for creating and configuring MCP clients.
+    /// </summary>
+    public class McpClientBuilder
+    {
+        private readonly McpClientOptions _options = new();
+        private HttpClient? _httpClient;
+        private ILoggerFactory? _loggerFactory;
+
+[2025-09-03T12:41:24] tokens used: 1990
+[2025-09-03T12:41:29] exec bash -lc "sed -n '220,520p' src/COA.Mcp.Client/McpClientBuilder.cs" in /Users/murphy/Source/coa-mcp-framework
+[2025-09-03T12:41:29] bash -lc "sed -n '220,520p' src/COA.Mcp.Client/McpClientBuilder.cs" succeeded in 9ms:
+
+        /// <summary>
+        /// Configures options using an action.
+        /// </summary>
+        public McpClientBuilder Configure(Action<McpClientOptions> configure)
+        {
+            configure?.Invoke(_options);
+            return this;
+        }
+
+        /// <summary>
+        /// Builds a standard MCP client.
+        /// </summary>
+        public IMcpClient Build()
+        {
+            var logger = _loggerFactory?.CreateLogger<McpHttpClient>();
+            return new McpHttpClient(_options, _httpClient, logger);
+        }
+
+        /// <summary>
+[2025-09-03T12:41:29] tokens used: 1652
+[2025-09-03T12:41:45] exec bash -lc "grep -R -n --exclude-dir=.git --exclude-dir=bin --exclude-dir=obj \"IServiceScope|CreateScope\\(|IServiceScopeFactory|GetRequiredService<.*McpServer|McpServer\\(\" src | head -n 50" in /Users/murphy/Source/coa-mcp-framework
+[2025-09-03T12:41:45] bash -lc "grep -R -n --exclude-dir=.git --exclude-dir=bin --exclude-dir=obj \"IServiceScope|CreateScope\\(|IServiceScopeFactory|GetRequiredService<.*McpServer|McpServer\\(\" src | head -n 50" succeeded in 8ms:
+
+[2025-09-03T12:41:46] tokens used: 2339
+[2025-09-03T12:41:52] exec bash -lc "grep -R -n --exclude-dir=.git --exclude-dir=bin --exclude-dir=obj -E \"IServiceScope|CreateScope\\(|IServiceScopeFactory|McpServer\\(\" src | head -n 80" in /Users/murphy/Source/coa-mcp-framework
+[2025-09-03T12:41:52] bash -lc "grep -R -n --exclude-dir=.git --exclude-dir=bin --exclude-dir=obj -E \"IServiceScope|CreateScope\\(|IServiceScopeFactory|McpServer\\(\" src | head -n 80" succeeded in 61ms:
+src/COA.Mcp.Framework.Templates/templates/mcp-server/Program.cs:152:using (var scope = host.Services.CreateScope())
+src/COA.Mcp.Framework/Server/McpServer.cs:43:    public McpServer(
+src/COA.Mcp.Framework/Server/McpServerBuilder.cs:523:        var server = new McpServer(transport, toolRegistry, resourceRegistry, promptRegistry, serverInfo, logger);
+src/COA.Mcp.Framework/Server/McpServerBuilder.cs:709:    public static IHostBuilder UseMcpServer(this IHostBuilder hostBuilder, Action<McpServerBuilder> configure)
+src/COA.Mcp.Framework/README.md:600:services.AddMcpServer(options =>
+src/COA.Mcp.Framework.Testing/Mocks/MockServiceProvider.cs:166:        public MockServiceProvider CreateScope()
+src/COA.Mcp.Framework.Testing/Base/IntegrationTestBase.cs:214:            return new TestMcpServer(serviceProvider);
+src/COA.Mcp.Framework.Testing/Base/IntegrationTestBase.cs:255:        public TestMcpServer(IServiceProvider serviceProvider)
+[2025-09-03T12:41:52] tokens used: 282
+[2025-09-03T12:41:59] exec bash -lc "sed -n '1,240p' src/COA.Mcp.Framework/Server/McpServer.cs" in /Users/murphy/Source/coa-mcp-framework
+[2025-09-03T12:41:59] bash -lc "sed -n '1,240p' src/COA.Mcp.Framework/Server/McpServer.cs" succeeded in 8ms:
+using System;
+using System.IO;
+using System.Reflection;
+using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
+using COA.Mcp.Framework.Prompts;
+using COA.Mcp.Framework.Registration;
+using COA.Mcp.Framework.Resources;
+using COA.Mcp.Framework.Transport;
+using COA.Mcp.Protocol;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+
+namespace COA.Mcp.Framework.Server;
+
+/// <summary>
+/// Complete MCP server implementation that handles all protocol communication and tool management.
+/// This is the main entry point for creating and running an MCP server.
+[2025-09-03T12:41:59] tokens used: 472
+[2025-09-03T12:42:07] exec bash -lc "sed -n '240,680p' src/COA.Mcp.Framework/Server/McpServer.cs" in /Users/murphy/Source/coa-mcp-framework
+[2025-09-03T12:42:07] bash -lc "sed -n '240,680p' src/COA.Mcp.Framework/Server/McpServer.cs" succeeded in 9ms:
+            _logger?.LogError(ex, "Failed to parse JSON-RPC message");
+            await SendErrorResponseAsync(null, -32700, "Parse error");
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Unexpected error processing message");
+            await SendErrorResponseAsync(null, -32603, "Internal error");
+        }
+    }
+
+    private Task<InitializeResult> HandleInitializeAsync(JsonElement? parameters, CancellationToken cancellationToken)
+    {
+        _logger?.LogInformation("Handling initialize request");
+        
+        return Task.FromResult(new InitializeResult
+        {
+            ProtocolVersion = "2024-11-05",
+            Capabilities = _capabilities,
+            ServerInfo = _serverInfo
+        });
+[2025-09-03T12:42:07] tokens used: 2067
+[2025-09-03T12:42:20] exec bash -lc "grep -R -n --exclude-dir=.git --exclude-dir=bin --exclude-dir=obj -E \"class McpToolRegistry|CallToolAsync\\(|DiscoverAndRegisterTools\\(|RegisterTool\\(\" src/COA.Mcp.Framework -n" timeout in /Users/murphy/Source/coa-mcp-framework
+[2025-09-03T12:42:20] bash -lc "grep -R -n --exclude-dir=.git --exclude-dir=bin --exclude-dir=obj -E \"class McpToolRegistry|CallToolAsync\\(|DiscoverAndRegisterTools\\(|RegisterTool\\(\" src/COA.Mcp.Framework -n" timeout succeeded in 29ms:
+src/COA.Mcp.Framework/Registration/ServiceCollectionExtensions.cs:49:                    DiscoverAndRegisterTools(provider, registry, assembly);
+src/COA.Mcp.Framework/Registration/ServiceCollectionExtensions.cs:173:    private static void DiscoverAndRegisterTools(
+src/COA.Mcp.Framework/Registration/ServiceCollectionExtensions.cs:188:                registry.RegisterTool(tool);
+src/COA.Mcp.Framework/Registration/McpToolRegistry.cs:28:public class McpToolRegistry : IAsyncDisposable
+src/COA.Mcp.Framework/Registration/McpToolRegistry.cs:88:    public void RegisterTool(IMcpTool tool)
+src/COA.Mcp.Framework/Registration/McpToolRegistry.cs:117:    public void DiscoverAndRegisterTools(Assembly assembly)
+src/COA.Mcp.Framework/Registration/McpToolRegistry.cs:144:                    RegisterTool(tool);
+src/COA.Mcp.Framework/Registration/McpToolRegistry.cs:186:                RegisterTool(wrapper);
+src/COA.Mcp.Framework/Registration/McpToolRegistry.cs:212:    public async Task<CallToolResult> CallToolAsync(
+src/COA.Mcp.Framework/Server/McpServer.cs:199:                    result = await HandleCallToolAsync(parameters, cancellationToken);
+src/COA.Mcp.Framework/Server/McpServer.cs:274:    private async Task<CallToolResult> HandleCallToolAsync(JsonElement? parameters, CancellationToken cancellationToken)
+src/COA.Mcp.Framework/Server/McpServer.cs:330:        return await _toolRegistry.CallToolAsync(request.Name, args, cancellationToken);
+src/COA.Mcp.Framework/Server/McpServerBuilder.cs:171:        _toolConfiguration += registry => registry.RegisterTool(tool);
+src/COA.Mcp.Framework/Server/McpServerBuilder.cs:498:            toolRegistry.DiscoverAndRegisterTools(_toolAssembly);
+[2025-09-03T12:42:20] tokens used: 1939
+[2025-09-03T12:42:27] exec bash -lc "sed -n '1,260p' src/COA.Mcp.Framework/Registration/McpToolRegistry.cs" in /Users/murphy/Source/coa-mcp-framework
+[2025-09-03T12:42:27] bash -lc "sed -n '1,260p' src/COA.Mcp.Framework/Registration/McpToolRegistry.cs" succeeded in 11ms:
+using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
+using System.Linq;
+using System.Reflection;
+using System.Text;
+using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
+using COA.Mcp.Framework.Attributes;
+using COA.Mcp.Framework.Base;
+using COA.Mcp.Framework.Exceptions;
+using COA.Mcp.Framework.Interfaces;
+using COA.Mcp.Framework.Models;
+using COA.Mcp.Framework.Schema;
+using COA.Mcp.Protocol;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+
+[2025-09-03T12:42:27] tokens used: 633
+[2025-09-03T12:42:33] exec bash -lc "sed -n '260,760p' src/COA.Mcp.Framework/Registration/McpToolRegistry.cs" in /Users/murphy/Source/coa-mcp-framework
+[2025-09-03T12:42:33] bash -lc "sed -n '260,760p' src/COA.Mcp.Framework/Registration/McpToolRegistry.cs" succeeded in 20ms:
+        }
+    }
+
+    /// <summary>
+    /// Gets a tool by name.
+    /// </summary>
+    public IMcpTool? GetTool(string toolName)
+    {
+        return _tools.TryGetValue(toolName, out var tool) ? tool.ToolInstance : null;
+    }
+
+    /// <summary>
+    /// Gets all registered tools.
+    /// </summary>
+    public IEnumerable<IMcpTool> GetAllTools()
+    {
+        return _tools.Values.Select(t => t.ToolInstance);
+    }
+
+    /// <summary>
+[2025-09-03T12:42:33] tokens used: 2410
+
+[2025-09-03T12:42:50] thinking
+
+**Evaluating tool registration and security flaws**
+
+I'm noticing that the builder adds AddScoped<TTool>(), but it seems like the registry stores the tool instance, which means that the scope isn't really used — that's a bit flawed. I won’t dive into token budgets right now, but in terms of observability, the server uses console logging without metrics or correlation IDs across requests. It seems like the HttpTransport doesn’t have rate limiting, body size limits, or a proper auth handshake. I'll need to check the HttpTransportOptions.
+[2025-09-03T12:42:56] exec bash -lc "sed -n '1,240p' src/COA.Mcp.Framework/Transport/Configuration/HttpTransportOptions.cs" in /Users/murphy/Source/coa-mcp-framework
+[2025-09-03T12:42:56] bash -lc "sed -n '1,240p' src/COA.Mcp.Framework/Transport/Configuration/HttpTransportOptions.cs" succeeded in 8ms:
+namespace COA.Mcp.Framework.Transport.Configuration
+{
+    /// <summary>
+    /// Configuration options for HTTP transport.
+    /// </summary>
+    public class HttpTransportOptions
+    {
+        /// <summary>
+        /// Port to listen on (default: 5000).
+        /// </summary>
+        public int Port { get; set; } = 5000;
+        
+        /// <summary>
+        /// Host to bind to (default: localhost).
+        /// </summary>
+        public string Host { get; set; } = "localhost";
+        
+        /// <summary>
+        /// Enable HTTPS (default: false).
+        /// </summary>
+[2025-09-03T12:42:56] tokens used: 4366
+
+[2025-09-03T12:43:01] thinking
+
+I'm considering how HttpTransport operates, particularly its use of HttpListener. I’m curious if it includes any authentication features. It would be helpful to search the HttpTransport code for anything related to ApiKey usage, as that could shed light on how authentication is managed. Exploring these aspects might clarify how secure the communication is and what the responsibilities around authentication are. It's important to have a solid understanding of these connections!
+[2025-09-03T12:43:03] exec bash -lc "grep -n \"ApiKey|JWT|Authentication\" -n src/COA.Mcp.Framework/Transport/HttpTransport.cs | sed -n '1,80p'" in /Users/murphy/Source/coa-mcp-framework
+[2025-09-03T12:43:03] bash -lc "grep -n \"ApiKey|JWT|Authentication\" -n src/COA.Mcp.Framework/Transport/HttpTransport.cs | sed -n '1,80p'" succeeded in 18ms:
+
+[2025-09-03T12:43:03] tokens used: 1084
+
+[2025-09-03T12:43:11] thinking
+
+**Evaluating technical options**
+
+I'm considering options like using authentication, but I noticed that HttpTransport doesn't enforce it, which creates a security gap. Then there's StdioTransport, which should read from stdin and write to stdout, but it may log and interfere with the payload. I've identified some good practices, like setting console logging to stderr. Additionally, we have tests and features for token optimization, and there's potential to suggest documentation improvements for batch requests and security configuration. It's all about raising the quality!
+**Structuring the roadmap**
+
+I'm outlining the roadmap into sections for clarity. For quick wins, I’ll focus on removing BuildServiceProvider, fixing the builder extension, adding authentication to HttpTransport, creating a per-request scope, updating documentation, and testing large content responses. For the near term, I plan server batch support, streaming outputs, WebSocket ping/pong, resource subscriptions, metrics, and improved ergonomics. Strategically, I aim to replace HttpListener with Kestrel minimal API, introduce a plugin architecture, and consider versioning and deprecations. Plus, a migration plan will maintain obsolete methods until version 3. Let’s prepare the final output!
+[2025-09-03T12:43:17] codex
+**Structuring the roadmap**
+
+I'm outlining the roadmap into sections for clarity. For quick wins, I’ll focus on removing BuildServiceProvider, fixing the builder extension, adding authentication to HttpTransport, creating a per-request scope, updating documentation, and testing large content responses. For the near term, I plan server batch support, streaming outputs, WebSocket ping/pong, resource subscriptions, metrics, and improved ergonomics. Strategically, I aim to replace HttpListener with Kestrel minimal API, introduce a plugin architecture, and consider versioning and deprecations. Plus, a migration plan will maintain obsolete methods until version 3. Let’s prepare the final output!
+[2025-09-03T12:43:17] codex
+
+**Key Findings**
+- DI/service scope: `McpServerBuilder` builds nested containers repeatedly (multiple `BuildServiceProvider()` calls) and captures singletons early; `RegisterToolType<TTool>()` registers Scoped, but `McpToolRegistry` stores tool instances, forcing effective singletons and breaking scoped lifetimes. Files: `src/COA.Mcp.Framework/Server/McpServerBuilder.cs`, `src/COA.Mcp.Framework/Registration/McpToolRegistry.cs`.
+- Logging/transport coupling: Transports resolve `ILogger<T>` by building a provider inside builder methods (`UseStdio/Http/WebSocketTransport`), causing premature container builds and duplicated providers.
+- Host integration: `UseMcpServer(this IHostBuilder, ...)` copies service descriptors and then registers a single `IHostedService` instance plus a factory that resolves the same instance, which is fragile and odd. File: `McpServerBuilderExtensions` in `McpServerBuilder.cs`.
+- HTTP transport: Uses `HttpListener` with hand-rolled TLS binding and no enforcement of `HttpTransportOptions.Authentication` (API key/JWT/Basic not implemented). No request size limits enforced at read-time, no rate limiting, no structured error responses. File: `src/COA.Mcp.Framework/Transport/HttpTransport.cs` and `Configuration/HttpTransportOptions.cs`.
+- JSON-RPC server: Handles single-message requests only; no batch request arrays; no server-side cancellation method; no progress streaming beyond typed models. File: `src/COA.Mcp.Framework/Server/McpServer.cs`.
+- Protocol types: Good coverage for core (requests, responses, errors, progress notifications) but capabilities default to `Resources.Subscribe/ListChanged = false`, with no subscription notifications. Files: `src/COA.Mcp.Protocol/McpTypes.cs`, `JsonRpc.cs`.
+- Tool execution pipeline: `McpToolRegistry.CallToolAsync` executes a stored tool instance directly; no per-call DI scope, no middleware wrapping visible at this stage (simple middleware system exists but registry doesn’t open scope). File: `src/COA.Mcp.Framework/Registration/McpToolRegistry.cs`.
+- Observability: Console logs configured; no correlation IDs across requests; no metrics; no request tracing; STDIO logging forced to stderr is good but category filters are set in builder at runtime with magic strings. Files: `McpServerBuilder.ConfigureFrameworkLogging`.
+- Security: HTTP auth options unused; no DOS protections (rate limit, max body size at parser, timeouts per request in server); possible PII logging risk (logs request bodies under debug). Files: `HttpTransport.cs`, `McpHttpClient.cs`.
+- Docs/examples: Strong quickstart + lifecycle docs; missing security hardening, hosting (Kestrel), and transport auth guides; examples don’t show auth, cancellation, or streaming patterns. Files: `README.md`, `QUICKSTART.md`, `docs/*`.
+- CI: Azure Pipelines is Windows-pool only; not a matrix; no analyzer/format checks; no package verification (signing, SBOM), no e2e transport tests; coverage is published but not gated. File: `azure-pipelines.yml`.
+
+**MCP Feature Coverage**
+- Tools: Fully supported (list/call). Verify: `McpServer.cs` switch cases; `McpToolRegistry.GetProtocolTools`, `CallToolAsync`.
+- Resources: Partial (list/read) without subscriptions or listChanged notifications; capabilities advertise false. Verify: `McpServer.HandleListResourcesAsync/HandleReadResourceAsync`; `ServerCapabilities.Resources`.
+- Prompts: Fully supported (list/get) with arguments. Verify: `McpServer.HandleListPromptsAsync/HandleGetPromptAsync`.
+- JSON-RPC: Partial (single request handling, notifications model present). Missing: batch requests, server-side `$/cancelRequest`, standardized errors mapping across pipeline. Verify: `McpServer.ProcessMessageAsync` lacks array handling; `JsonRpc.cs`.
+- Progress: Model provided (`ProgressNotification`), no server emission in tool execution pipeline. Verify: `McpTypes.ProgressNotification` vs server usage.
+- Transports: STDIO/HTTP/WebSocket supported. HTTP auth configured in options but not enforced; WS keepalive/ping not evident; SSE not applicable. Verify: `HttpTransport.cs`, `WebSocketTransport.cs`, options.
+- Pagination/streaming: Not implemented at protocol layer; token optimization suggests summaries/errors but no streaming chunks. Verify: `McpToolRegistry.CreateSuccessResult`.
+- Discovery: No server discovery endpoints beyond `/mcp/health` in client tests; framework supports builder-based configuration only. Verify: `McpHttpClientTests.SetupHttpResponse("/mcp/health")`.
+
+**Code Smells & Refactors**
+- DI scope correction
+  - Problem: Tools registered as Scoped but stored as single instances in `McpToolRegistry`.
+  - Refactor: Store tool registrations as types/factories, not instances. Resolve per-call within a created scope.
+  - Example signature:
+    - Add: `private sealed record RegisteredToolType(string Name, Type ToolType, Type ParamsType, Type ResultType, IJsonSchema Schema);`
+    - Change `RegisterToolType<TTool>()` to record `RegisteredToolType` and not add an instance.
+    - In `CallToolAsync`, create `using var scope = _serviceProvider.CreateScope(); var tool = scope.ServiceProvider.GetRequiredService<TTool>();`
+- Avoid building providers in builder
+  - Problem: `McpServerBuilder.UseStdio/Http/WebSocketTransport` call `BuildServiceProvider` to fetch loggers and construct transports.
+  - Refactor: Buffer transport config delegates; register `IMcpTransport` with factory at Build time.
+  - Example diff (conceptual):
+    - In builder: keep `_transportFactory: IServiceProvider -> IMcpTransport`.
+    - `UseHttpTransport(cfg => ...)` sets `_transportFactory = sp => new HttpTransport(options, sp.GetService<ILogger<HttpTransport>>());`
+    - `Build()` registers `services.AddSingleton<IMcpTransport>(_transportFactory!)`.
+- Host integration
+  - Problem: `UseMcpServer` copies `IServiceCollection` items into a second `ServiceCollection`, then re-injects a hosted instance.
+  - Refactor: Provide `services.AddMcpServer(Action<McpServerBuilder>)` that configures directly into the host’s collection and registers `IHostedService` via a factory that builds server from final provider.
+  - Example:
+    - `public static IServiceCollection AddMcpServer(this IServiceCollection services, Action<McpServerBuilder> configure)`.
+- HTTP auth enforcement
+  - Implement `AuthenticationType` in `HttpTransport`:
+    - API key: check header; JWT: validate via `JwtSecurityTokenHandler` or `Microsoft.IdentityModel.Tokens`; Basic: verify.
+  - Add request-size checks before reading body; rate limit with a simple token bucket per-IP.
+- JSON-RPC
+  - Add batch handling: if root is `JsonElement.ValueKind.Array`, handle each element and return an array of responses.
+  - Add `$/cancelRequest` handling: maintain an inflight map; honor cancellation tokens.
+  - Normalize error mapping from tool exceptions to standard `JsonRpcErrorCodes`.
+- Async patterns
+  - Ensure all async paths use `ConfigureAwait(false)` in transport/server loops for library code.
+  - Use `CancellationToken` everywhere; timeouts surfaced via `IOptions`.
+- Nullability
+  - Turn on nullable reference types in all projects; annotate API models accordingly.
+- Visibility & API surface
+  - Reduce `public` surface for internal helpers (`AttributeToolWrapper`, `RegisteredTool`) to `internal`.
+  - Make builder options strongly typed and coherent; ensure names align with docs.
+- Consistency
+  - Standardize `JsonSerializerOptions` across server/client and avoid duplicate instantiation; register as singleton in DI.
+
+**API/UX Improvements**
+- Builder ergonomics
+  - `McpServerBuilder.Create(string name, string version)` convenience factory.
+  - `UseTransport<TTransport>(Action<TOptions>)` generic overload.
+  - `ConfigureTools(Action<IMcpToolConfigurator>)` that supports attribute discovery, assembly scanning, and named categories.
+- Per-call scope utilities
+  - Add `IToolExecutionContext` injection token exposing correlation id, cancellation, response-mode hints, and metrics.
+- Defaults & naming
+  - Default to STDIO only when running as console; allow explicit transport selection via `--transport` template args.
+- Templates/examples
+  - Include minimal API HTTP template using Kestrel with auth and CORS.
+  - Examples for cancellations, progress notifications, and streaming (chunked `ToolContent`).
+- Guardrails
+  - Type verification/TDD messaging: convert verbose lists into structured JSON with actionable fields (`issues`, `requiredActions`) to make AI tooling ingestable; docs should show common resolutions.
+
+**Testing Strategy**
+- Unit
+  - JSON-RPC: add tests for batch arrays, cancellation, and error mapping.
+  - HTTP auth: API key/JWT/Basic acceptance and rejection tests.
+  - DI: ensure Scoped services are new per tool call.
+- Integration
+  - Deterministic transport tests using in-memory streams for STDIO and loopback handlers for HTTP/WS.
+  - Client↔Server e2e on STDIO and HTTP with initialize→list→call→read flows.
+- Property/fuzz
+  - Fuzz JSON-RPC parser with malformed messages and large payloads.
+  - Property tests for `RequestResponseCorrelator` under concurrency.
+- Golden tests
+  - Prompts/resources: golden JSON outputs for stability.
+- Benchmarks
+  - Expand token optimization benches to include large-response summarization branches and serialization throughput.
+- Flakiness risks
+  - WebSocket close/stop races; request timeout handling; address with deterministic timeouts and virtual time where possible.
+
+**Docs & Guides**
+- TOC and structure
+  - “Getting Started”, “Security”, “Hosting & Transports”, “Protocol Semantics”, “Testing”, “Observability”, “Migration”.
+- Task guides
+  - Add custom transport, migrate to HTTP/WS via Kestrel, add authentication, implement progress/cancellation.
+- Reference completeness
+  - Document every public class in `Protocol` and `Client`, with examples.
+- Pitfalls
+  - Logging to stdout vs stderr in STDIO; DI scope for tools; large responses and responseMode.
+
+**Observability & Ops**
+- Structured logging
+  - Include correlation id per request (JSON-RPC id, Activity.TraceId) in all logs; add a `LoggingScope`.
+- Metrics
+  - Counters: requests, errors per method; histograms: latency per tool; distribution: payload size.
+- Health/debug
+  - `/mcp/health` already present; add `/mcp/info` with capabilities and version; `/mcp/metrics` optional.
+- Tracing
+  - Optionally integrate OpenTelemetry exporters; trace spans for tool execution and transport roundtrips.
+- Compatibility matrix
+  - Table of supported .NET SDKs, OS, and MCP clients; version strategy: semver across all packages, shared version prefix.
+
+**Security & Safety**
+- Input validation
+  - Enforce `MaxRequestSize` at read-time; schema validation of `tools/call` params against `InputSchema`.
+- Auth
+  - Enforce API key/JWT/Basic on HTTP routes; include 401/403 mappings with JSON-RPC error codes.
+- DOS protection
+  - Per-IP rate limit and overall concurrency limit; request timeout per method.
+- PII logging
+  - Redact tokens/credentials in headers; disable request body logging by default; opt-in for dev.
+- Safe defaults
+  - Token budgets default to guarded limits; `responseMode='auto'` threshold clearly documented.
+
+**Roadmap**
+- Quick Wins (1–2 days)
+  - Remove `BuildServiceProvider()` calls in builder; defer transport construction to Build; single provider lifetime per server.
+  - Fix `UseMcpServer` to register server via factory without prebuilt instance.
+  - Enforce `HttpTransportOptions.Authentication` (API key) minimally; return JSON-RPC error on unauthorized.
+  - Add per-call DI scope in `McpToolRegistry.CallToolAsync`.
+  - Docs: “Security Basics” + “Tool DI Scopes” sections.
+  - Acceptance: new unit tests pass; examples updated; unauthorized HTTP requests return 401 JSON-RPC error.
+- Near-Term (1–2 weeks)
+  - Batch JSON-RPC requests and `$/cancelRequest`.
+  - Add request correlation + structured logging scopes; baseline metrics (req count, latency).
+  - Replace `HttpListener` path with optional Kestrel Minimal API transport (new project) while preserving existing transport; auth + CORS implemented.
+  - Add e2e tests for STDIO/HTTP; fuzz tests for parser; WS ping/pong and close tests.
+  - Acceptance: e2e green on CI (Linux+Windows), metrics appear in logs, batch/cancel unit tests green.
+- Strategic (1–2 quarters)
+  - Protocol completeness: resource subscriptions and listChanged notifications; streaming tool results.
+  - Full OpenTelemetry integration; performance improvements (zero-allocation JSON where feasible).
+  - Security hardening: JWT validation with rotation, rate limiting, SBOM/signing in pipeline.
+  - API stabilization and v3 planning; deprecations with shims and migration tooling.
+  - Acceptance: feature-complete matrix documented; interoperability tests with popular MCP clients pass.
+
+**Migration/Back-Compat**
+- Deprecation plan
+  - Mark instance-based tool registration paths `[Obsolete]` with message: “Use RegisterToolType<T>() / DI factory. Instances become singletons; this will be removed in v3.”
+  - Provide shims: allow existing `RegisterTool` but adapt to store factory delegates instead of instances when possible.
+- Behavior changes
+  - Per-call DI scopes may create multiple tool instances vs singletons; document and provide `AddSingletonTool<T>()` for users who want singleton tools.
+  - Introduce Kestrel transport alongside `HttpListener`; keep old one until v3 then remove or move to legacy package.
+- Codemods
+  - Analyzer/code fix: detect stateful tools registered as type but relying on singleton state; suggest `AddSingletonTool`.
+  - Tooling to update builder config away from immediate provider builds.
+
+**Proposed Refactor Sketches**
+- `McpServerBuilder` transport deferral
+  - Before: `var logger = _services.BuildServiceProvider().GetService<ILogger<HttpTransport>>(); _transport = new HttpTransport(options, logger);`
+  - After:
+    - `private Func<IServiceProvider, IMcpTransport>? _transportFactory;`
+    - `public McpServerBuilder UseHttpTransport(Action<HttpTransportOptions> configure) { var options = new HttpTransportOptions(); configure(options); _transportFactory = sp => new HttpTransport(options, sp.GetService<ILogger<HttpTransport>>()); return this; }`
+    - In `Build()`: `services.AddSingleton<IMcpTransport>(sp => _transportFactory?.Invoke(sp) ?? new StdioTransport(null, null, sp.GetService<ILogger<StdioTransport>>()));`
+- `McpToolRegistry` per-call scope
+  - In `DiscoverAndRegisterTools`: store `RegisteredToolType`.
+  - In `CallToolAsync`: `using var scope = _serviceProvider.CreateScope(); var tool = (IMcpTool)scope.ServiceProvider.GetRequiredService(registered.ToolType); var result = await tool.ExecuteAsync(arguments, cancellationToken);`
+- `UseMcpServer` host extension
+  - Before: adds a built instance to services.
+  - After: `services.AddHostedService(sp => { var builder = new McpServerBuilder(sp); configure(builder); return builder.Build(); });` (inject IServiceCollection or wrap creating builder over the existing collection).
+
+**CI Improvements**
+- Matrix: Linux/Windows runners; SDK 9.0; `dotnet test -m:1` for deterministic ordering where needed.
+- Quality gates: `dotnet format --verify-no-changes`, `dotnet build /warnaserror`, enable analyzers, nullable enforced.
+- Security: SBOM generation, package signing, `nuget verify`, OSS license scan.
+- Testing: run e2e samples (HelloWorld, HTTP server) with smoke tests; WebSocket test on Linux.
+- Artifacts: publish XML docs; produce symbol packages; semver tag sync.
+
+If you want, I can draft the first set of patches for:
+- Per-call tool scope in `McpToolRegistry`
+- Builder transport deferral without `BuildServiceProvider()`
+- Minimal API for enforcing HTTP API key authentication path
+- Batch JSON-RPC server handling and cancellation scaffolding
+
+All changes would come with focused tests and doc additions as outlined.
+[2025-09-03T12:44:18] tokens used: 3960

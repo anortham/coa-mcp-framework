@@ -96,7 +96,7 @@ The framework uses specific logging categories for fine-grained control:
 
 ### Framework Categories
 
-- **`COA.Mcp.Framework.Pipeline.Middleware`** - Middleware operations (type verification, TDD enforcement)
+- **`COA.Mcp.Framework.Pipeline.Middleware`** - Middleware operations (logging, token counting)
 - **`COA.Mcp.Framework.Transport`** - Transport layer (HTTP, WebSocket, stdio)
 - **`COA.Mcp.Framework.Base`** - Tool execution and lifecycle
 - **`COA.Mcp.Framework.Server`** - Server startup and management

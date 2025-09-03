@@ -77,31 +77,22 @@ class Program
 
 **Ready for production?** See [Advanced Features](#-advanced-features) below.
 
-### 🆕 Enable AI-Powered Middleware
+What’s new in v3
+- Simpler validation: standardized on DataAnnotations.
+- Safer transports: STDIO now uses Content-Length framing; HTTP enforces CORS and max request size; ApiKey/Basic/JWT (HS256) supported.
+- Token-aware responses and typed response builders.
+- Cleaner DI and disposal (no async in finalizers).
 
-Add intelligent type verification and TDD enforcement to your MCP server:
+See CHANGELOG and upgrade notes:
+- Upgrade guide: UPGRADE-v3.md
+- Typed response builders: docs/RESPONSE_BUILDERS.md
 
-```csharp
-// Configure middleware in your server setup
-services.AddMcpFramework(options => 
-{
-    // Enable Type Verification - prevents AI hallucinated types
-    options.EnableTypeVerification = true;
-    options.TypeVerification.Mode = TypeVerificationMode.Strict; // or Warning
-    options.TypeVerification.WhitelistedTypes.Add("MyCustomType");
-    
-    // Enable TDD Enforcement - enforces test-first development  
-    options.EnableTddEnforcement = true;
-    options.TddEnforcement.Mode = TddEnforcementMode.Warning; // or Strict
-    options.TddEnforcement.TestFilePatterns.Add("**/*Spec.cs"); // Custom test patterns
-});
-```
+**Upgrading from v2?** Read the upgrade guide: `UPGRADE-v3.md`.
+**Typed Response Builders:** Learn how to build AI-friendly, token-aware results in `docs/RESPONSE_BUILDERS.md`.
+**HTTP Authentication:** Configure ApiKey, Basic, or JWT (HS256) in `docs/HTTP_AUTH.md`.
 
-**Benefits:**
-- 🛡️ **Type Safety**: Catches undefined types before code generation fails
-- 🧪 **Quality Assurance**: Enforces proper testing practices
-- 🚀 **AI-Friendly**: Provides clear error messages with recovery steps
-- ⚡ **Performance**: Intelligent caching with file modification detection
+### Middleware
+Built-in middleware focuses on logging and token counting. You can add your own by implementing `ISimpleMiddleware`.
 
 ## 📦 NuGet Packages
 
@@ -152,10 +143,6 @@ services.AddMcpFramework(options =>
 ### 🔗 **Lifecycle Hooks & Middleware**
 - **Extensible execution pipeline** - Add cross-cutting concerns with simple middleware
 - **Built-in middleware** - Logging, token counting, performance monitoring
-- **🆕 Type Verification Middleware** - Prevents AI hallucinated types in code generation with intelligent caching
-- **🆕 TDD Enforcement Middleware** - Enforces Test-Driven Development workflow (Red-Green-Refactor)
-- **Smart caching system** - Session-scoped type verification with file modification invalidation
-- **Multi-platform test integration** - Supports dotnet test, npm test, pytest, and more
 - **Custom middleware support** - Implement `ISimpleMiddleware` for custom logic
 - **Per-tool configuration** - Override `Middleware` property for tool-specific hooks
 - See **[Lifecycle Hooks Guide](docs/lifecycle-hooks.md)** for detailed documentation

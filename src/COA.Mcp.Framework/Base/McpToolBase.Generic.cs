@@ -17,6 +17,9 @@ using Microsoft.Extensions.DependencyInjection;
 using COA.Mcp.Framework.Schema;
 using COA.Mcp.Framework.Utilities;
 using Microsoft.Extensions.Logging;
+using COA.Mcp.Framework.TokenOptimization;
+using COA.Mcp.Framework.TokenOptimization.ResponseBuilders;
+using COA.Mcp.Framework.TokenOptimization;
 
 namespace COA.Mcp.Framework.Base;
 
@@ -33,6 +36,8 @@ public abstract class McpToolBase<TParams, TResult> : IMcpTool<TParams, TResult>
     private readonly IReadOnlyList<ISimpleMiddleware> _globalMiddleware;
     private ErrorMessageProvider? _errorMessageProvider;
     private TokenBudgetConfiguration? _tokenBudgetConfiguration;
+    private readonly bool _enableValidation = true;
+    private ITokenEstimator _tokenEstimator = new DefaultTokenEstimator();
 
     /// <summary>
     /// Initializes a new instance of the McpToolBase class.
@@ -53,6 +58,20 @@ public abstract class McpToolBase<TParams, TResult> : IMcpTool<TParams, TResult>
             ?.Where(m => m.IsEnabled)
             ?.OrderBy(m => m.Order)
             ?.ToList() ?? new List<ISimpleMiddleware>();
+
+        // Respect framework validation flag if provided
+        var frameworkOptions = serviceProvider?.GetService<COA.Mcp.Framework.Registration.McpFrameworkOptions>();
+        if (frameworkOptions != null)
+        {
+            _enableValidation = frameworkOptions.EnableValidation;
+        }
+
+        // Optional token estimator from DI
+        var estimator = serviceProvider?.GetService<ITokenEstimator>();
+        if (estimator != null)
+        {
+            _tokenEstimator = estimator;
+        }
     }
 
     /// <summary>
@@ -143,6 +162,7 @@ public abstract class McpToolBase<TParams, TResult> : IMcpTool<TParams, TResult>
             // Execute with token management
             var result = await ExecuteWithTokenManagement(
                 () => ExecuteInternalAsync(parameters, cancellationToken),
+                parameters,
                 cancellationToken);
             
             if (_logger?.IsEnabled(LogLevel.Debug) == true)
@@ -210,6 +230,7 @@ public abstract class McpToolBase<TParams, TResult> : IMcpTool<TParams, TResult>
             // Execute with token management
             result = await ExecuteWithTokenManagement(
                 () => ExecuteInternalAsync(parameters, cancellationToken),
+                parameters,
                 cancellationToken);
             
             if (_logger?.IsEnabled(LogLevel.Debug) == true)
@@ -332,6 +353,10 @@ public abstract class McpToolBase<TParams, TResult> : IMcpTool<TParams, TResult>
     /// <param name="parameters">The parameters to validate.</param>
     protected virtual void ValidateParameters(TParams parameters)
     {
+        if (!_enableValidation)
+        {
+            return;
+        }
         if (parameters == null && typeof(TParams) != typeof(EmptyParameters))
         {
             throw new ValidationException(ErrorMessages.ParameterRequired("parameters"));
@@ -355,9 +380,10 @@ public abstract class McpToolBase<TParams, TResult> : IMcpTool<TParams, TResult>
     /// </summary>
     protected async Task<T> ExecuteWithTokenManagement<T>(
         Func<Task<T>> operation, 
+        TParams? parameters = null,
         CancellationToken cancellationToken = default)
     {
-        var tokenEstimate = EstimateTokenUsage();
+        var tokenEstimate = EstimateTokenUsage(parameters);
         var budget = TokenBudget;
         
         // Check token budget
@@ -399,8 +425,25 @@ public abstract class McpToolBase<TParams, TResult> : IMcpTool<TParams, TResult>
     /// </summary>
     protected virtual int EstimateTokenUsage()
     {
-        // Basic estimation - override for more accuracy
-        return 1000;
+        // Fallback when actual parameters are not available
+        return EstimateTokenUsage(default);
+    }
+
+    /// <summary>
+    /// Estimates token usage using actual parameters when available for higher fidelity.
+    /// </summary>
+    protected virtual int EstimateTokenUsage(TParams? parameters)
+    {
+        try
+        {
+            var estimated = _tokenEstimator.EstimateObject(parameters, _jsonOptions);
+            var multiplier = TokenBudget?.EstimationMultiplier ?? 1.0;
+            return (int)Math.Ceiling(Math.Max(0, estimated) * multiplier);
+        }
+        catch
+        {
+            return 1000;
+        }
     }
 
     #region Validation Helpers from Original McpToolBase
@@ -514,69 +557,22 @@ public abstract class McpToolBase<TParams, TResult> : IMcpTool<TParams, TResult>
     }
     
     /// <summary>
-    /// Builds a response using a response builder if the result type supports it.
+    /// Builds a response using a strongly-typed response builder.
     /// </summary>
-    /// <typeparam name="TBuilder">The type of the response builder.</typeparam>
-    /// <typeparam name="TData">The type of the input data.</typeparam>
-    /// <param name="builder">The response builder instance.</param>
-    /// <param name="data">The data to build the response from.</param>
-    /// <param name="responseMode">The response mode ("summary" or "full").</param>
-    /// <param name="tokenLimit">Optional token limit override.</param>
-    /// <returns>The built response.</returns>
-    protected async Task<TResult> BuildResponseAsync<TBuilder, TData>(
+    protected Task<TResult> BuildResponseAsync<TBuilder, TData>(
         TBuilder builder,
         TData data,
         string responseMode = "full",
         int? tokenLimit = null)
-        where TBuilder : class
+        where TBuilder : BaseResponseBuilder<TData, TResult>
     {
-        // This helper assumes TResult is compatible with the builder's output
-        // The actual implementation would need reflection or a more sophisticated approach
-        // For now, this is a pattern that derived classes can follow
-        
-        var builderType = typeof(TBuilder);
-        var buildMethod = builderType.GetMethod("BuildResponseAsync");
-        
-        if (buildMethod != null)
+        var context = new ResponseContext
         {
-            var context = new Dictionary<string, object>
-            {
-                ["ResponseMode"] = responseMode,
-                ["TokenLimit"] = tokenLimit ?? TokenBudget.MaxTokens,
-                ["ToolName"] = Name
-            };
-            
-            // Create a ResponseContext if the builder expects one
-            var contextType = buildMethod.GetParameters()
-                .FirstOrDefault(p => p.Name == "context")?.ParameterType;
-                
-            if (contextType != null)
-            {
-                var responseContext = Activator.CreateInstance(contextType);
-                // Set properties via reflection if needed
-                contextType.GetProperty("ResponseMode")?.SetValue(responseContext, responseMode);
-                contextType.GetProperty("TokenLimit")?.SetValue(responseContext, tokenLimit);
-                contextType.GetProperty("ToolName")?.SetValue(responseContext, Name);
-                
-                var task = buildMethod.Invoke(builder, new[] { data, responseContext }) as Task;
-                if (task != null)
-                {
-                    await task;
-                    var resultProperty = task.GetType().GetProperty("Result");
-                    if (resultProperty != null)
-                    {
-                        var result = resultProperty.GetValue(task);
-                        if (result is TResult typedResult)
-                        {
-                            return typedResult;
-                        }
-                    }
-                }
-            }
-        }
-        
-        // Fallback: if builder doesn't work as expected, return default
-        throw new InvalidOperationException($"Could not build response using {typeof(TBuilder).Name}");
+            ResponseMode = responseMode,
+            TokenLimit = tokenLimit ?? TokenBudget.MaxTokens,
+            ToolName = Name
+        };
+        return builder.BuildResponseAsync(data, context);
     }
     
     #endregion
