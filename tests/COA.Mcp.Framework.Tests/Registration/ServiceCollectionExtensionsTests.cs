@@ -299,13 +299,9 @@ namespace COA.Mcp.Framework.Tests.Registration
             using (var scope = provider.CreateScope())
             {
                 var registry = scope.ServiceProvider.GetRequiredService<McpToolRegistry>();
-#pragma warning disable CS0618 // Type or member is obsolete - testing backward compatibility
-                var validator = scope.ServiceProvider.GetRequiredService<IParameterValidator>();
-#pragma warning restore CS0618 // Type or member is obsolete
                 var tools = scope.ServiceProvider.GetServices<IMcpTool>();
 
                 registry.Should().NotBeNull();
-                validator.Should().NotBeNull();
                 tools.Should().NotBeEmpty();
             }
         }
