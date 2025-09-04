@@ -82,19 +82,32 @@ class Program
 Add intelligent type verification and TDD enforcement to your MCP server:
 
 ```csharp
-// Configure middleware in your server setup
-services.AddMcpFramework(options => 
-{
-    // Enable Type Verification - prevents AI hallucinated types
-    options.EnableTypeVerification = true;
-    options.TypeVerification.Mode = TypeVerificationMode.Strict; // or Warning
-    options.TypeVerification.WhitelistedTypes.Add("MyCustomType");
-    
-    // Enable TDD Enforcement - enforces test-first development  
-    options.EnableTddEnforcement = true;
-    options.TddEnforcement.Mode = TddEnforcementMode.Warning; // or Strict
-    options.TddEnforcement.TestFilePatterns.Add("**/*Spec.cs"); // Custom test patterns
-});
+// Using McpServerBuilder (applies globally to all tools)
+var builder = new McpServerBuilder()
+    .WithServerInfo("My MCP Server", "1.0.0")
+    .AddTypeVerificationMiddleware(options =>
+    {
+        options.Mode = TypeVerificationMode.Strict; // or Warning
+        options.WhitelistedTypes.Add("MyCustomType");
+    })
+    .AddTddEnforcementMiddleware(options =>
+    {
+        options.Mode = TddEnforcementMode.Warning; // or Strict
+        options.TestFilePatterns.Add("**/*Spec.cs"); // Custom test patterns
+    });
+
+// Or with DI when using Host
+services.AddAdvancedEnforcement(
+    configureTypeVerification: o =>
+    {
+        o.Mode = TypeVerificationMode.Strict;
+        o.WhitelistedTypes.Add("MyCustomType");
+    },
+    configureTddEnforcement: o =>
+    {
+        o.Mode = TddEnforcementMode.Warning;
+        o.TestFilePatterns.Add("**/*Spec.cs");
+    });
 ```
 
 **Benefits:**
@@ -105,15 +118,13 @@ services.AddMcpFramework(options =>
 
 ## 📦 NuGet Packages
 
-| Package | Version | Description |
-|---------|---------|-------------|
-| **COA.Mcp.Framework** | 1.7.17 | Core framework with MCP protocol included |
-| **COA.Mcp.Protocol** | 1.7.17 | Low-level protocol types and JSON-RPC |
-| **COA.Mcp.Client** | 1.7.17 | Strongly-typed C# client for MCP servers |
-| **COA.Mcp.Framework.TokenOptimization** | 1.7.17 | Advanced token management and AI response optimization |
-| **COA.Mcp.Framework.Testing** | 1.7.17 | Testing helpers, assertions, and benchmarks |
-| **COA.Mcp.Framework.Templates** | 1.7.17 | Project templates for quick starts |
-| **COA.Mcp.Framework.Migration** | 1.7.17 | Migration tools for updating from older versions |
+- COA.Mcp.Framework — Core framework with MCP protocol included
+- COA.Mcp.Protocol — Low-level protocol types and JSON-RPC
+- COA.Mcp.Client — Strongly-typed C# client for MCP servers
+- COA.Mcp.Framework.TokenOptimization — Advanced token management and AI response optimization
+- COA.Mcp.Framework.Testing — Testing helpers, assertions, and benchmarks
+- COA.Mcp.Framework.Templates — Project templates for quick starts
+- COA.Mcp.Framework.Migration — Migration tools for updating from older versions
 
 ## ✨ Key Features
 
@@ -157,7 +168,7 @@ services.AddMcpFramework(options =>
 - **Smart caching system** - Session-scoped type verification with file modification invalidation
 - **Multi-platform test integration** - Supports dotnet test, npm test, pytest, and more
 - **Custom middleware support** - Implement `ISimpleMiddleware` for custom logic
-- **Per-tool configuration** - Override `Middleware` property for tool-specific hooks
+- **Per-tool configuration** - Override `ToolSpecificMiddleware` for tool-specific hooks
 - See **[Lifecycle Hooks Guide](docs/lifecycle-hooks.md)** for detailed documentation
 
 ### 💬 **Interactive Prompts**
@@ -316,23 +327,24 @@ The framework provides a powerful middleware system for adding cross-cutting con
 ```csharp
 public class MyTool : McpToolBase<MyParams, MyResult>
 {
-    private readonly ILogger<MyTool> _logger;
-    
-    public MyTool(ILogger<MyTool> logger) : base(logger)
+    private readonly ILogger<MyTool>? _logger;
+
+    public MyTool(IServiceProvider? serviceProvider, ILogger<MyTool>? logger = null)
+        : base(serviceProvider, logger)
     {
         _logger = logger;
     }
-    
+
     // Configure middleware for this specific tool
-    protected override IReadOnlyList<ISimpleMiddleware>? Middleware => new List<ISimpleMiddleware>
+    protected override IReadOnlyList<ISimpleMiddleware>? ToolSpecificMiddleware => new List<ISimpleMiddleware>
     {
         // Built-in token counting middleware
         new TokenCountingSimpleMiddleware(),
-        
+
         // Custom timing middleware
-        new TimingMiddleware(_logger)
+        new TimingMiddleware(_logger!)
     };
-    
+
     // Your tool implementation...
 }
 ```

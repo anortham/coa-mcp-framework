@@ -19,9 +19,10 @@ namespace SimpleMcpServer.Tools;
 /// </summary>
 public class LifecycleExampleTool : McpToolBase<LifecycleExampleParameters, LifecycleExampleResult>
 {
-    private readonly ILogger<LifecycleExampleTool> _logger;
+    private readonly ILogger<LifecycleExampleTool>? _logger;
 
-    public LifecycleExampleTool(ILogger<LifecycleExampleTool> logger) : base(null, logger)
+    public LifecycleExampleTool(IServiceProvider? serviceProvider, ILogger<LifecycleExampleTool>? logger = null)
+        : base(serviceProvider, logger)
     {
         _logger = logger;
     }
@@ -34,13 +35,13 @@ public class LifecycleExampleTool : McpToolBase<LifecycleExampleParameters, Life
     /// Configure middleware for this tool.
     /// This demonstrates how to add lifecycle hooks to individual tools.
     /// </summary>
-    protected override IReadOnlyList<ISimpleMiddleware>? Middleware => new List<ISimpleMiddleware>
+    protected override IReadOnlyList<ISimpleMiddleware>? ToolSpecificMiddleware => new List<ISimpleMiddleware>
     {
         // Add token counting middleware to track usage (no logger needed)
         new TokenCountingSimpleMiddleware(),
         
         // Add custom middleware for this specific tool
-        new CustomTimingMiddleware(_logger)
+        new CustomTimingMiddleware(_logger!)
     };
 
     protected override async Task<LifecycleExampleResult> ExecuteInternalAsync(

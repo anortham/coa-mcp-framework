@@ -9,6 +9,7 @@ Welcome to the comprehensive documentation for the COA MCP Framework - a complet
 - [Installation Guide](#installation) - How to install and configure packages
 - [Your First Tool](#first-tool) - Step-by-step tutorial
 - [Project Templates](../src/COA.Mcp.Framework.Templates/README.md) - Quick project scaffolding
+ - [Migration to v2 Global Middleware](MIGRATION_GLOBAL_MIDDLEWARE.md) - Quick reference for constructor + middleware changes
 
 ### Core Packages
 
@@ -59,9 +60,7 @@ Welcome to the comprehensive documentation for the COA MCP Framework - a complet
 - [Migration Example](technical/MIGRATION_EXAMPLE.md) - Step-by-step migration guide with updated patterns
 
 ### Performance
-- [Performance Analysis](performance/PERFORMANCE_ANALYSIS.md) - Benchmarks and metrics
-- [Performance Results](performance/PERFORMANCE_FINAL_RESULTS.md) - Latest measurements
-- [Performance README](performance/README.md) - Performance testing guide
+- See CHANGELOG for performance-related improvements and notes
 
 ### Examples
 - [SimpleMcpServer](../examples/SimpleMcpServer/README.md) - Basic server with example tools
@@ -91,9 +90,8 @@ Welcome to the comprehensive documentation for the COA MCP Framework - a complet
 
 ## Version Information
 
-**Current Version**: 1.4.0  
-**Release Date**: January 2025  
-**Compatibility**: .NET 8.0+ / .NET 9.0
+- Refer to the project CHANGELOG for the latest released version and dates.
+- Compatibility: .NET 8.0+ / .NET 9.0
 
 ## Getting Help
 

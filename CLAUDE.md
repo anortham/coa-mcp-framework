@@ -125,7 +125,7 @@ var builder = McpServerBuilder.Create("my-server", services)
 - `ExecuteAsync()` - Main implementation (required)
 - `ErrorMessages` - Custom error messages with recovery steps
 - `TokenBudget` - Per-tool token limits
-- `Middleware` - Lifecycle hooks (logging, validation)
+- `ToolSpecificMiddleware` - Lifecycle hooks (logging, validation)
 
 ## ⚡ Performance Essentials
 

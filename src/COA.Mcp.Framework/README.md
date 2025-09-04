@@ -15,8 +15,8 @@ The core framework for building Model Context Protocol (MCP) servers and tools i
 
 ## Installation
 
-```xml
-<PackageReference Include="COA.Mcp.Framework" Version="1.7.17" />
+```bash
+dotnet add package COA.Mcp.Framework
 ```
 
 ## Quick Start
@@ -93,7 +93,7 @@ var builder = new McpServerBuilder()
     .RegisterToolType<WeatherTool>()
     .ConfigureFramework(options =>
     {
-        // Control framework logging verbosity (new in v2.0.1)
+        // Control framework logging verbosity
         options.FrameworkLogLevel = LogLevel.Warning;
         options.EnableDetailedToolLogging = false;
     });
@@ -594,23 +594,21 @@ public class PrimeNumberAttribute : ParameterValidationAttribute
 }
 ```
 
-### Dependency Injection
+### Hosting with IHost
 ```csharp
-// Configure services
-services.AddMcpServer(options =>
-{
-    options.ServerInfo = new ServerInfo { Name = "server" };
-    options.MaxConcurrentRequests = 10;
-});
+using Microsoft.Extensions.Hosting;
 
-// Register all tools in assembly
-services.AddMcpToolsFromAssembly(typeof(Program).Assembly);
+var host = Host
+    .CreateDefaultBuilder(args)
+    .UseMcpServer(mcp =>
+    {
+        mcp.WithServerInfo("my-server", "1.0.0")
+           .UseStdioTransport()
+           .DiscoverTools(typeof(Program).Assembly);
+    })
+    .Build();
 
-// Register all prompts
-services.AddMcpPromptsFromAssembly(typeof(Program).Assembly);
-
-// Register all resources
-services.AddMcpResourcesFromAssembly(typeof(Program).Assembly);
+await host.RunAsync();
 ```
 
 ## Testing
@@ -689,9 +687,9 @@ See the `/examples/SimpleMcpServer` directory for a complete working example.
 
 ## Support
 
-- GitHub Issues: [Report bugs or request features](https://github.com/yourusername/coa-mcp-framework)
-- Documentation: [Full documentation](https://docs.example.com)
-- NuGet: [COA.Mcp.Framework](https://www.nuget.org/packages/COA.Mcp.Framework)
+- GitHub Issues: https://github.com/anortham/COA-Mcp-Framework/issues
+- Documentation: See repository docs in `/docs` and package READMEs
+- NuGet: https://www.nuget.org/packages/COA.Mcp.Framework
 
 ## License
 
