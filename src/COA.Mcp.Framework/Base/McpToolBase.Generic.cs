@@ -17,7 +17,9 @@ using Microsoft.Extensions.DependencyInjection;
 using COA.Mcp.Framework.Schema;
 using COA.Mcp.Framework.Utilities;
 using Microsoft.Extensions.Logging;
-// No TokenOptimization dependency in Framework; keep it optional
+using COA.Mcp.Framework.TokenOptimization;
+using COA.Mcp.Framework.TokenOptimization.ResponseBuilders;
+using COA.Mcp.Framework.TokenOptimization;
 
 namespace COA.Mcp.Framework.Base;
 
@@ -35,7 +37,7 @@ public abstract class McpToolBase<TParams, TResult> : IMcpTool<TParams, TResult>
     private ErrorMessageProvider? _errorMessageProvider;
     private TokenBudgetConfiguration? _tokenBudgetConfiguration;
     private readonly bool _enableValidation = true;
-    private readonly ITokenEstimator? _tokenEstimator; // Provided optionally via DI
+    private ITokenEstimator _tokenEstimator = new DefaultTokenEstimator();
 
     /// <summary>
     /// Initializes a new instance of the McpToolBase class.
@@ -64,8 +66,12 @@ public abstract class McpToolBase<TParams, TResult> : IMcpTool<TParams, TResult>
             _enableValidation = frameworkOptions.EnableValidation;
         }
 
-        // Optional token estimator via DI (provided by TokenOptimization package)
-        _tokenEstimator = serviceProvider?.GetService<ITokenEstimator>();
+        // Optional token estimator from DI
+        var estimator = serviceProvider?.GetService<ITokenEstimator>();
+        if (estimator != null)
+        {
+            _tokenEstimator = estimator;
+        }
     }
 
     /// <summary>
@@ -428,8 +434,6 @@ public abstract class McpToolBase<TParams, TResult> : IMcpTool<TParams, TResult>
     /// </summary>
     protected virtual int EstimateTokenUsage(TParams? parameters)
     {
-        if (_tokenEstimator == null)
-            return 0;
         try
         {
             var estimated = _tokenEstimator.EstimateObject(parameters, _jsonOptions);
@@ -526,25 +530,43 @@ public abstract class McpToolBase<TParams, TResult> : IMcpTool<TParams, TResult>
 
     #endregion
     
-    #region Result Helpers
+    #region Response Builder Helpers
+    
+    /// <summary>
+    /// Creates a successful result with typed data.
+    /// </summary>
+    /// <typeparam name="TData">The type of the data.</typeparam>
+    /// <param name="data">The result data.</param>
+    /// <param name="message">Optional success message.</param>
+    /// <returns>A successful tool result.</returns>
     protected ToolResult<TData> CreateSuccessResult<TData>(TData data, string? message = null)
-        => ToolResult<TData>.CreateSuccess(data, message);
-
+    {
+        return ToolResult<TData>.CreateSuccess(data, message);
+    }
+    
+    /// <summary>
+    /// Creates a failed result with error information.
+    /// </summary>
+    /// <typeparam name="TData">The type of the expected data.</typeparam>
+    /// <param name="errorMessage">The error message.</param>
+    /// <param name="errorCode">Optional error code.</param>
+    /// <returns>A failed tool result.</returns>
     protected ToolResult<TData> CreateErrorResult<TData>(string errorMessage, string errorCode = "TOOL_ERROR")
-        => ToolResult<TData>.CreateError(errorMessage, errorCode);
-
+    {
+        return ToolResult<TData>.CreateError(errorMessage, errorCode);
+    }
+    
     /// <summary>
     /// Builds a response using a strongly-typed response builder.
-    /// The builder is supplied by optional packages (e.g., TokenOptimization).
     /// </summary>
     protected Task<TResult> BuildResponseAsync<TBuilder, TData>(
         TBuilder builder,
         TData data,
         string responseMode = "full",
         int? tokenLimit = null)
-        where TBuilder : IResponseBuilder<TData, TResult>
+        where TBuilder : BaseResponseBuilder<TData, TResult>
     {
-        var context = new ResponseBuildContext
+        var context = new ResponseContext
         {
             ResponseMode = responseMode,
             TokenLimit = tokenLimit ?? TokenBudget.MaxTokens,
@@ -552,6 +574,7 @@ public abstract class McpToolBase<TParams, TResult> : IMcpTool<TParams, TResult>
         };
         return builder.BuildResponseAsync(data, context);
     }
+    
     #endregion
 }
 

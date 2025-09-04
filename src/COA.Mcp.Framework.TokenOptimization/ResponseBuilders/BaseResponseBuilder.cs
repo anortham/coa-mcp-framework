@@ -3,16 +3,26 @@ using COA.Mcp.Framework.TokenOptimization.Models;
 using COA.Mcp.Framework.Models;
 using COA.Mcp.Framework.TokenOptimization.Reduction;
 using Microsoft.Extensions.Logging;
-using COA.Mcp.Framework.Interfaces;
 
 namespace COA.Mcp.Framework.TokenOptimization.ResponseBuilders;
+
+/// <summary>
+/// Non-generic interface for response builders (backward compatibility).
+/// </summary>
+public interface IResponseBuilder
+{
+    /// <summary>
+    /// Builds a response with token optimization.
+    /// </summary>
+    Task<object> BuildResponseAsync(object data, ResponseContext context);
+}
 
 /// <summary>
 /// Base class for building token-aware responses with automatic optimization and strong typing.
 /// </summary>
 /// <typeparam name="TInput">The type of input data being processed.</typeparam>
 /// <typeparam name="TResult">The type of result being returned.</typeparam>
-public abstract class BaseResponseBuilder<TInput, TResult> : IResponseBuilder<TInput, TResult>
+public abstract class BaseResponseBuilder<TInput, TResult> : IResponseBuilder
     where TResult : new()
 {
     /// <summary>
@@ -42,24 +52,25 @@ public abstract class BaseResponseBuilder<TInput, TResult> : IResponseBuilder<TI
     }
     
     /// <summary>
-    /// Framework interface implementation that adapts minimal context to the richer context used internally.
+    /// Builds a response with token optimization.
     /// </summary>
-    public Task<TResult> BuildResponseAsync(TInput data, ResponseBuildContext context)
-    {
-        var adapted = new ResponseContext
-        {
-            ResponseMode = context.ResponseMode,
-            TokenLimit = context.TokenLimit,
-            ToolName = context.ToolName
-        };
-        return BuildResponseAsync(data, adapted);
-    }
-
-    /// <summary>
-    /// Builds a response with token optimization using the richer context.
-    /// Implement this in derived builders.
-    /// </summary>
+    /// <param name="data">The data to include in the response.</param>
+    /// <param name="context">The response building context.</param>
+    /// <returns>A strongly typed optimized response.</returns>
     public abstract Task<TResult> BuildResponseAsync(TInput data, ResponseContext context);
+    
+    /// <summary>
+    /// Non-generic version for backward compatibility.
+    /// </summary>
+    async Task<object> IResponseBuilder.BuildResponseAsync(object data, ResponseContext context)
+    {
+        if (data is TInput typedData)
+        {
+            var result = await BuildResponseAsync(typedData, context);
+            return result ?? throw new InvalidOperationException("BuildResponseAsync returned null");
+        }
+        throw new ArgumentException($"Expected data of type {typeof(TInput).Name}, got {data?.GetType().Name ?? "null"}");
+    }
     
     /// <summary>
     /// Generates insights for the given data.

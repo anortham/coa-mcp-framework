@@ -914,15 +914,5 @@
             <param name="id">The request identifier.</param>
             <param name="error">The error information.</param>
         </member>
-        <member name="T:COA.Mcp.Protocol.McpProtocol">
-            <summary>
-            Centralized MCP protocol constants.
-            </summary>
-        </member>
-        <member name="F:COA.Mcp.Protocol.McpProtocol.Version">
-            <summary>
-            Current MCP protocol version supported by this SDK.
-            </summary>
-        </member>
     </members>
 </doc>

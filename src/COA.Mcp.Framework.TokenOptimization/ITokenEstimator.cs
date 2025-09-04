@@ -1,35 +1,118 @@
 using System.Text.Json;
-using COA.Mcp.Framework.Interfaces;
 
 namespace COA.Mcp.Framework.TokenOptimization
 {
+    /// <summary>
+    /// Interface for token estimation services.
+    /// </summary>
+    public interface ITokenEstimator
+    {
+        /// <summary>
+        /// Estimates the number of tokens in a string.
+        /// </summary>
+        /// <param name="text">The text to estimate.</param>
+        /// <returns>Estimated token count.</returns>
+        int EstimateString(string? text);
+
+        /// <summary>
+        /// Estimates the number of tokens for an object when serialized to JSON.
+        /// </summary>
+        /// <param name="obj">The object to estimate.</param>
+        /// <param name="options">JSON serialization options.</param>
+        /// <returns>Estimated token count.</returns>
+        int EstimateObject(object? obj, JsonSerializerOptions? options = null);
+
+        /// <summary>
+        /// Estimates the number of tokens for a collection using sampling.
+        /// </summary>
+        /// <typeparam name="T">The type of items in the collection.</typeparam>
+        /// <param name="items">The collection to estimate.</param>
+        /// <param name="itemEstimator">Function to estimate tokens for a single item.</param>
+        /// <param name="sampleSize">Number of items to sample for estimation.</param>
+        /// <returns>Estimated token count for the entire collection.</returns>
+        int EstimateCollection<T>(
+            IEnumerable<T>? items,
+            Func<T, int>? itemEstimator = null,
+            int sampleSize = 10);
+
+        /// <summary>
+        /// Applies progressive reduction to a collection based on token limits.
+        /// </summary>
+        /// <typeparam name="T">The type of items in the collection.</typeparam>
+        /// <param name="items">The collection to reduce.</param>
+        /// <param name="itemEstimator">Function to estimate tokens for a single item.</param>
+        /// <param name="tokenLimit">Maximum allowed tokens.</param>
+        /// <param name="reductionSteps">Percentage steps for reduction.</param>
+        /// <returns>Reduced collection that fits within token limit.</returns>
+        List<T> ApplyProgressiveReduction<T>(
+            IEnumerable<T> items,
+            Func<T, int> itemEstimator,
+            int tokenLimit,
+            int[]? reductionSteps = null);
+
+        /// <summary>
+        /// Calculates token budget based on safety limits and current usage.
+        /// </summary>
+        /// <param name="totalLimit">Total token limit (e.g., model context window).</param>
+        /// <param name="currentUsage">Current token usage.</param>
+        /// <param name="safetyMode">Safety mode to apply.</param>
+        /// <returns>Available token budget.</returns>
+        int CalculateTokenBudget(
+            int totalLimit,
+            int currentUsage,
+            TokenSafetyMode safetyMode = TokenSafetyMode.Default);
+        
+        /// <summary>
+        /// Calculates token budget using a percentage-based safety buffer.
+        /// This overload adapts better to different model sizes.
+        /// </summary>
+        /// <param name="totalLimit">Total token limit (e.g., model context window).</param>
+        /// <param name="currentUsage">Current token usage.</param>
+        /// <param name="safetyPercent">Safety buffer as percentage of total limit (default: 5%).</param>
+        /// <param name="minAbsoluteBuffer">Minimum absolute buffer in tokens (default: 1000).</param>
+        /// <param name="maxAbsoluteBuffer">Maximum absolute buffer in tokens (default: 10000).</param>
+        /// <returns>Available token budget.</returns>
+        int CalculateTokenBudget(
+            int totalLimit,
+            int currentUsage,
+            double? safetyPercent = 0.05,
+            int? minAbsoluteBuffer = 1000,
+            int? maxAbsoluteBuffer = 10000);
+    }
+
     /// <summary>
     /// Default implementation of ITokenEstimator using the static TokenEstimator class.
     /// </summary>
     public class DefaultTokenEstimator : ITokenEstimator
     {
-        public int EstimateString(string? text) => TokenEstimator.EstimateString(text);
-
-        public int EstimateObject(object? obj, JsonSerializerOptions? options = null) => TokenEstimator.EstimateObject(obj, options);
-
-        public int EstimateCollection<T>(IEnumerable<T>? items, Func<T, int>? itemEstimator = null, int sampleSize = 10)
-            => TokenEstimator.EstimateCollection(items, itemEstimator, sampleSize);
-
-        public List<T> ApplyProgressiveReduction<T>(IEnumerable<T> items, Func<T, int> itemEstimator, int tokenLimit, int[]? reductionSteps = null)
-            => TokenEstimator.ApplyProgressiveReduction(items, itemEstimator, tokenLimit, reductionSteps);
-
-        public int CalculateTokenBudget(int totalLimit, int currentUsage, COA.Mcp.Framework.Interfaces.TokenSafetyMode safetyMode = COA.Mcp.Framework.Interfaces.TokenSafetyMode.Default)
+        public int EstimateString(string? text)
         {
-            var mapped = safetyMode switch
-            {
-                COA.Mcp.Framework.Interfaces.TokenSafetyMode.Conservative => COA.Mcp.Framework.TokenOptimization.TokenSafetyMode.Conservative,
-                COA.Mcp.Framework.Interfaces.TokenSafetyMode.Minimal => COA.Mcp.Framework.TokenOptimization.TokenSafetyMode.Minimal,
-                _ => COA.Mcp.Framework.TokenOptimization.TokenSafetyMode.Default
-            };
-            return TokenEstimator.CalculateTokenBudget(totalLimit, currentUsage, mapped);
+            return TokenEstimator.EstimateString(text);
         }
 
+        public int EstimateObject(object? obj, JsonSerializerOptions? options = null)
+        {
+            return TokenEstimator.EstimateObject(obj, options);
+        }
+
+        public int EstimateCollection<T>(IEnumerable<T>? items, Func<T, int>? itemEstimator = null, int sampleSize = 10)
+        {
+            return TokenEstimator.EstimateCollection(items, itemEstimator, sampleSize);
+        }
+
+        public List<T> ApplyProgressiveReduction<T>(IEnumerable<T> items, Func<T, int> itemEstimator, int tokenLimit, int[]? reductionSteps = null)
+        {
+            return TokenEstimator.ApplyProgressiveReduction(items, itemEstimator, tokenLimit, reductionSteps);
+        }
+
+        public int CalculateTokenBudget(int totalLimit, int currentUsage, TokenSafetyMode safetyMode = TokenSafetyMode.Default)
+        {
+            return TokenEstimator.CalculateTokenBudget(totalLimit, currentUsage, safetyMode);
+        }
+        
         public int CalculateTokenBudget(int totalLimit, int currentUsage, double? safetyPercent = 0.05, int? minAbsoluteBuffer = 1000, int? maxAbsoluteBuffer = 10000)
-            => TokenEstimator.CalculateTokenBudget(totalLimit, currentUsage, safetyPercent, minAbsoluteBuffer, maxAbsoluteBuffer);
+        {
+            return TokenEstimator.CalculateTokenBudget(totalLimit, currentUsage, safetyPercent, minAbsoluteBuffer, maxAbsoluteBuffer);
+        }
     }
 }

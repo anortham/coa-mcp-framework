@@ -11,7 +11,7 @@ using FluentAssertions;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
-using RangeAttribute = System.ComponentModel.DataAnnotations.RangeAttribute;
+using FrameworkRangeAttribute = COA.Mcp.Framework.Attributes.RangeAttribute;
 
 namespace COA.Mcp.Framework.Tests.Base
 {
@@ -366,7 +366,7 @@ namespace COA.Mcp.Framework.Tests.Base
             [Required]
             public string RequiredField { get; set; }
 
-            [RangeAttribute(1, 100)]
+            [FrameworkRangeAttribute(1, 100)]
             public int RangeValue { get; set; }
         }
 
@@ -471,7 +471,7 @@ namespace COA.Mcp.Framework.Tests.Base
             public override string Name => "high_token_tool";
             public override string Description => "Tool with high token usage";
 
-            protected override int EstimateTokenUsage(TestParameters? parameters) => 15000; // Above default limit
+            protected override int EstimateTokenUsage() => 15000; // Above default limit
 
             protected override Task<TestResult> ExecuteInternalAsync(TestParameters parameters, CancellationToken cancellationToken)
             {

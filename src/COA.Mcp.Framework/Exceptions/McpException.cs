@@ -1,7 +1,5 @@
 using System;
 using System.Linq;
-using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
 using COA.Mcp.Framework.Interfaces;
 
 namespace COA.Mcp.Framework.Exceptions;
@@ -96,22 +94,22 @@ public class ToolValidationException : McpException
 public class ParameterValidationException : McpException
 {
     /// <summary>
-    /// Gets the validation results.
+    /// Gets the validation result.
     /// </summary>
-    public IReadOnlyList<ValidationResult> ValidationResults { get; }
+    public ValidationResult ValidationResult { get; }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ParameterValidationException"/> class.
     /// </summary>
-    public ParameterValidationException(IEnumerable<ValidationResult> validationResults)
-        : base(GetMessage(validationResults), "PARAMETER_VALIDATION_FAILED", validationResults)
+    public ParameterValidationException(ValidationResult validationResult)
+        : base(GetMessage(validationResult), "PARAMETER_VALIDATION_FAILED", validationResult)
     {
-        ValidationResults = validationResults.ToList();
+        ValidationResult = validationResult;
     }
 
-    private static string GetMessage(IEnumerable<ValidationResult> results)
+    private static string GetMessage(ValidationResult result)
     {
-        var errors = string.Join("; ", results.Select(r => r.ErrorMessage));
+        var errors = string.Join("; ", result.Errors.Select(e => e.FullMessage));
         return $"Parameter validation failed: {errors}";
     }
 }
