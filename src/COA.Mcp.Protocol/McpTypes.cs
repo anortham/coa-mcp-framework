@@ -61,7 +61,7 @@ public class InitializeRequest
     /// Gets or sets the MCP protocol version the client supports.
     /// </summary>
     [JsonPropertyName("protocolVersion")]
-    public string ProtocolVersion { get; set; } = McpProtocol.Version;
+    public string ProtocolVersion { get; set; } = "2024-11-05";
 
     /// <summary>
     /// Gets or sets the capabilities supported by the client.
@@ -88,7 +88,7 @@ public class InitializeResult
     /// Gets or sets the MCP protocol version the server supports.
     /// </summary>
     [JsonPropertyName("protocolVersion")]
-    public string ProtocolVersion { get; set; } = McpProtocol.Version;
+    public string ProtocolVersion { get; set; } = "2024-11-05";
 
     /// <summary>
     /// Gets or sets the capabilities supported by the server.

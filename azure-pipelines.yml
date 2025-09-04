@@ -41,8 +41,8 @@ pool:
 variables:
   buildConfiguration: "Release"
   dotnetSdkVersion: "9.x"
-  # Base version for Framework packages - v3.0.x (breaking changes: middleware removal, validation simplification, STDIO framing, HTTP hardening)
-  majorVersion: 3
+  # Base version for Framework packages - v2.0.x (breaking change: global middleware support)
+  majorVersion: 2
   minorVersion: 0
   # Auto-incrementing patch version - increments on every build
   # The counter is keyed by major.minor version, so it resets when those change

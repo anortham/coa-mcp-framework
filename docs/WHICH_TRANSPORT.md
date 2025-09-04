@@ -75,22 +75,15 @@ var builder = new McpServerBuilder()
     });
 ```
 
-**How to test (JSON-RPC):**
+**How to test:**
 ```bash
-# List available tools (JSON-RPC over HTTP)
-curl -X POST http://localhost:5000/mcp/rpc \
-  -H "Content-Type: application/json" \
-  -d '{"jsonrpc":"2.0","method":"tools/list","id":1}'
+# List available tools
+curl http://localhost:5000/tools/list
 
-# Call a specific tool (replace name/arguments accordingly)
-curl -X POST http://localhost:5000/mcp/rpc \
+# Call a specific tool
+curl -X POST http://localhost:5000/tools/echo \
   -H "Content-Type: application/json" \
-  -d '{
-    "jsonrpc":"2.0",
-    "method":"tools/call",
-    "id":2,
-    "params": { "name": "echo", "arguments": { "text": "Hello World" } }
-  }'
+  -d '{"text": "Hello World"}'
 ```
 
 ### ⚡ WebSocket Transport

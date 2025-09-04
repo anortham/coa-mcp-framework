@@ -36,7 +36,6 @@ namespace COA.Mcp.Framework.Transport
         private Task? _listenerTask;
         private bool _isConnected;
         private bool _disposed;
-        private bool _authModeWarningLogged;
 
         public TransportType Type => TransportType.Http;
         public bool IsConnected => _isConnected;
@@ -416,20 +415,9 @@ namespace COA.Mcp.Framework.Transport
                 // Add CORS headers if enabled
                 if (_options.EnableCors)
                 {
-                    var origin = request.Headers["Origin"];
-                    if (IsOriginAllowed(origin))
-                    {
-                        response.Headers.Add("Access-Control-Allow-Origin", string.IsNullOrEmpty(origin) ? "*" : origin);
-                        response.Headers.Add("Vary", "Origin");
-                        response.Headers.Add("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-                        response.Headers.Add("Access-Control-Allow-Headers", "Content-Type, Authorization, X-API-Key");
-                    }
-                    else if (!string.IsNullOrEmpty(origin))
-                    {
-                        response.StatusCode = 403;
-                        response.Close();
-                        return;
-                    }
+                    response.Headers.Add("Access-Control-Allow-Origin", "*");
+                    response.Headers.Add("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+                    response.Headers.Add("Access-Control-Allow-Headers", "Content-Type");
                 }
                 
                 // Handle preflight requests
@@ -498,28 +486,9 @@ namespace COA.Mcp.Framework.Transport
             
             try
             {
-                // Enforce authentication if configured
-                if (!Authenticate(request))
-                {
-                    context.Response.StatusCode = 401;
-                    context.Response.Close();
-                    return;
-                }
-
-                // Enforce max request size
-                if (request.ContentLength64 > 0 && request.ContentLength64 > _options.MaxRequestSize)
-                {
-                    context.Response.StatusCode = 413; // Payload Too Large
-                    var msg = Encoding.UTF8.GetBytes("Request entity too large");
-                    await context.Response.OutputStream.WriteAsync(msg, 0, msg.Length);
-                    context.Response.Close();
-                    return;
-                }
-
                 // Read request body
                 string requestBody;
-                using (var limited = new LimitedStream(request.InputStream, _options.MaxRequestSize))
-                using (var reader = new StreamReader(limited, request.ContentEncoding))
+                using (var reader = new StreamReader(request.InputStream, request.ContentEncoding))
                 {
                     requestBody = await reader.ReadToEndAsync();
                 }
@@ -881,203 +850,6 @@ namespace COA.Mcp.Framework.Transport
             }
             
             _disposed = true;
-        }
-
-        private bool IsOriginAllowed(string? origin)
-        {
-            if (!_options.EnableCors) return true;
-            if (string.IsNullOrEmpty(origin)) return true;
-            if (_options.AllowedOrigins.Any(o => o == "*")) return true;
-            return _options.AllowedOrigins.Contains(origin, StringComparer.OrdinalIgnoreCase);
-        }
-
-        private bool Authenticate(HttpListenerRequest request)
-        {
-            switch (_options.Authentication)
-            {
-                case AuthenticationType.None:
-                    return true;
-                case AuthenticationType.ApiKey:
-                    var header = request.Headers[_options.ApiKeyHeader];
-                    return !string.IsNullOrEmpty(_options.ApiKey) && string.Equals(header, _options.ApiKey, StringComparison.Ordinal);
-                case AuthenticationType.Basic:
-                    return ValidateBasicAuth(request);
-                case AuthenticationType.Jwt:
-                    return ValidateJwtHs256(request);
-                case AuthenticationType.Custom:
-                default:
-                    // Not implemented; log a warning once per process and treat as disabled to avoid false confidence
-                    if (!_authModeWarningLogged)
-                    {
-                        _logger?.LogWarning("HTTP authentication mode {Mode} is configured but not enforced. Supported modes: None, ApiKey, Basic, Jwt (HS256)", _options.Authentication);
-                        _authModeWarningLogged = true;
-                    }
-                    return true;
-            }
-        }
-
-        private bool ValidateBasicAuth(HttpListenerRequest request)
-        {
-            try
-            {
-                var auth = request.Headers["Authorization"];
-                if (string.IsNullOrEmpty(auth) || !auth.StartsWith("Basic ", StringComparison.OrdinalIgnoreCase))
-                {
-                    return false;
-                }
-                var b64 = auth.Substring("Basic ".Length).Trim();
-                byte[] bytes;
-                try { bytes = Convert.FromBase64String(b64); }
-                catch { return false; }
-                var decoded = Encoding.UTF8.GetString(bytes);
-                var idx = decoded.IndexOf(':');
-                if (idx <= 0) return false;
-                var user = decoded.Substring(0, idx);
-                var pass = decoded.Substring(idx + 1);
-                if (string.IsNullOrEmpty(_options.BasicUsername) || string.IsNullOrEmpty(_options.BasicPassword))
-                {
-                    _logger?.LogWarning("Basic auth configured without credentials");
-                    return false;
-                }
-                return user == _options.BasicUsername && pass == _options.BasicPassword;
-            }
-            catch
-            {
-                return false;
-            }
-        }
-
-        private bool ValidateJwtHs256(HttpListenerRequest request)
-        {
-            try
-            {
-                if (_options.JwtSettings == null || string.IsNullOrEmpty(_options.JwtSettings.SecretKey))
-                {
-                    _logger?.LogWarning("JWT auth configured without secret key");
-                    return false;
-                }
-                var auth = request.Headers["Authorization"];
-                if (string.IsNullOrEmpty(auth) || !auth.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
-                {
-                    return false;
-                }
-                var token = auth.Substring("Bearer ".Length).Trim();
-                var parts = token.Split('.');
-                if (parts.Length != 3) return false;
-
-                var headerJson = Encoding.UTF8.GetString(Base64UrlDecode(parts[0]));
-                var payloadJson = Encoding.UTF8.GetString(Base64UrlDecode(parts[1]));
-
-                // Verify alg
-                if (!headerJson.Contains("\"HS256\"", StringComparison.Ordinal))
-                {
-                    _logger?.LogWarning("Unsupported JWT alg (expected HS256)");
-                    return false;
-                }
-
-                // Verify signature
-                var signingInput = Encoding.ASCII.GetBytes(parts[0] + "." + parts[1]);
-                using var hmac = new System.Security.Cryptography.HMACSHA256(Encoding.UTF8.GetBytes(_options.JwtSettings.SecretKey));
-                var sigBytes = hmac.ComputeHash(signingInput);
-                var expectedSig = Base64UrlEncode(sigBytes);
-                if (!string.Equals(parts[2], expectedSig, StringComparison.Ordinal))
-                {
-                    return false;
-                }
-
-                // Optional exp check
-                try
-                {
-                    using var doc = JsonDocument.Parse(payloadJson);
-                    if (doc.RootElement.TryGetProperty("exp", out var expEl) && expEl.ValueKind == JsonValueKind.Number)
-                    {
-                        var exp = expEl.GetInt64();
-                        if (DateTimeOffset.UtcNow > DateTimeOffset.FromUnixTimeSeconds(exp))
-                            return false;
-                    }
-                    if (!string.IsNullOrEmpty(_options.JwtSettings.Issuer) &&
-                        doc.RootElement.TryGetProperty("iss", out var issEl) && issEl.ValueKind == JsonValueKind.String)
-                    {
-                        if (!string.Equals(issEl.GetString(), _options.JwtSettings.Issuer, StringComparison.Ordinal))
-                            return false;
-                    }
-                    if (!string.IsNullOrEmpty(_options.JwtSettings.Audience) &&
-                        doc.RootElement.TryGetProperty("aud", out var audEl) && audEl.ValueKind == JsonValueKind.String)
-                    {
-                        if (!string.Equals(audEl.GetString(), _options.JwtSettings.Audience, StringComparison.Ordinal))
-                            return false;
-                    }
-                }
-                catch
-                {
-                    return false;
-                }
-
-                return true;
-            }
-            catch
-            {
-                return false;
-            }
-        }
-
-        private static byte[] Base64UrlDecode(string s)
-        {
-            s = s.Replace('-', '+').Replace('_', '/');
-            switch (s.Length % 4)
-            {
-                case 2: s += "=="; break;
-                case 3: s += "="; break;
-            }
-            return Convert.FromBase64String(s);
-        }
-
-        private static string Base64UrlEncode(byte[] data)
-        {
-            var s = Convert.ToBase64String(data).TrimEnd('=');
-            s = s.Replace('+', '-').Replace('/', '_');
-            return s;
-        }
-
-        /// <summary>
-        /// Stream wrapper that enforces a maximum number of readable bytes.
-        /// </summary>
-        private sealed class LimitedStream : Stream
-        {
-            private readonly Stream _inner;
-            private long _remaining;
-
-            public LimitedStream(Stream inner, long limit)
-            {
-                _inner = inner;
-                _remaining = limit <= 0 ? long.MaxValue : limit;
-            }
-
-            public override bool CanRead => _inner.CanRead;
-            public override bool CanSeek => false;
-            public override bool CanWrite => false;
-            public override long Length => _inner.Length;
-            public override long Position { get => _inner.Position; set => throw new NotSupportedException(); }
-            public override void Flush() => _inner.Flush();
-            public override int Read(byte[] buffer, int offset, int count)
-            {
-                if (_remaining <= 0) return 0;
-                var toRead = (int)Math.Min(count, _remaining);
-                var n = _inner.Read(buffer, offset, toRead);
-                _remaining -= n;
-                return n;
-            }
-            public override async Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
-            {
-                if (_remaining <= 0) return 0;
-                var toRead = (int)Math.Min(count, _remaining);
-                var n = await _inner.ReadAsync(buffer.AsMemory(offset, toRead), cancellationToken);
-                _remaining -= n;
-                return n;
-            }
-            public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
-            public override void SetLength(long value) => throw new NotSupportedException();
-            public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
         }
     }
 

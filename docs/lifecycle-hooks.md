@@ -55,7 +55,8 @@ Global middleware applies to ALL tools automatically and is configured at the se
 // Configure global middleware in server builder
 var builder = new McpServerBuilder()
     .WithServerInfo("My Server", "1.0.0")
-    // Removed: experimental enforcement middleware
+    .AddTypeVerificationMiddleware()  // Applies to all tools
+    .AddTddEnforcementMiddleware()    // Applies to all tools
     .AddLoggingMiddleware()           // Applies to all tools
     .AddTokenCountingMiddleware()     // Applies to all tools
     .RegisterTool<MyTool>()
@@ -94,9 +95,11 @@ Tools automatically combine global middleware (from DI) with tool-specific middl
 
 ```csharp
 // Execution order example:
-// 1. Global Logging (Order: 10)
-// 2. Tool-specific Custom (Order: 20)
-// 3. Global TokenCounting (Order: 100)
+// 1. Global TypeVerification (Order: 5)
+// 2. Global TDD Enforcement (Order: 10) 
+// 3. Tool-specific Custom (Order: 20)
+// 4. Global Logging (Order: 30)
+// 5. Global TokenCounting (Order: 100)
 ```
 
 ## Built-in Middleware
@@ -122,6 +125,62 @@ var tokenMiddleware = new TokenCountingSimpleMiddleware(logger);
 // Order: 100 (runs later for accurate timing)
 // Logs: Estimated input/output tokens based on JSON serialization
 ```
+
+### TypeVerificationMiddleware
+
+Prevents AI-hallucinated types in code generation by verifying type existence before allowing code operations:
+
+```csharp
+var typeVerificationMiddleware = new TypeVerificationMiddleware(
+    typeResolutionService, 
+    verificationStateManager, 
+    logger, 
+    Options.Create(new TypeVerificationOptions
+    {
+        Enabled = true,
+        Mode = TypeVerificationMode.Strict,
+        CacheExpirationHours = 24,
+        AutoVerifyOnHover = true,
+        RequireMemberVerification = true
+    }));
+// Order: 5 (runs very early, before TDD enforcement)
+// Blocks: Edit, Write, MultiEdit, NotebookEdit operations with unverified types
+// Features: Intelligent caching, file modification tracking, member access validation
+```
+
+**Key Features:**
+- **Smart Type Resolution**: Detects types, classes, interfaces, enums, and member access patterns
+- **Session-Scoped Caching**: Remembers verified types with file modification tracking
+- **Multiple Verification Modes**: Strict (blocks), Warning (logs), or Disabled
+- **Language Support**: C#, TypeScript, JavaScript with extensible patterns
+- **Error Recovery**: Provides specific guidance on how to resolve type issues
+
+### TddEnforcementMiddleware
+
+Enforces Test-Driven Development practices by requiring failing tests before implementation:
+
+```csharp
+var tddMiddleware = new TddEnforcementMiddleware(
+    testStatusService,
+    logger,
+    Options.Create(new TddEnforcementOptions
+    {
+        Enabled = true,
+        Mode = TddEnforcementMode.Warning,
+        RequireFailingTest = true,
+        AllowRefactoring = true
+    }));
+// Order: 10 (runs after type verification)
+// Enforces: Red-Green-Refactor TDD workflow
+// Features: Multi-language test runner support, refactoring detection
+```
+
+**Key Features:**
+- **TDD Workflow Enforcement**: Implements Red (failing test) → Green (minimal code) → Refactor cycle
+- **Multi-Language Support**: Detects and runs dotnet test, npm test, pytest, and other test runners
+- **Smart Detection**: Distinguishes between new functionality and refactoring operations
+- **Comprehensive Guidance**: Provides detailed violation messages with recovery steps
+- **Flexible Configuration**: Supports strict blocking or warning-only modes
 
 ## Execution Flow
 
@@ -215,12 +274,182 @@ public class RateLimitMiddleware : SimpleMiddlewareBase
 }
 ```
 
+### Type Verification with Custom Configuration
+
+```csharp
+public class CustomTypeVerificationMiddleware : SimpleMiddlewareBase
+{
+    private readonly TypeVerificationMiddleware _baseMiddleware;
+    
+    public CustomTypeVerificationMiddleware(
+        ITypeResolutionService typeService,
+        IVerificationStateManager stateManager,
+        ILogger<TypeVerificationMiddleware> logger)
+    {
+        var options = Options.Create(new TypeVerificationOptions
+        {
+            Enabled = true,
+            Mode = TypeVerificationMode.Strict,
+            CacheExpirationHours = 24,
+            AutoVerifyOnHover = true,
+            RequireMemberVerification = true,
+            WhitelistedTypes = new HashSet<string> 
+            { 
+                "CustomApiClient", "InternalType", "LegacyService" 
+            },
+            ExcludedPaths = new List<string>
+            {
+                "*/Generated/*", "*.g.cs", "*/bin/*", "*/obj/*"
+            },
+            LanguageConfigs = new Dictionary<string, LanguageVerificationConfig>
+            {
+                [".cs"] = new LanguageVerificationConfig
+                {
+                    RequireExactMatch = true,
+                    CaseSensitive = true,
+                    EnableGenericTypeInference = true,
+                    LanguageSpecificWhitelist = new HashSet<string> 
+                    { 
+                        "var", "dynamic", "object" 
+                    }
+                },
+                [".ts"] = new LanguageVerificationConfig
+                {
+                    RequireExactMatch = false,
+                    CaseSensitive = true,
+                    EnableGenericTypeInference = true,
+                    IgnorePatterns = new List<string> 
+                    { 
+                        @"any\[\]", @"Record<.*>" 
+                    }
+                }
+            }
+        });
+        
+        _baseMiddleware = new TypeVerificationMiddleware(typeService, stateManager, logger, options);
+        Order = 5; // Very early, before TDD enforcement
+    }
+    
+    public override Task OnBeforeExecutionAsync(string toolName, object? parameters)
+    {
+        return _baseMiddleware.OnBeforeExecutionAsync(toolName, parameters);
+    }
+}
+```
+
+### TDD Enforcement with Multi-Language Support
+
+```csharp
+public class ComprehensiveTddMiddleware : SimpleMiddlewareBase
+{
+    private readonly TddEnforcementMiddleware _baseMiddleware;
+    
+    public ComprehensiveTddMiddleware(
+        ITestStatusService testService,
+        ILogger<TddEnforcementMiddleware> logger)
+    {
+        var options = Options.Create(new TddEnforcementOptions
+        {
+            Enabled = true,
+            Mode = TddEnforcementMode.Strict,
+            RequireFailingTest = true,
+            AllowRefactoring = true,
+            TestRunners = new Dictionary<string, TestRunnerConfig>
+            {
+                ["csharp"] = new TestRunnerConfig
+                {
+                    Command = "dotnet test",
+                    TimeoutMs = 60000,
+                    Arguments = new List<string> { "--no-build", "--verbosity", "minimal" },
+                    FailingTestPatterns = new List<string> 
+                    { 
+                        @"Failed: \d+", @"Total tests: \d+\. Passed: \d+\. Failed: [^0]\d*" 
+                    }
+                },
+                ["typescript"] = new TestRunnerConfig
+                {
+                    Command = "npm",
+                    Arguments = new List<string> { "test", "--", "--reporter=json" },
+                    TimeoutMs = 45000,
+                    EnvironmentVariables = new Dictionary<string, string> 
+                    { 
+                        ["NODE_ENV"] = "test" 
+                    }
+                },
+                ["python"] = new TestRunnerConfig
+                {
+                    Command = "pytest",
+                    Arguments = new List<string> { "-v", "--tb=short", "--json-report" },
+                    TimeoutMs = 60000
+                }
+            },
+            TestFilePatterns = new List<string>
+            {
+                "*test*", "*Test*", "*tests*", "*Tests*",
+                "*spec*", "*Spec*", "*.spec.*", "*.test.*",
+                "__tests__", "__test__"
+            },
+            GeneratedCodePatterns = new List<string>
+            {
+                "*.generated.*", "*.g.*", "*.designer.*", 
+                "*AssemblyInfo.cs", "*.min.js", "dist/*"
+            },
+            PreTestCommands = new List<string>
+            {
+                "dotnet build --no-restore", // For C# projects
+                "npm run compile"            // For TypeScript projects
+            },
+            NewFunctionalityPatterns = new List<string>
+            {
+                @"public\s+class\s+[A-Z]\w+",     // C# public class
+                @"export\s+class\s+[A-Z]\w+",     // TypeScript export class
+                @"public\s+interface\s+I[A-Z]\w+", // C# interface
+                @"export\s+interface\s+[A-Z]\w+",  // TypeScript interface
+                @"def\s+[a-z_]\w*\s*\(",          // Python function
+                @"class\s+[A-Z]\w*\s*\(",         // Python class
+            },
+            RefactoringPatterns = new List<string>
+            {
+                @"// Extracted from \w+",
+                @"// Moved from \w+",
+                @"// Renamed from \w+",
+                @"private\s+\w+\s+Extract[A-Z]\w*"
+            },
+            MinimumComplexityThreshold = 5, // Lower threshold for strict TDD
+            EnableDetailedLogging = true
+        });
+        
+        _baseMiddleware = new TddEnforcementMiddleware(testService, logger, options);
+        Order = 10; // After type verification
+    }
+    
+    public override Task OnBeforeExecutionAsync(string toolName, object? parameters)
+    {
+        return _baseMiddleware.OnBeforeExecutionAsync(toolName, parameters);
+    }
+}
+```
+
+## Configuration and Usage Scenarios
+
 ### Development Environment Setup
 
 ```csharp
-// Development: verbose logging, token counting
+// Development: Strict type verification, warning-level TDD
 var serverBuilder = new McpServerBuilder()
     .WithServerInfo("Development Server", "1.0.0")
+    .AddTypeVerificationMiddleware(options =>
+    {
+        options.Enabled = true;
+        options.Mode = TypeVerificationMode.Strict;
+        options.EnableDetailedLogging = true;
+    })
+    .AddTddEnforcementMiddleware(options =>
+    {
+        options.Enabled = true;
+        options.Mode = TddEnforcementMode.Warning;
+        options.EnableDetailedLogging = true;
+    })
     .AddLoggingMiddleware(LogLevel.Debug)
     .AddTokenCountingMiddleware()
     .RegisterTool<MyTool>()
@@ -230,9 +459,17 @@ var serverBuilder = new McpServerBuilder()
 ### Production Environment Setup
 
 ```csharp
-// Production: Warning-level logging, minimal middleware
+// Production: Warning-level type verification, disabled TDD
 var serverBuilder = new McpServerBuilder()
     .WithServerInfo("Production Server", "1.0.0")
+    .AddTypeVerificationMiddleware(options =>
+    {
+        options.Enabled = true;
+        options.Mode = TypeVerificationMode.Warning;
+        options.EnableDetailedLogging = false;
+        options.CacheExpirationHours = 48; // Longer cache in production
+    })
+    // TDD enforcement usually disabled in production
     .AddLoggingMiddleware(LogLevel.Information)
     .AddTokenCountingMiddleware()
     .RegisterTool<MyTool>()
@@ -242,7 +479,21 @@ var serverBuilder = new McpServerBuilder()
 ### Team Onboarding Configuration
 
 ```csharp
-// New team members: prefer richer logging and guidance via docs and tests
+// New team members: Detailed guidance and strict enforcement
+var options = new TddEnforcementOptions
+{
+    Enabled = true,
+    Mode = TddEnforcementMode.Strict,
+    RequireFailingTest = true,
+    AllowRefactoring = false, // Force TDD for learning
+    MinimumComplexityThreshold = 3, // Lower threshold
+    EnableDetailedLogging = true,
+    PreTestCommands = new List<string>
+    {
+        "echo 'Running TDD workflow check...'",
+        "dotnet build --no-restore"
+    }
+};
 ```
 
 ### Language-Specific Configurations
@@ -464,6 +715,8 @@ See `examples/SimpleMcpServer/Tools/LifecycleExampleTool.cs` for a complete work
 
 ### Common Issues and Solutions
 
+#### Type Verification Issues
+
 **Issue**: Types are being flagged as unverified even though they exist
 ```csharp
 // Problem: Case sensitivity or namespace issues
@@ -491,7 +744,118 @@ var options = new TypeVerificationOptions
 };
 ```
 
+#### TDD Enforcement Issues
+
+**Issue**: Tests are not being detected properly
+```csharp
+// Problem: Test runner configuration
+var options = new TddEnforcementOptions
+{
+    TestRunners = new Dictionary<string, TestRunnerConfig>
+    {
+        ["csharp"] = new TestRunnerConfig
+        {
+            Command = "dotnet test",
+            Arguments = new List<string> { "--logger", "console;verbosity=detailed" },
+            FailingTestPatterns = new List<string>
+            {
+                @"Failed!\s+- Failed:\s+(\d+)", // Custom pattern for your test output
+                @"Test Run Failed\."
+            }
+        }
+    }
+};
+```
+
+**Issue**: Refactoring operations being blocked
+```csharp
+// Solution: Enhance refactoring detection
+options.RefactoringPatterns.AddRange(new[]
+{
+    @"// Refactored by AI assistant",
+    @"// Extracted method: \w+",
+    @"private\s+static\s+\w+\s+\w+Helper", // Helper methods
+});
+
+options.AllowRefactoring = true;
+options.MinimumComplexityThreshold = 15; // Higher threshold for refactoring
+```
+
 ### Testing Middleware Components
+
+#### Unit Testing Type Verification
+
+```csharp
+[Test]
+public async Task TypeVerification_WithValidType_ShouldPass()
+{
+    // Arrange
+    var mockTypeService = new Mock<ITypeResolutionService>();
+    var mockStateManager = new Mock<IVerificationStateManager>();
+    var logger = Mock.Of<ILogger<TypeVerificationMiddleware>>();
+    
+    mockTypeService.Setup(x => x.ResolveTypeAsync("UserService", It.IsAny<string>()))
+               .ReturnsAsync(new TypeResolutionResult { IsResolved = true });
+    
+    mockStateManager.Setup(x => x.IsTypeVerifiedAsync("UserService", It.IsAny<string>()))
+                   .ReturnsAsync(false);
+    
+    var options = Options.Create(new TypeVerificationOptions { Enabled = true });
+    var middleware = new TypeVerificationMiddleware(
+        mockTypeService.Object, mockStateManager.Object, logger, options);
+    
+    var parameters = new { file_path = "test.cs", new_string = "var service = new UserService();" };
+    
+    // Act & Assert
+    await Assert.DoesNotThrowAsync(() => 
+        middleware.OnBeforeExecutionAsync("Edit", parameters));
+    
+    mockTypeService.Verify(x => x.ResolveTypeAsync("UserService", It.IsAny<string>()), Times.Once);
+}
+
+[Test]
+public async Task TypeVerification_WithInvalidType_ShouldThrow()
+{
+    // Arrange
+    var mockTypeService = new Mock<ITypeResolutionService>();
+    mockTypeService.Setup(x => x.ResolveTypeAsync("NonExistentType", It.IsAny<string>()))
+               .ReturnsAsync(new TypeResolutionResult { IsResolved = false });
+    
+    // Test implementation...
+}
+```
+
+#### Integration Testing TDD Enforcement
+
+```csharp
+[Test]
+public async Task TddEnforcement_WithFailingTests_ShouldAllowImplementation()
+{
+    // Arrange
+    var mockTestService = new Mock<ITestStatusService>();
+    var logger = Mock.Of<ILogger<TddEnforcementMiddleware>>();
+    
+    mockTestService.Setup(x => x.GetTestStatusAsync(It.IsAny<string>()))
+               .ReturnsAsync(new TestStatus 
+               { 
+                   HasFailingTests = true,
+                   LastTestRun = DateTime.UtcNow.AddMinutes(-5)
+               });
+    
+    var options = Options.Create(new TddEnforcementOptions 
+    { 
+        Enabled = true,
+        Mode = TddEnforcementMode.Strict 
+    });
+    
+    var middleware = new TddEnforcementMiddleware(mockTestService.Object, logger, options);
+    var parameters = new { file_path = "service.cs", new_string = "public class NewService {}" };
+    
+    // Act & Assert
+    await Assert.DoesNotThrowAsync(() => 
+        middleware.OnBeforeExecutionAsync("Write", parameters));
+}
+```
 
 ### Performance Testing
 
@@ -502,6 +866,8 @@ public async Task MiddlewarePipeline_PerformanceTest()
     // Test with multiple middleware components
     var middleware = new List<ISimpleMiddleware>
     {
+        new TypeVerificationMiddleware(typeService, stateManager, logger, typeOptions),
+        new TddEnforcementMiddleware(testService, logger, tddOptions),
         new TokenCountingSimpleMiddleware(logger)
     };
     

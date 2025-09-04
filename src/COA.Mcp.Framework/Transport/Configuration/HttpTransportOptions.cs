@@ -56,25 +56,10 @@ namespace COA.Mcp.Framework.Transport.Configuration
         public string? ApiKey { get; set; }
         
         /// <summary>
-        /// Header name for API key (default: X-API-Key).
-        /// </summary>
-        public string ApiKeyHeader { get; set; } = "X-API-Key";
-        
-        /// <summary>
         /// JWT settings (if using JWT auth).
         /// </summary>
         public JwtSettings? JwtSettings { get; set; }
         
-        /// <summary>
-        /// Username for Basic auth (server-side validation).
-        /// </summary>
-        public string? BasicUsername { get; set; }
-
-        /// <summary>
-        /// Password for Basic auth (server-side validation).
-        /// </summary>
-        public string? BasicPassword { get; set; }
-
         /// <summary>
         /// Request timeout in seconds (default: 30).
         /// </summary>
@@ -104,19 +89,16 @@ namespace COA.Mcp.Framework.Transport.Configuration
         /// <summary>
         /// JWT bearer token authentication.
         /// </summary>
-        
         Jwt,
         
         /// <summary>
         /// Basic HTTP authentication.
         /// </summary>
-        
         Basic,
         
         /// <summary>
         /// Custom authentication handler.
         /// </summary>
-        
         Custom
     }
     

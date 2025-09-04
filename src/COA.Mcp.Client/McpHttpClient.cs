@@ -230,7 +230,7 @@ namespace COA.Mcp.Client
 
             var request = new InitializeRequest
             {
-                ProtocolVersion = COA.Mcp.Protocol.McpProtocol.Version,
+                ProtocolVersion = "2024-11-05",
                 Capabilities = new ClientCapabilities
                 {
                     // ClientCapabilities has different properties

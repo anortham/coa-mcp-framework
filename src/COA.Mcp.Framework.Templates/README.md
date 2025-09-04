@@ -188,7 +188,8 @@ public class HelloWorldParams
     public string Name { get; set; }
     
     [Description("Language for greeting")]
-    public Language Language { get; set; } = Language.en;
+    [AllowedValues("en", "es", "fr", "de", "ja")]
+    public string Language { get; set; } = "en";
 }
 
 public class HelloWorldResult : ToolResultBase
@@ -197,8 +198,6 @@ public class HelloWorldResult : ToolResultBase
     public string Greeting { get; set; }
     public string Language { get; set; }
 }
-
-public enum Language { en, es, fr, de, ja }
 
 public class HelloWorldTool : McpToolBase<HelloWorldParams, HelloWorldResult>
 {

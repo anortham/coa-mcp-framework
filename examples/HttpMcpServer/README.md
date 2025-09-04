@@ -135,7 +135,7 @@ ws.onopen = () => {
         jsonrpc: "2.0",
         method: "initialize",
         params: {
-            protocolVersion: "2024-11-05", // Keep in sync with server's MCP protocol version
+            protocolVersion: "2024-11-05",
             capabilities: {},
             clientInfo: {
                 name: "Test Client",

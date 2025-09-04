@@ -7,19 +7,123 @@
 The COA MCP Framework provides comprehensive validation and error handling capabilities at multiple levels:
 
 1. **Tool-Level Validation**: Through the `McpToolBase` class validation helpers
-2. **Middleware-Level Validation**: Cross-cutting concerns (logging, token counting)
+2. **Middleware-Level Validation**: Advanced type verification and TDD enforcement
 3. **Framework-Level Validation**: Automatic parameter validation using data annotations
 
 All tools that inherit from `McpToolBase` automatically get access to validation helpers, error result builders, and customizable error messages. Additionally, the new middleware system provides proactive validation before tool execution begins.
 
 ## Middleware-Level Validation
 
-The framework includes middleware for cross-cutting concerns before your tool code executes (e.g., logging, token counting).
+The framework now includes advanced middleware that performs validation before your tool code executes, preventing common issues and enforcing best practices.
 
-> Note: Experimental Type Verification and TDD Enforcement middleware mentioned in earlier docs were removed.
+### Type Verification Middleware
 
-### Middleware Guidance
-Note: Experimental Type Verification and TDD Enforcement were removed. Use standard testing practices and code reviews. Middleware is best used for logging, token counting, and cross-cutting concerns.
+Prevents AI-hallucinated types by verifying that referenced types actually exist in the codebase:
+
+#### Configuration
+```csharp
+services.Configure<TypeVerificationOptions>(options =>
+{
+    options.Enabled = true;
+    options.Mode = TypeVerificationMode.Strict; // Blocks execution on unverified types
+    options.CacheExpirationHours = 24;
+    options.RequireMemberVerification = true;
+    options.WhitelistedTypes = new HashSet<string> { "string", "int", "object" };
+});
+```
+
+#### Error Messages and Recovery
+When type verification fails, users receive detailed guidance:
+
+```
+🚫 TYPE VERIFICATION FAILED: Unverified types detected
+
+Issues detected:
+  • Type 'UserService' not found or not verified
+  • Member 'user.FullName' not verified (User type may not have FullName property)
+
+🔍 Type Verification Process:
+1. VERIFY: Use CodeNav tools to check if types exist
+2. RESOLVE: Import required namespaces or fix type names  
+3. VALIDATE: Hover over types to verify member access
+
+📋 Required actions:
+1. Verify type definitions:
+   • Check if 'UserService' exists in the codebase
+   • Verify 'User' type has 'FullName' property
+   
+2. Fix type issues:
+   • Add missing using statements: using MyProject.Services;
+   • Correct property names: user.FirstName + user.LastName
+   • Import types: import { UserService } from './services';
+
+3. Re-run after fixes to verify resolution
+
+💡 TIP: Use 'Go to Definition' to verify types exist before coding!
+```
+
+#### Validation Modes
+- **Strict**: Blocks operations with unverified types
+- **Warning**: Logs warnings but allows execution
+- **Disabled**: No type verification
+
+### TDD Enforcement Middleware
+
+Enforces Test-Driven Development practices by requiring failing tests before implementation:
+
+#### Configuration
+```csharp
+services.Configure<TddEnforcementOptions>(options =>
+{
+    options.Enabled = true;
+    options.Mode = TddEnforcementMode.Warning; // Warns but allows execution
+    options.RequireFailingTest = true;
+    options.AllowRefactoring = true;
+    options.TestRunners = new Dictionary<string, TestRunnerConfig>
+    {
+        ["csharp"] = new TestRunnerConfig
+        {
+            Command = "dotnet test",
+            TimeoutMs = 30000,
+            FailingTestPatterns = new List<string> { @"Failed: \d+", @"Test Run Failed" }
+        }
+    };
+});
+```
+
+#### Error Messages and Recovery
+When TDD enforcement fails, users receive workflow guidance:
+
+```
+🚫 TDD VIOLATION: Implementation without proper test coverage
+
+Issues detected:
+  • No failing tests found - write a failing test first (RED phase)
+  • Tests haven't been run recently - run tests first to verify current state
+
+🔍 TDD Workflow (Red-Green-Refactor):
+1. RED: Write a failing test that describes the desired behavior
+2. GREEN: Write the minimal code to make the test pass  
+3. REFACTOR: Improve the code while keeping tests green
+
+📋 Required actions:
+1. Write a failing test first:
+   • Create or update test files
+   • Write tests that describe the expected behavior  
+   • Verify tests fail before implementing
+
+2. Run tests to verify current state:
+   dotnet test
+
+3. After tests fail, implement the minimal code to pass
+
+💡 TIP: This ensures your code is tested and behaves as expected!
+```
+
+#### TDD Phases
+- **Red**: Writing failing tests (required before implementation)
+- **Green**: Writing minimal code to pass tests (allowed)
+- **Refactor**: Improving code while tests pass (configurable)
 
 ### Middleware Integration with Tools
 
@@ -32,7 +136,10 @@ public class MyCodeTool : McpToolBase<CodeParams, CodeResult>
         CodeParams parameters, 
         CancellationToken cancellationToken)
     {
-        // By the time this method runs, framework validation (DataAnnotations) has been applied.
+        // By the time this method runs:
+        // 1. TypeVerificationMiddleware has verified all types exist
+        // 2. TddEnforcementMiddleware has checked for failing tests
+        // 3. Your tool-level validation (below) can focus on business logic
         
         var filePath = ValidateRequired(parameters.FilePath, nameof(parameters.FilePath));
         var content = ValidateRequired(parameters.Content, nameof(parameters.Content));
@@ -316,7 +423,9 @@ This example shows how middleware, framework, and tool validation work together:
 var builder = McpServerBuilder.Create("validation-demo")
     .WithGlobalMiddleware(new List<ISimpleMiddleware>
     {
-        // Middleware (runs first)
+        // Middleware validation (runs first)
+        new TypeVerificationMiddleware(typeService, stateManager, logger, typeOptions),
+        new TddEnforcementMiddleware(testService, logger, tddOptions),
         new LoggingSimpleMiddleware(logger, LogLevel.Information)
     });
 ```

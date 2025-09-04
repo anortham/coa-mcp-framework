@@ -253,7 +253,7 @@ public class McpServer : IHostedService
         
         return Task.FromResult(new InitializeResult
         {
-            ProtocolVersion = COA.Mcp.Protocol.McpProtocol.Version,
+            ProtocolVersion = "2024-11-05",
             Capabilities = _capabilities,
             ServerInfo = _serverInfo
         });

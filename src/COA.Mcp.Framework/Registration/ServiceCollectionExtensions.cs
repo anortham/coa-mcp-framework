@@ -5,6 +5,8 @@ using COA.Mcp.Framework.Configuration;
 using COA.Mcp.Framework.Interfaces;
 using COA.Mcp.Framework.Pipeline.Middleware;
 using COA.Mcp.Framework.Server;
+using COA.Mcp.Framework.Services;
+using COA.Mcp.Framework.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -27,6 +29,9 @@ public static class ServiceCollectionExtensions
 
         // Register core services
         services.TryAddSingleton<McpToolRegistry>();
+#pragma warning disable CS0618 // Type or member is obsolete - backward compatibility
+        services.TryAddSingleton<IParameterValidator, DefaultParameterValidator>();
+#pragma warning restore CS0618 // Type or member is obsolete
         
         // Register the options
         services.AddSingleton(options);
@@ -57,7 +62,61 @@ public static class ServiceCollectionExtensions
         return services;
     }
 
-    // Removed experimental enforcement registrations (TypeVerification/TDD)
+    /// <summary>
+    /// Adds type verification services to the service collection.
+    /// </summary>
+    public static IServiceCollection AddTypeVerification(
+        this IServiceCollection services,
+        Action<TypeVerificationOptions>? configure = null)
+    {
+        // Configure options
+        services.Configure<TypeVerificationOptions>(options =>
+        {
+            configure?.Invoke(options);
+            options.Validate();
+        });
+
+        // Register services
+        services.TryAddSingleton<IVerificationStateManager, VerificationStateManager>();
+        services.TryAddScoped<TypeVerificationMiddleware>();
+
+        return services;
+    }
+
+    /// <summary>
+    /// Adds TDD enforcement services to the service collection.
+    /// </summary>
+    public static IServiceCollection AddTddEnforcement(
+        this IServiceCollection services,
+        Action<TddEnforcementOptions>? configure = null)
+    {
+        // Configure options
+        services.Configure<TddEnforcementOptions>(options =>
+        {
+            configure?.Invoke(options);
+            options.Validate();
+        });
+
+        // Register services
+        services.TryAddSingleton<ITestStatusService, DefaultTestStatusService>();
+        services.TryAddScoped<TddEnforcementMiddleware>();
+
+        return services;
+    }
+
+    /// <summary>
+    /// Adds both type verification and TDD enforcement services.
+    /// </summary>
+    public static IServiceCollection AddAdvancedEnforcement(
+        this IServiceCollection services,
+        Action<TypeVerificationOptions>? configureTypeVerification = null,
+        Action<TddEnforcementOptions>? configureTddEnforcement = null)
+    {
+        services.AddTypeVerification(configureTypeVerification);
+        services.AddTddEnforcement(configureTddEnforcement);
+        
+        return services;
+    }
 
     /// <summary>
     /// Adds a specific tool to the service collection.
@@ -228,3 +287,4 @@ internal class McpToolRegistrationOptions
     public List<Type> ToolTypes { get; } = new();
     public List<Assembly> AssembliesToScan { get; } = new();
 }
+
