@@ -514,6 +514,72 @@ var builder = new McpServerBuilder()
     });
 ```
 
+### Configuration with Service Provider Access
+
+The framework provides enhanced configuration methods that give you access to the dependency injection container, eliminating the need for anti-patterns like manual `BuildServiceProvider()` calls:
+
+```csharp
+// Register your dependencies first
+var builder = new McpServerBuilder()
+    .WithServerInfo("My Server", "1.0.0");
+
+builder.Services.AddSingleton<IDataService, DataService>();
+builder.Services.AddScoped<IRepository, DatabaseRepository>();
+
+// Enhanced configuration with service provider access
+builder
+    .ConfigureTools((registry, serviceProvider) =>
+    {
+        // ✅ Clean: Access services without BuildServiceProvider()
+        var dataService = serviceProvider.GetRequiredService<IDataService>();
+        var customTool = new CustomTool(dataService);
+        registry.RegisterTool<CustomParams, CustomResult>(customTool);
+    })
+    .ConfigureResources((registry, serviceProvider) =>
+    {
+        // ✅ Access repository for dynamic resource registration
+        var repository = serviceProvider.GetRequiredService<IRepository>();
+        var provider = new DatabaseResourceProvider(repository);
+        registry.RegisterProvider(provider);
+    })
+    .ConfigurePrompts((registry, serviceProvider) =>
+    {
+        // ✅ Configure prompts with access to services
+        var dataService = serviceProvider.GetRequiredService<IDataService>();
+        var dynamicPrompt = new DataDrivenPrompt(dataService);
+        registry.RegisterPrompt(dynamicPrompt);
+    });
+```
+
+#### Migration from Manual BuildServiceProvider()
+
+If you have existing code that manually calls `BuildServiceProvider()`, you can migrate to the enhanced API:
+
+```csharp
+// ❌ Before: Anti-pattern with duplicate singletons
+builder.ConfigureResources(registry =>
+{
+    #pragma warning disable ASP0000
+    var serviceProvider = builder.Services.BuildServiceProvider();
+    var provider = serviceProvider.GetRequiredService<MyResourceProvider>();
+    registry.RegisterProvider(provider);
+    #pragma warning restore ASP0000
+});
+
+// ✅ After: Clean with proper dependency injection
+builder.ConfigureResources((registry, serviceProvider) =>
+{
+    var provider = serviceProvider.GetRequiredService<MyResourceProvider>();
+    registry.RegisterProvider(provider);
+});
+```
+
+The enhanced API provides:
+- **No duplicate singletons**: Single DI container, proper singleton behavior
+- **No ASP0000 warnings**: Eliminates compiler warnings about BuildServiceProvider
+- **Better performance**: Reduced memory usage and object allocation
+- **Cleaner code**: Follows .NET dependency injection best practices
+
 ### Logging Configuration
 
 The framework provides granular control over logging to reduce noise and improve debugging experience:
@@ -661,15 +727,18 @@ var builder = new McpServerBuilder()
 
 ```csharp
 // Register a custom health check for advanced scenarios
-var serviceProvider = builder.Services.BuildServiceProvider();
-var serviceManager = serviceProvider.GetRequiredService<IServiceManager>();
-
-serviceManager.RegisterHealthCheck("my-service", async () =>
+// Use the enhanced configuration API with service provider access
+builder.ConfigureResources((registry, serviceProvider) =>
 {
-    // Custom health check logic
-    var client = new HttpClient();
-    var response = await client.GetAsync("http://localhost:5100/custom-health");
-    return response.IsSuccessStatusCode;
+    var serviceManager = serviceProvider.GetRequiredService<IServiceManager>();
+    
+    serviceManager.RegisterHealthCheck("my-service", async () =>
+    {
+        // Custom health check logic
+        var client = new HttpClient();
+        var response = await client.GetAsync("http://localhost:5100/custom-health");
+        return response.IsSuccessStatusCode;
+    });
 });
 ```
 

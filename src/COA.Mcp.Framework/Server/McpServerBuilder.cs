@@ -33,9 +33,13 @@ public class McpServerBuilder
     private Action<McpToolRegistry>? _toolConfiguration;
     private Action<ResourceRegistry>? _resourceConfiguration;
     private Action<IPromptRegistry>? _promptConfiguration;
+    private Action<McpToolRegistry, IServiceProvider>? _toolConfigurationWithServices;
+    private Action<ResourceRegistry, IServiceProvider>? _resourceConfigurationWithServices;
+    private Action<IPromptRegistry, IServiceProvider>? _promptConfigurationWithServices;
     private Assembly? _toolAssembly;
     private Assembly? _promptAssembly;
     private IMcpTransport? _transport;
+    private bool _transportConfigured;
 
     /// <summary>
     /// Initializes a new instance of the McpServerBuilder class.
@@ -77,10 +81,14 @@ public class McpServerBuilder
         var options = new StdioTransportOptions();
         configure?.Invoke(options);
         
-        var logger = _services.BuildServiceProvider().GetService<ILogger<StdioTransport>>();
-        _transport = new StdioTransport(options.Input, options.Output, logger);
-        _services.AddSingleton(_transport);
+        // Register as a factory to avoid calling BuildServiceProvider here
+        _services.AddSingleton<IMcpTransport>(serviceProvider =>
+        {
+            var logger = serviceProvider.GetService<ILogger<StdioTransport>>();
+            return new StdioTransport(options.Input, options.Output, logger);
+        });
         
+        _transportConfigured = true;
         return this;
     }
     
@@ -94,11 +102,15 @@ public class McpServerBuilder
         var options = new HttpTransportOptions();
         configure?.Invoke(options);
         
-        var logger = _services.BuildServiceProvider().GetService<ILogger<HttpTransport>>();
-        _transport = new HttpTransport(options, logger);
-        _services.AddSingleton(_transport);
+        // Register as a factory to avoid calling BuildServiceProvider here
+        _services.AddSingleton<IMcpTransport>(serviceProvider =>
+        {
+            var logger = serviceProvider.GetService<ILogger<HttpTransport>>();
+            return new HttpTransport(options, logger);
+        });
         _services.AddSingleton(options);
         
+        _transportConfigured = true;
         return this;
     }
     
@@ -115,11 +127,15 @@ public class McpServerBuilder
         // Ensure WebSocket is enabled in the options
         options.EnableWebSocket = true;
         
-        var logger = _services.BuildServiceProvider().GetService<ILogger<WebSocketTransport>>();
-        _transport = new WebSocketTransport(options, logger);
-        _services.AddSingleton(_transport);
+        // Register as a factory to avoid calling BuildServiceProvider here
+        _services.AddSingleton<IMcpTransport>(serviceProvider =>
+        {
+            var logger = serviceProvider.GetService<ILogger<WebSocketTransport>>();
+            return new WebSocketTransport(options, logger);
+        });
         _services.AddSingleton(options);
         
+        _transportConfigured = true;
         return this;
     }
     
@@ -132,6 +148,7 @@ public class McpServerBuilder
     {
         _transport = transport ?? throw new ArgumentNullException(nameof(transport));
         _services.AddSingleton(_transport);
+        _transportConfigured = true;
         return this;
     }
 
@@ -143,6 +160,17 @@ public class McpServerBuilder
     public McpServerBuilder ConfigureTools(Action<McpToolRegistry> configure)
     {
         _toolConfiguration += configure;
+        return this;
+    }
+
+    /// <summary>
+    /// Configures tools for the server with access to the service provider.
+    /// </summary>
+    /// <param name="configure">Action to configure the tool registry with service provider access.</param>
+    /// <returns>The builder for chaining.</returns>
+    public McpServerBuilder ConfigureTools(Action<McpToolRegistry, IServiceProvider> configure)
+    {
+        _toolConfigurationWithServices += configure;
         return this;
     }
 
@@ -196,6 +224,17 @@ public class McpServerBuilder
     }
 
     /// <summary>
+    /// Configures resources for the server with access to the service provider.
+    /// </summary>
+    /// <param name="configure">Action to configure the resource registry with service provider access.</param>
+    /// <returns>The builder for chaining.</returns>
+    public McpServerBuilder ConfigureResources(Action<ResourceRegistry, IServiceProvider> configure)
+    {
+        _resourceConfigurationWithServices += configure;
+        return this;
+    }
+
+    /// <summary>
     /// Configures prompts for the server.
     /// </summary>
     /// <param name="configure">Action to configure the prompt registry.</param>
@@ -203,6 +242,17 @@ public class McpServerBuilder
     public McpServerBuilder ConfigurePrompts(Action<IPromptRegistry> configure)
     {
         _promptConfiguration += configure;
+        return this;
+    }
+
+    /// <summary>
+    /// Configures prompts for the server with access to the service provider.
+    /// </summary>
+    /// <param name="configure">Action to configure the prompt registry with service provider access.</param>
+    /// <returns>The builder for chaining.</returns>
+    public McpServerBuilder ConfigurePrompts(Action<IPromptRegistry, IServiceProvider> configure)
+    {
+        _promptConfigurationWithServices += configure;
         return this;
     }
 
@@ -476,7 +526,7 @@ public class McpServerBuilder
     public McpServer Build()
     {
         // If no transport specified, use stdio by default
-        if (_transport == null)
+        if (!_transportConfigured)
         {
             UseStdioTransport();
         }
@@ -499,9 +549,11 @@ public class McpServerBuilder
         }
         
         _toolConfiguration?.Invoke(toolRegistry);
+        _toolConfigurationWithServices?.Invoke(toolRegistry, serviceProvider);
         
         // Configure resources
         _resourceConfiguration?.Invoke(resourceRegistry);
+        _resourceConfigurationWithServices?.Invoke(resourceRegistry, serviceProvider);
         
         // Configure prompts
         if (_promptAssembly != null)
@@ -510,6 +562,7 @@ public class McpServerBuilder
         }
         
         _promptConfiguration?.Invoke(promptRegistry);
+        _promptConfigurationWithServices?.Invoke(promptRegistry, serviceProvider);
         
         // Create server
         var serverInfo = new Implementation
@@ -532,7 +585,7 @@ public class McpServerBuilder
     public async Task RunAsync(CancellationToken cancellationToken = default)
     {
         // If no transport specified, use stdio by default
-        if (_transport == null)
+        if (!_transportConfigured)
         {
             UseStdioTransport();
         }

@@ -355,6 +355,153 @@ namespace COA.Mcp.Framework.Tests.Server
             public bool Success { get; set; }
         }
 
+        [Test]
+        public void ConfigureToolsWithServiceProvider_ShouldProvideServiceAccess()
+        {
+            // Arrange
+            var configured = false;
+            IServiceProvider? capturedProvider = null;
+            var testService = new TestService();
+            _builder.AddSingleton<ITestService>(testService);
+
+            // Act
+            var result = _builder.ConfigureTools((registry, serviceProvider) =>
+            {
+                configured = true;
+                capturedProvider = serviceProvider;
+                
+                // Verify we can access services
+                var service = serviceProvider.GetRequiredService<ITestService>();
+                service.Should().BeSameAs(testService);
+            });
+
+            // Assert
+            result.Should().BeSameAs(_builder);
+            
+            // Build to trigger configuration
+            var server = _builder.Build();
+            configured.Should().BeTrue();
+            capturedProvider.Should().NotBeNull();
+        }
+
+        [Test]
+        public void ConfigureResourcesWithServiceProvider_ShouldProvideServiceAccess()
+        {
+            // Arrange
+            var configured = false;
+            IServiceProvider? capturedProvider = null;
+            var testService = new TestService();
+            _builder.AddSingleton<ITestService>(testService);
+
+            // Act
+            var result = _builder.ConfigureResources((registry, serviceProvider) =>
+            {
+                configured = true;
+                capturedProvider = serviceProvider;
+                
+                // Verify we can access services
+                var service = serviceProvider.GetRequiredService<ITestService>();
+                service.Should().BeSameAs(testService);
+            });
+
+            // Assert
+            result.Should().BeSameAs(_builder);
+            
+            // Build to trigger configuration
+            var server = _builder.Build();
+            configured.Should().BeTrue();
+            capturedProvider.Should().NotBeNull();
+        }
+
+        [Test]
+        public void ConfigurePromptsWithServiceProvider_ShouldProvideServiceAccess()
+        {
+            // Arrange
+            var configured = false;
+            IServiceProvider? capturedProvider = null;
+            var testService = new TestService();
+            _builder.AddSingleton<ITestService>(testService);
+
+            // Act
+            var result = _builder.ConfigurePrompts((registry, serviceProvider) =>
+            {
+                configured = true;
+                capturedProvider = serviceProvider;
+                
+                // Verify we can access services
+                var service = serviceProvider.GetRequiredService<ITestService>();
+                service.Should().BeSameAs(testService);
+            });
+
+            // Assert
+            result.Should().BeSameAs(_builder);
+            
+            // Build to trigger configuration
+            var server = _builder.Build();
+            configured.Should().BeTrue();
+            capturedProvider.Should().NotBeNull();
+        }
+
+        [Test]
+        public void ConfigureToolsBothOverloads_ShouldExecuteBoth()
+        {
+            // Arrange
+            var oldCalled = false;
+            var newCalled = false;
+
+            // Act
+            _builder
+                .ConfigureTools(registry => { oldCalled = true; })
+                .ConfigureTools((registry, serviceProvider) => { newCalled = true; });
+
+            // Build to trigger both configurations
+            var server = _builder.Build();
+
+            // Assert
+            oldCalled.Should().BeTrue();
+            newCalled.Should().BeTrue();
+        }
+
+        [Test]
+        public void ConfigureResourcesBothOverloads_ShouldExecuteBoth()
+        {
+            // Arrange
+            var oldCalled = false;
+            var newCalled = false;
+
+            // Act
+            _builder
+                .ConfigureResources(registry => { oldCalled = true; })
+                .ConfigureResources((registry, serviceProvider) => { newCalled = true; });
+
+            // Build to trigger both configurations
+            var server = _builder.Build();
+
+            // Assert
+            oldCalled.Should().BeTrue();
+            newCalled.Should().BeTrue();
+        }
+
+        [Test]
+        public void ConfigurePromptsBothOverloads_ShouldExecuteBoth()
+        {
+            // Arrange
+            var oldCalled = false;
+            var newCalled = false;
+
+            // Act
+            _builder
+                .ConfigurePrompts(registry => { oldCalled = true; })
+                .ConfigurePrompts((registry, serviceProvider) => { newCalled = true; });
+
+            // Build to trigger both configurations
+            var server = _builder.Build();
+
+            // Assert
+            oldCalled.Should().BeTrue();
+            newCalled.Should().BeTrue();
+        }
+
         private interface ITestService { }
 
         private class TestService : ITestService { }
