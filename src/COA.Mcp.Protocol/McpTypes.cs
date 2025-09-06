@@ -101,6 +101,13 @@ public class InitializeResult
     /// </summary>
     [JsonPropertyName("serverInfo")]
     public Implementation ServerInfo { get; set; } = null!;
+
+    /// <summary>
+    /// Gets or sets optional instructions that help Claude understand how to use the server's tools effectively.
+    /// When provided, this text becomes part of Claude's context during MCP interactions.
+    /// </summary>
+    [JsonPropertyName("instructions")]
+    public string? Instructions { get; set; }
 }
 
 /// <summary>

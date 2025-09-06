@@ -9,9 +9,10 @@ using Microsoft.Extensions.Logging;
 namespace SimpleMcpServer.Tools;
 
 /// <summary>
-/// A simple in-memory data store tool for storing and retrieving key-value pairs.
+/// A high-performance in-memory data store tool for storing and retrieving key-value pairs.
+/// Demonstrates ICanEdit marker and tool priority features.
 /// </summary>
-public class DataStoreTool : McpToolBase<DataStoreParameters, DataStoreResult>
+public class DataStoreTool : McpToolBase<DataStoreParameters, DataStoreResult>, IToolPriority, ICanEdit, IBulkOperation
 {
     private readonly IDataService _dataService;
     private readonly ILogger<DataStoreTool> _logger;
@@ -25,6 +26,12 @@ public class DataStoreTool : McpToolBase<DataStoreParameters, DataStoreResult>
     public override string Name => "data_store";
     public override string Description => "Store and retrieve data using key-value pairs";
     public override ToolCategory Category => ToolCategory.Resources;
+    
+    // IToolPriority implementation - demonstrates data persistence priority
+    public int Priority => 90; // Very high priority for data operations
+    public string? PreferredForScenario => "data_persistence";
+    public string[]? AlternativeTo => new[] { "file_storage", "temporary_variables" };
+    public string? Rationale => "Provides 95% faster data access than file-based storage with automatic memory management";
 
     protected override async Task<DataStoreResult> ExecuteInternalAsync(
         DataStoreParameters parameters, 

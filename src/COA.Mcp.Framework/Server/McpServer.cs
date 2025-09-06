@@ -29,6 +29,7 @@ public class McpServer : IHostedService
     private readonly ServerCapabilities _capabilities;
     private readonly Implementation _serverInfo;
     private readonly IMcpTransport _transport;
+    private readonly string? _instructions;
     private CancellationTokenSource? _cancellationTokenSource;
 
     /// <summary>
@@ -39,6 +40,7 @@ public class McpServer : IHostedService
     /// <param name="resourceRegistry">The resource registry for managing resources.</param>
     /// <param name="promptRegistry">The prompt registry for managing prompts.</param>
     /// <param name="serverInfo">Information about this server implementation.</param>
+    /// <param name="instructions">Optional instructions for behavioral guidance.</param>
     /// <param name="logger">Optional logger.</param>
     public McpServer(
         IMcpTransport transport,
@@ -46,6 +48,7 @@ public class McpServer : IHostedService
         ResourceRegistry resourceRegistry,
         IPromptRegistry promptRegistry,
         Implementation serverInfo,
+        string? instructions = null,
         ILogger<McpServer>? logger = null)
     {
         _transport = transport ?? throw new ArgumentNullException(nameof(transport));
@@ -53,6 +56,7 @@ public class McpServer : IHostedService
         _resourceRegistry = resourceRegistry ?? throw new ArgumentNullException(nameof(resourceRegistry));
         _promptRegistry = promptRegistry ?? throw new ArgumentNullException(nameof(promptRegistry));
         _serverInfo = serverInfo ?? throw new ArgumentNullException(nameof(serverInfo));
+        _instructions = instructions;
         _logger = logger;
         
         _jsonOptions = new JsonSerializerOptions
@@ -255,7 +259,8 @@ public class McpServer : IHostedService
         {
             ProtocolVersion = "2024-11-05",
             Capabilities = _capabilities,
-            ServerInfo = _serverInfo
+            ServerInfo = _serverInfo,
+            Instructions = _instructions
         });
     }
 

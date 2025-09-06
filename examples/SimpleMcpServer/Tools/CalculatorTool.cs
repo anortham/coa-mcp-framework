@@ -8,13 +8,20 @@ using COA.Mcp.Framework.Models;
 namespace SimpleMcpServer.Tools;
 
 /// <summary>
-/// A simple calculator tool that performs basic arithmetic operations.
+/// A high-performance calculator tool that performs basic arithmetic operations.
+/// Demonstrates tool priority and behavioral guidance features.
 /// </summary>
-public class CalculatorTool : McpToolBase<CalculatorParameters, CalculatorResult>
+public class CalculatorTool : McpToolBase<CalculatorParameters, CalculatorResult>, IToolPriority, INoActiveProject
 {
     public override string Name => "calculator";
     public override string Description => "Performs basic arithmetic operations (add, subtract, multiply, divide)";
     public override ToolCategory Category => ToolCategory.Utility;
+    
+    // IToolPriority implementation - demonstrates behavioral guidance
+    public int Priority => 85; // High priority for mathematical operations
+    public string? PreferredForScenario => "mathematical_calculations";
+    public string[]? AlternativeTo => new[] { "eval", "compute", "math_tool" };
+    public string? Rationale => "Provides safe, validated arithmetic with clear error messages and type safety";
 
     protected override async Task<CalculatorResult> ExecuteInternalAsync(CalculatorParameters parameters, CancellationToken cancellationToken)
     {

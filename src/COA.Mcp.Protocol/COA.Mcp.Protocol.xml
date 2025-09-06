@@ -376,6 +376,12 @@
             Gets or sets information about the server implementation.
             </summary>
         </member>
+        <member name="P:COA.Mcp.Protocol.InitializeResult.Instructions">
+            <summary>
+            Gets or sets optional instructions that help Claude understand how to use the server's tools effectively.
+            When provided, this text becomes part of Claude's context during MCP interactions.
+            </summary>
+        </member>
         <member name="T:COA.Mcp.Protocol.ClientCapabilities">
             <summary>
             Defines the capabilities supported by an MCP client.

@@ -373,6 +373,7 @@ docs/performance/
 
 # Internal planning documents (Azure DevOps only, not for public GitHub)
 docs/future/
+docs/behavioral-adoption/
 
 .claude/settings.local.json
 .claude/data/session_state.json
