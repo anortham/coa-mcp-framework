@@ -1093,17 +1093,30 @@ public class McpServerBuilder
             // Load external templates if specified
             if (!string.IsNullOrEmpty(options.TemplateDirectory))
             {
-                _ = Task.Run(async () =>
+                // Convert to absolute path if relative
+                var templateDir = Path.IsPathRooted(options.TemplateDirectory) 
+                    ? options.TemplateDirectory 
+                    : Path.Combine(Directory.GetCurrentDirectory(), options.TemplateDirectory);
+                
+                // Only attempt to load if directory exists
+                if (Directory.Exists(templateDir))
                 {
-                    try
+                    _ = Task.Run(async () =>
                     {
-                        await templateManager.LoadTemplatesFromDirectoryAsync(options.TemplateDirectory, options.PrecompileTemplates);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger?.LogWarning(ex, "Failed to load templates from directory: {Directory}", options.TemplateDirectory);
-                    }
-                });
+                        try
+                        {
+                            await templateManager.LoadTemplatesFromDirectoryAsync(templateDir, options.PrecompileTemplates);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger?.LogWarning(ex, "Failed to load templates from directory: {Directory}", templateDir);
+                        }
+                    });
+                }
+                else
+                {
+                    _logger?.LogDebug("Template directory not found, skipping external template loading: {Directory}", templateDir);
+                }
             }
 
             // Use custom template if provided

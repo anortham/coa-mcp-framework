@@ -39,7 +39,7 @@ public class MyTool : McpToolBase<MyParams, MyResult>
 ### 🆕 Enhanced Behavioral Adoption Tool Template
 ```csharp
 public class MySmartTool : McpToolBase<MyParams, MyResult>, 
-    IPrioritizedTool,  // 🆕 New priority interface (replaces IToolPriority)
+    IPrioritizedTool,  // 🆕 Enhanced priority interface (replaces IToolPriority)
     ISymbolicRead,     // Marks as symbol-aware
     ITypeAware         // Marks as type-safe
 {
@@ -49,7 +49,7 @@ public class MySmartTool : McpToolBase<MyParams, MyResult>,
             "Searches code with Tree-sitter parsing for accurate type information", 
             Priority);
     
-    // IPrioritizedTool implementation
+    // IPrioritizedTool implementation - enhanced interface
     public int Priority => 85; // Higher = more recommended (1-100 scale)
     public string[] PreferredScenarios => new[] { "type_verification", "code_exploration" };
     
@@ -64,15 +64,43 @@ public class MySmartTool : McpToolBase<MyParams, MyResult>,
         }
         catch (FileNotFoundException ex)
         {
-            // Enhanced error recovery
+            // Enhanced error recovery with context
             throw new McpException("FILE_NOT_FOUND", new Dictionary<string, object>
             {
                 ["file_path"] = ex.FileName,
-                ["directory"] = Path.GetDirectoryName(ex.FileName)
+                ["directory"] = Path.GetDirectoryName(ex.FileName),
+                ["operation"] = "read"
             });
         }
     }
 }
+```
+
+### 🆕 Tool Priority & Behavioral Adoption APIs
+
+**IPrioritizedTool Interface:**
+```csharp
+public interface IPrioritizedTool : IToolMarker
+{
+    int Priority { get; }  // 1-100, where 100 is highest priority
+    string[] PreferredScenarios { get; }  // "type_verification", "code_exploration", etc.
+}
+```
+
+**DefaultToolDescriptionProvider.TransformToImperative():**
+- **90-100**: "CRITICAL - "
+- **80-89**: "USE FIRST - " 
+- **70-79**: "RECOMMENDED - "
+- **60-69**: "PREFER - "
+- **Below 60**: No prefix
+
+**Tool Marker Interfaces:**
+```csharp
+ISymbolicRead    // Reads symbols without loading entire files
+ITypeAware       // Understands type systems
+ICanEdit         // Can modify files
+ISymbolicEdit    // Can edit specific symbols
+// 9 total marker interfaces available
 ```
 
 ### Disposable Tool (DB/Files)
@@ -103,10 +131,16 @@ protected override Dictionary<string, string> ErrorMessages => new()
 var builder = new McpServerBuilder()
     .WithServerInfo("My Smart Server", "1.0.0")
     
-    // 🆕 Load instructions from .scriban template files  
-    .WithInstructionsFromTemplate("Templates/server-guidance.scriban", templateVariables)
+    // 🆕 Template-based instructions with variables
+    .WithInstructionsFromTemplate("Templates/server-guidance.scriban", new TemplateVariables
+    {
+        AvailableTools = new[] { "search", "navigate", "edit" },
+        BuiltInTools = new[] { "Read", "Grep", "Bash", "Search", "WebSearch" },
+        EnforcementLevel = WorkflowEnforcement.Recommend,
+        CustomVariables = new() { ["ProjectType"] = "C# Library" }
+    })
     
-    // Template-based instructions that adapt to tools
+    // OR: Built-in template contexts
     .WithTemplateInstructions(options =>
     {
         options.ContextName = "codesearch"; // Built-in: general, codesearch, database
@@ -122,6 +156,13 @@ var builder = new McpServerBuilder()
         advantage: "Direct jump with exact type signatures", 
         performanceMetric: "Instant vs 30+ seconds manual search"
     )
+    .WithToolComparison(
+        task: "Find code patterns",
+        serverTool: "text_search",
+        builtInTool: "grep",
+        advantage: "Lucene-indexed with Tree-sitter parsing",
+        performanceMetric: "100x faster, searches millions of lines in <500ms"
+    )
     
     // 🆕 Set workflow enforcement level
     .WithWorkflowEnforcement(WorkflowEnforcement.Recommend) // Suggest/Recommend/StronglyUrge
@@ -134,12 +175,41 @@ var builder = new McpServerBuilder()
         config.UseDefaultDescriptionProvider = true; // 🆕 Enables TransformToImperative
     })
     
-    // Smart error recovery
+    // Smart error recovery with context
     .WithAdvancedErrorRecovery(options =>
     {
         options.EnableRecoveryGuidance = true;
         options.Tone = ErrorRecoveryTone.Professional;
+        options.IncludeOriginalError = true;
+        options.IncludePreventionTips = true;
     });
+```
+
+### 🆕 Template Variables & Scriban Integration
+
+**Available in .scriban template files:**
+```scriban
+# Server & Tool Information
+{{server_info.name}} - {{server_info.version}}
+{{available_tools}} - Array of your server's tools
+{{builtin_tools}} - ["Read", "Grep", "Bash", "Search", "WebSearch"]
+
+# 🆕 Professional Tool Comparisons
+{{tool_comparisons}} - Dictionary of ToolComparison objects
+{{#for comparison in tool_comparisons}}
+### {{comparison.task}}
+- USE: {{comparison.server_tool}} - {{comparison.advantage}}
+- AVOID: {{comparison.builtin_tool}}
+- Performance: {{comparison.performance_metric}}
+{{/for}}
+
+# 🆕 Workflow Enforcement & Conditional Logic
+{{enforcement_level}} - "suggest", "recommend", or "strongly_urge"
+{{#has_tool available_tools "text_search"}}Use text_search for patterns{{/has_tool}}
+{{#has_marker available_markers "ISymbolicRead"}}Symbol-aware tools available{{/has_marker}}
+
+# Custom Variables
+{{ProjectType}} {{TeamName}} - Any custom variables you define
 ```
 
 ### Middleware Configuration
@@ -168,15 +238,17 @@ var builder = McpServerBuilder.Create("my-server", services)
 |---------------|------|
 | **Tool base class** | `src/COA.Mcp.Framework/Base/McpToolBase.Generic.cs` |
 | **Server setup** | `src/COA.Mcp.Framework/Server/McpServerBuilder.cs` |
-| **🆕 Tool markers** | `src/COA.Mcp.Framework/Interfaces/IToolMarker.cs` |
-| **🆕 Tool priority (legacy)** | `src/COA.Mcp.Framework/Interfaces/IToolPriority.cs` |
 | **🆕 Enhanced priority** | `src/COA.Mcp.Framework/Interfaces/IPrioritizedTool.cs` |
+| **🆕 Tool markers** | `src/COA.Mcp.Framework/Interfaces/IToolMarker.cs` |
 | **🆕 Tool comparisons** | `src/COA.Mcp.Framework/Configuration/ToolComparison.cs` |
+| **🆕 WorkflowEnforcement** | `src/COA.Mcp.Framework/Configuration/WorkflowEnforcement.cs` |
 | **🆕 Description provider** | `src/COA.Mcp.Framework/Services/DefaultToolDescriptionProvider.cs` |
+| **🆕 Template variables** | `src/COA.Mcp.Framework/Services/TemplateVariables.cs` |
 | **🆕 Template processor** | `src/COA.Mcp.Framework/Services/InstructionTemplateProcessor.cs` |
 | **🆕 Template manager** | `src/COA.Mcp.Framework/Services/InstructionTemplateManager.cs` |
 | **🆕 Error recovery** | `src/COA.Mcp.Framework/Services/ErrorRecoveryTemplateProcessor.cs` |
 | **🆕 Workflow suggestions** | `src/COA.Mcp.Framework/Services/WorkflowSuggestionManager.cs` |
+| **🆕 Tool priority (legacy)** | `src/COA.Mcp.Framework/Interfaces/IToolPriority.cs` |
 | **Type verification** | `src/COA.Mcp.Framework/Pipeline/Middleware/TypeVerificationMiddleware.cs` |
 | **Cache management** | `src/COA.Mcp.Framework/Services/VerificationStateManager.cs` |
 | **Async utilities** | `src/COA.Mcp.Framework/Utilities/ConcurrentAsyncUtilities.cs` |

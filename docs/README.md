@@ -9,7 +9,7 @@ Welcome to the comprehensive documentation for the COA MCP Framework - a complet
 - [Installation Guide](#installation) - How to install and configure packages
 - [Your First Tool](#first-tool) - Step-by-step tutorial
 - [Project Templates](../src/COA.Mcp.Framework.Templates/README.md) - Quick project scaffolding
- - [Migration to v2 Global Middleware](MIGRATION_GLOBAL_MIDDLEWARE.md) - Quick reference for constructor + middleware changes
+- [Migration to v2 Global Middleware](MIGRATION_GLOBAL_MIDDLEWARE.md) - Quick reference for constructor + middleware changes
 
 ### Core Packages
 
@@ -56,11 +56,22 @@ Welcome to the comprehensive documentation for the COA MCP Framework - a complet
 
 ### Technical Documentation
 - [Lifecycle Hooks & Middleware](lifecycle-hooks.md) - Comprehensive guide to middleware and tool execution hooks
-- [Token Optimization Strategies](technical/TOKEN_OPTIMIZATION_STRATEGIES.md) - Comprehensive token management guide  
-- [Migration Example](technical/MIGRATION_EXAMPLE.md) - Step-by-step migration guide with updated patterns
+- [Token Optimization Strategies](TOKEN_OPTIMIZATION_STRATEGIES.md) - Comprehensive token management guide  
+- [Migration Example](MIGRATION_EXAMPLE.md) - Step-by-step migration guide with updated patterns
+- [Validation & Error Handling](VALIDATION_AND_ERROR_HANDLING.md) - Best practices for tool validation
+- [Common Pitfalls](COMMON_PITFALLS.md) - Known issues and solutions
+- [Logging Configuration](LOGGING_CONFIGURATION.md) - Logging setup and best practices
+- [Visualization Protocol](VISUALIZATION_PROTOCOL.md) - Rich UI data support
+- [Transport Selection](WHICH_TRANSPORT.md) - Choosing stdio vs HTTP vs WebSocket
 
-### Performance
-- See CHANGELOG for performance-related improvements and notes
+### Performance & Analysis
+- [Performance Analysis](PERFORMANCE_ANALYSIS.md) - Framework performance characteristics
+- [Performance Results](PERFORMANCE_RESULTS.md) - Benchmark data and metrics
+- [Performance Final Results](PERFORMANCE_FINAL_RESULTS.md) - Latest performance testing
+
+### Code Examples
+- [API Client Tool Example](ApiClientTool.cs) - HTTP client tool implementation
+- [File System Tool Example](FileSystemTool.cs) - File operations tool implementation
 
 ### Examples
 - [SimpleMcpServer](../examples/SimpleMcpServer/README.md) - Basic server with example tools
@@ -81,7 +92,7 @@ Welcome to the comprehensive documentation for the COA MCP Framework - a complet
 
 ### 🧪 For QA/Testing
 1. [Testing Framework](../src/COA.Mcp.Framework.Testing/README.md)
-2. [Performance Benchmarks](performance/)
+2. [Performance Analysis](PERFORMANCE_ANALYSIS.md)
 3. [Test Examples](../src/COA.Mcp.Framework.Testing/README.md#testing-a-tool)
 
 ### 🚀 For DevOps
