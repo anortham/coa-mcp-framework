@@ -132,6 +132,11 @@ public class InstructionTemplateProcessor
     {
         var model = new ScriptObject();
         
+        // Import Scriban's built-in functions (array, object, string, etc.)
+        model.Import(typeof(Scriban.Functions.ArrayFunctions));
+        model.Import(typeof(Scriban.Functions.ObjectFunctions));
+        model.Import(typeof(Scriban.Functions.StringFunctions));
+        
         // Add available tools
         if (variables.AvailableTools != null)
         {
@@ -186,21 +191,11 @@ public class InstructionTemplateProcessor
         // Add enforcement level
         model["enforcement_level"] = variables.EnforcementLevel.ToString().ToLower();
 
-        // Add helper functions
-        model["has_tool"] = new Func<string[], string, bool>((tools, tool) => 
-            tools?.Contains(tool) == true);
+        // Import template helper functions using Scriban's native Import mechanism
+        model.Import(typeof(TemplateHelperFunctions));
 
-        model["has_marker"] = new Func<string[], string, bool>((markers, marker) =>
-            markers?.Contains(marker) == true);
-
-        model["has_builtin"] = new Func<string[], string, bool>((builtins, tool) =>
-            builtins?.Contains(tool) == true);
-
-        model["array_length"] = new Func<object[], int>(array => 
-            array?.Length ?? 0);
-
-        model["string_join"] = new Func<object[], string, string>((array, separator) => 
-            array != null ? string.Join(separator, array) : string.Empty);
+        // Note: array_length removed - use array.size instead
+        // Note: string_join removed - use string.join instead (from built-in functions)
 
         return model;
     }
