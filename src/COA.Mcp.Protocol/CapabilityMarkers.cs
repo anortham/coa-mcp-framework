@@ -35,6 +35,16 @@ public sealed class SamplingCapabilityMarker
 }
 
 /// <summary>
+/// Marker type indicating completion capability support.
+/// Per MCP specification, this should serialize as an empty object {}.
+/// </summary>
+public sealed class CompletionCapabilityMarker 
+{ 
+    // Empty marker class is intentional per MCP spec
+    // Serializes to {} to indicate capability is supported
+}
+
+/// <summary>
 /// Custom JSON converter that ensures capability markers serialize to empty objects.
 /// This maintains backward compatibility with existing code using anonymous objects.
 /// </summary>

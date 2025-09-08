@@ -29,6 +29,29 @@ public class ServerCapabilities
     [JsonPropertyName("prompts")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public object? Prompts { get; set; }
+    
+    /// <summary>
+    /// Gets or sets the sampling capability marker.
+    /// </summary>
+    /// <value>An empty object {} indicates sampling support is available.</value>
+    [JsonPropertyName("sampling")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public object? Sampling { get; set; }
+    
+    /// <summary>
+    /// Gets or sets the completion capability marker.
+    /// </summary>
+    /// <value>An empty object {} indicates completion support is available.</value>
+    [JsonPropertyName("completion")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public object? Completion { get; set; }
+    
+    /// <summary>
+    /// Gets or sets the logging capabilities supported by the server.
+    /// </summary>
+    [JsonPropertyName("logging")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public LoggingCapabilities? Logging { get; set; }
 }
 
 /// <summary>
@@ -47,6 +70,55 @@ public class ResourceCapabilities
     /// </summary>
     [JsonPropertyName("listChanged")]
     public bool ListChanged { get; set; }
+}
+
+/// <summary>
+/// Defines specific capabilities for logging.
+/// </summary>
+public class LoggingCapabilities
+{
+    /// <summary>
+    /// Gets or sets the supported logging levels by the server.
+    /// </summary>
+    [JsonPropertyName("levels")]
+    public List<LoggingLevel>? Levels { get; set; }
+    
+    /// <summary>
+    /// Gets or sets whether the server supports structured logging data.
+    /// </summary>
+    [JsonPropertyName("structured")]
+    public bool Structured { get; set; } = true;
+}
+
+/// <summary>
+/// Logging level enumeration following RFC 5424 severity levels.
+/// </summary>
+[JsonConverter(typeof(JsonStringEnumConverter))]
+public enum LoggingLevel
+{
+    [JsonPropertyName("debug")]
+    Debug,
+    
+    [JsonPropertyName("info")]  
+    Info,
+    
+    [JsonPropertyName("notice")]
+    Notice,
+    
+    [JsonPropertyName("warning")]
+    Warning,
+    
+    [JsonPropertyName("error")]
+    Error,
+    
+    [JsonPropertyName("critical")]
+    Critical,
+    
+    [JsonPropertyName("alert")]
+    Alert,
+    
+    [JsonPropertyName("emergency")]
+    Emergency
 }
 
 /// <summary>
@@ -814,6 +886,323 @@ public class TypedToolResponse<TResult> : TypedJsonRpcResponse<CallToolResult>
         : base(id, error)
     {
     }
+}
+
+/// <summary>
+/// Request to create a message using sampling.
+/// </summary>
+public class CreateMessageRequest
+{
+    /// <summary>
+    /// Gets or sets the messages to use for sampling.
+    /// </summary>
+    [JsonPropertyName("messages")]
+    public List<SamplingMessage> Messages { get; set; } = new();
+    
+    /// <summary>
+    /// Gets or sets the model preferences for sampling.
+    /// </summary>
+    [JsonPropertyName("modelPreferences")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public ModelPreferences? ModelPreferences { get; set; }
+    
+    /// <summary>
+    /// Gets or sets the system prompt for sampling.
+    /// </summary>
+    [JsonPropertyName("systemPrompt")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? SystemPrompt { get; set; }
+    
+    /// <summary>
+    /// Gets or sets the context to include during sampling.
+    /// </summary>
+    [JsonPropertyName("includeContext")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public string IncludeContext { get; set; } = "none";
+    
+    /// <summary>
+    /// Gets or sets the temperature for sampling.
+    /// </summary>
+    [JsonPropertyName("temperature")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public double? Temperature { get; set; }
+    
+    /// <summary>
+    /// Gets or sets the maximum number of tokens to generate.
+    /// </summary>
+    [JsonPropertyName("maxTokens")]
+    public int MaxTokens { get; set; }
+    
+    /// <summary>
+    /// Gets or sets the stop sequences for sampling.
+    /// </summary>
+    [JsonPropertyName("stopSequences")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<string>? StopSequences { get; set; }
+    
+    /// <summary>
+    /// Gets or sets metadata for the sampling request.
+    /// </summary>
+    [JsonPropertyName("metadata")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public object? Metadata { get; set; }
+}
+
+/// <summary>
+/// Result from a sampling request.
+/// </summary>
+public class CreateMessageResult : SamplingMessage
+{
+    /// <summary>
+    /// Gets or sets the model that generated this response.
+    /// </summary>
+    [JsonPropertyName("model")]
+    public string Model { get; set; } = null!;
+    
+    /// <summary>
+    /// Gets or sets the reason why sampling stopped.
+    /// </summary>
+    [JsonPropertyName("stopReason")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? StopReason { get; set; }
+}
+
+/// <summary>
+/// Represents a message for sampling operations.
+/// </summary>
+public class SamplingMessage
+{
+    /// <summary>
+    /// Gets or sets the role of the message sender.
+    /// </summary>
+    [JsonPropertyName("role")]
+    public string Role { get; set; } = null!;
+    
+    /// <summary>
+    /// Gets or sets the content of the message.
+    /// </summary>
+    [JsonPropertyName("content")]
+    public List<MessageContent> Content { get; set; } = new();
+}
+
+/// <summary>
+/// Represents content within a message.
+/// </summary>
+public class MessageContent
+{
+    /// <summary>
+    /// Gets or sets the type of content.
+    /// </summary>
+    [JsonPropertyName("type")]
+    public string Type { get; set; } = null!;
+    
+    /// <summary>
+    /// Gets or sets the text content (for text type).
+    /// </summary>
+    [JsonPropertyName("text")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Text { get; set; }
+}
+
+/// <summary>
+/// Model preferences for sampling.
+/// </summary>
+public class ModelPreferences
+{
+    /// <summary>
+    /// Gets or sets model hints.
+    /// </summary>
+    [JsonPropertyName("hints")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<ModelHint>? Hints { get; set; }
+    
+    /// <summary>
+    /// Gets or sets the cost priority (0-1).
+    /// </summary>
+    [JsonPropertyName("costPriority")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public double? CostPriority { get; set; }
+    
+    /// <summary>
+    /// Gets or sets the speed priority (0-1).
+    /// </summary>
+    [JsonPropertyName("speedPriority")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public double? SpeedPriority { get; set; }
+    
+    /// <summary>
+    /// Gets or sets the intelligence priority (0-1).
+    /// </summary>
+    [JsonPropertyName("intelligencePriority")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public double? IntelligencePriority { get; set; }
+}
+
+/// <summary>
+/// Model hint for sampling preferences.
+/// </summary>
+public class ModelHint
+{
+    /// <summary>
+    /// Gets or sets the hint name.
+    /// </summary>
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = null!;
+    
+    /// <summary>
+    /// Gets or sets the hint value.
+    /// </summary>
+    [JsonPropertyName("value")]
+    public string? Value { get; set; }
+}
+
+/// <summary>
+/// Request to complete text using completion.
+/// </summary>
+public class CompleteRequest
+{
+    /// <summary>
+    /// Gets or sets the reference to complete.
+    /// </summary>
+    [JsonPropertyName("ref")]
+    public CompletionReference Ref { get; set; } = null!;
+    
+    /// <summary>
+    /// Gets or sets the argument to complete.
+    /// </summary>
+    [JsonPropertyName("argument")]
+    public CompletionArgument Argument { get; set; } = null!;
+    
+    /// <summary>
+    /// Gets or sets the completion context.
+    /// </summary>
+    [JsonPropertyName("context")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public CompletionContext? Context { get; set; }
+}
+
+/// <summary>
+/// Result from a completion request.
+/// </summary>
+public class CompleteResult
+{
+    /// <summary>
+    /// Gets or sets the completion results.
+    /// </summary>
+    [JsonPropertyName("completion")]
+    public CompletionData Completion { get; set; } = null!;
+}
+
+/// <summary>
+/// Reference for completion operations.
+/// </summary>
+public class CompletionReference
+{
+    /// <summary>
+    /// Gets or sets the type of reference.
+    /// </summary>
+    [JsonPropertyName("type")]
+    public string Type { get; set; } = null!;
+    
+    /// <summary>
+    /// Gets or sets the reference name or URI.
+    /// </summary>
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = null!;
+}
+
+/// <summary>
+/// Argument for completion operations.
+/// </summary>
+public class CompletionArgument
+{
+    /// <summary>
+    /// Gets or sets the argument name.
+    /// </summary>
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = null!;
+    
+    /// <summary>
+    /// Gets or sets the argument value.
+    /// </summary>
+    [JsonPropertyName("value")]
+    public string Value { get; set; } = null!;
+}
+
+/// <summary>
+/// Context for completion operations.
+/// </summary>
+public class CompletionContext
+{
+    /// <summary>
+    /// Gets or sets the context arguments.
+    /// </summary>
+    [JsonPropertyName("arguments")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public Dictionary<string, string>? Arguments { get; set; }
+}
+
+/// <summary>
+/// Completion data containing the results.
+/// </summary>
+public class CompletionData
+{
+    /// <summary>
+    /// Gets or sets the completion values.
+    /// </summary>
+    [JsonPropertyName("values")]
+    public List<string> Values { get; set; } = new();
+    
+    /// <summary>
+    /// Gets or sets the total number of possible completions.
+    /// </summary>
+    [JsonPropertyName("total")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? Total { get; set; }
+    
+    /// <summary>
+    /// Gets or sets whether there are more completions available.
+    /// </summary>
+    [JsonPropertyName("hasMore")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool HasMore { get; set; }
+}
+
+/// <summary>
+/// Request to set logging level.
+/// </summary>
+public class SetLevelRequest
+{
+    /// <summary>
+    /// Gets or sets the logging level to set.
+    /// </summary>
+    [JsonPropertyName("level")]
+    public LoggingLevel Level { get; set; }
+}
+
+/// <summary>
+/// Logging message notification.
+/// </summary>
+public class LoggingMessageNotification
+{
+    /// <summary>
+    /// Gets or sets the logging level.
+    /// </summary>
+    [JsonPropertyName("level")]
+    public LoggingLevel Level { get; set; }
+    
+    /// <summary>
+    /// Gets or sets the logger name.
+    /// </summary>
+    [JsonPropertyName("logger")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Logger { get; set; }
+    
+    /// <summary>
+    /// Gets or sets the logging data.
+    /// </summary>
+    [JsonPropertyName("data")]
+    public object Data { get; set; } = null!;
 }
 
 #endregion

@@ -64,6 +64,7 @@ namespace COA.Mcp.Framework.Tests.Server
             {
                 await _toolRegistry.DisposeAsync();
             }
+            _server?.Dispose();
             _serviceProvider?.Dispose();
         }
 

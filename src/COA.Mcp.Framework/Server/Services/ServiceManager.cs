@@ -6,6 +6,7 @@ using System.Net.Http;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
+using COA.Mcp.Framework.Utilities;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
@@ -332,64 +333,76 @@ public class ServiceManager : IServiceManager, IHostedService, IDisposable
         {
             try
             {
-                foreach (var service in _services.Values)
+                // Get services that need health checks - do this first to avoid holding locks during async operations
+                var servicesToCheck = _services.Values
+                    .Where(service => 
+                    {
+                        // Skip services that are not running
+                        if (service.Status != ServiceStatus.Running && 
+                            service.Status != ServiceStatus.Healthy && 
+                            service.Status != ServiceStatus.Unhealthy)
+                        {
+                            return false;
+                        }
+
+                        // Check if enough time has passed since last health check
+                        var timeSinceLastCheck = DateTime.UtcNow - service.LastHealthCheck;
+                        return timeSinceLastCheck.TotalSeconds >= service.Config.HealthCheckIntervalSeconds;
+                    })
+                    .ToList();
+
+                if (servicesToCheck.Any())
                 {
-                    if (cancellationToken.IsCancellationRequested)
-                        break;
+                    // Perform health checks concurrently
+                    await ConcurrentAsyncUtilities.ExecuteConcurrentlyAsync(
+                        servicesToCheck,
+                        async service =>
+                        {
+                            if (cancellationToken.IsCancellationRequested)
+                                return;
 
-                    // Skip services that are not running
-                    if (service.Status != ServiceStatus.Running && 
-                        service.Status != ServiceStatus.Healthy && 
-                        service.Status != ServiceStatus.Unhealthy)
-                    {
-                        continue;
-                    }
+                            // Perform health check
+                            bool isHealthy = false;
+                            if (service.CustomHealthCheck != null)
+                            {
+                                isHealthy = await service.CustomHealthCheck().ConfigureAwait(false);
+                            }
+                            else if (!string.IsNullOrEmpty(service.Config.HealthEndpoint))
+                            {
+                                isHealthy = await IsServiceHealthyAsync(service.Config.HealthEndpoint).ConfigureAwait(false);
+                            }
+                            else
+                            {
+                                // No health check configured, just check if process is running
+                                isHealthy = service.Process != null && !service.Process.HasExited;
+                            }
 
-                    // Check if enough time has passed since last health check
-                    var timeSinceLastCheck = DateTime.UtcNow - service.LastHealthCheck;
-                    if (timeSinceLastCheck.TotalSeconds < service.Config.HealthCheckIntervalSeconds)
-                    {
-                        continue;
-                    }
+                            service.LastHealthCheck = DateTime.UtcNow;
+                            var previousStatus = service.Status;
+                            service.Status = isHealthy ? ServiceStatus.Healthy : ServiceStatus.Unhealthy;
 
-                    // Perform health check
-                    bool isHealthy = false;
-                    if (service.CustomHealthCheck != null)
-                    {
-                        isHealthy = await service.CustomHealthCheck();
-                    }
-                    else if (!string.IsNullOrEmpty(service.Config.HealthEndpoint))
-                    {
-                        isHealthy = await IsServiceHealthyAsync(service.Config.HealthEndpoint);
-                    }
-                    else
-                    {
-                        // No health check configured, just check if process is running
-                        isHealthy = service.Process != null && !service.Process.HasExited;
-                    }
+                            if (previousStatus != service.Status)
+                            {
+                                _logger?.LogInformation("Service {ServiceId} status changed from {Previous} to {Current}",
+                                    service.Config.ServiceId, previousStatus, service.Status);
+                            }
 
-                    service.LastHealthCheck = DateTime.UtcNow;
-                    var previousStatus = service.Status;
-                    service.Status = isHealthy ? ServiceStatus.Healthy : ServiceStatus.Unhealthy;
-
-                    if (previousStatus != service.Status)
-                    {
-                        _logger?.LogInformation("Service {ServiceId} status changed from {Previous} to {Current}",
-                            service.Config.ServiceId, previousStatus, service.Status);
-                    }
-
-                    // Restart if unhealthy and auto-restart is enabled
-                    if (!isHealthy && service.Config.AutoRestart && 
-                        service.RestartAttempts < service.Config.MaxRestartAttempts)
-                    {
-                        service.RestartAttempts++;
-                        _logger?.LogWarning("Service {ServiceId} is unhealthy, attempting restart ({Attempt}/{Max})",
-                            service.Config.ServiceId, service.RestartAttempts, service.Config.MaxRestartAttempts);
-                        await RestartServiceAsync(service);
-                    }
+                            // Restart if unhealthy and auto-restart is enabled
+                            if (!isHealthy && service.Config.AutoRestart && 
+                                service.RestartAttempts < service.Config.MaxRestartAttempts)
+                            {
+                                service.RestartAttempts++;
+                                _logger?.LogWarning("Service {ServiceId} is unhealthy, attempting restart ({Attempt}/{Max})",
+                                    service.Config.ServiceId, service.RestartAttempts, service.Config.MaxRestartAttempts);
+                                await RestartServiceAsync(service).ConfigureAwait(false);
+                            }
+                        },
+                        maxConcurrency: 10,
+                        cancellationToken
+                    ).ConfigureAwait(false);
                 }
 
-                await Task.Delay(TimeSpan.FromSeconds(10), cancellationToken);
+                await Task.Delay(TimeSpan.FromSeconds(10), cancellationToken).ConfigureAwait(false);
             }
             catch (Exception ex)
             {

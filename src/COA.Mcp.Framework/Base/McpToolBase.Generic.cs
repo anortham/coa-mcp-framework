@@ -123,7 +123,7 @@ public abstract class McpToolBase<TParams, TResult> : IMcpTool<TParams, TResult>
         // If middleware is configured, use it
         if (Middleware != null && Middleware.Count > 0)
         {
-            return await ExecuteWithMiddlewareAsync(parameters, cancellationToken);
+            return await ExecuteWithMiddlewareAsync(parameters, cancellationToken).ConfigureAwait(false);
         }
 
         // Otherwise, use standard execution path
@@ -143,7 +143,7 @@ public abstract class McpToolBase<TParams, TResult> : IMcpTool<TParams, TResult>
             // Execute with token management
             var result = await ExecuteWithTokenManagement(
                 () => ExecuteInternalAsync(parameters, cancellationToken),
-                cancellationToken);
+                cancellationToken).ConfigureAwait(false);
             
             if (_logger?.IsEnabled(LogLevel.Debug) == true)
             {
@@ -195,7 +195,7 @@ public abstract class McpToolBase<TParams, TResult> : IMcpTool<TParams, TResult>
             // Before execution hooks
             foreach (var middleware in sortedMiddleware)
             {
-                await middleware.OnBeforeExecutionAsync(Name, parameters);
+                await middleware.OnBeforeExecutionAsync(Name, parameters).ConfigureAwait(false);
             }
 
             // Validate parameters
@@ -210,7 +210,7 @@ public abstract class McpToolBase<TParams, TResult> : IMcpTool<TParams, TResult>
             // Execute with token management
             result = await ExecuteWithTokenManagement(
                 () => ExecuteInternalAsync(parameters, cancellationToken),
-                cancellationToken);
+                cancellationToken).ConfigureAwait(false);
             
             if (_logger?.IsEnabled(LogLevel.Debug) == true)
             {
@@ -223,7 +223,7 @@ public abstract class McpToolBase<TParams, TResult> : IMcpTool<TParams, TResult>
             // After execution hooks (in reverse order)
             foreach (var middleware in sortedMiddleware.AsEnumerable().Reverse())
             {
-                await middleware.OnAfterExecutionAsync(Name, parameters, result, stopwatch.ElapsedMilliseconds);
+                await middleware.OnAfterExecutionAsync(Name, parameters, result, stopwatch.ElapsedMilliseconds).ConfigureAwait(false);
             }
 
             return result;
@@ -237,7 +237,7 @@ public abstract class McpToolBase<TParams, TResult> : IMcpTool<TParams, TResult>
             {
                 try
                 {
-                    await middleware.OnErrorAsync(Name, parameters, ex, stopwatch.ElapsedMilliseconds);
+                    await middleware.OnErrorAsync(Name, parameters, ex, stopwatch.ElapsedMilliseconds).ConfigureAwait(false);
                 }
                 catch (Exception hookEx)
                 {
@@ -308,7 +308,7 @@ public abstract class McpToolBase<TParams, TResult> : IMcpTool<TParams, TResult>
         }
         
         typedParams ??= Activator.CreateInstance<TParams>();
-        var result = await ExecuteAsync(typedParams, cancellationToken);
+        var result = await ExecuteAsync(typedParams, cancellationToken).ConfigureAwait(false);
         return result;
     }
 
@@ -396,7 +396,7 @@ public abstract class McpToolBase<TParams, TResult> : IMcpTool<TParams, TResult>
             }
         }
         
-        return await operation();
+        return await operation().ConfigureAwait(false);
     }
 
     /// <summary>

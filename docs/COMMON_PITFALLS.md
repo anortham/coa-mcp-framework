@@ -243,13 +243,46 @@ protected override async Task<MyResult> ExecuteInternalAsync(...)
     return new MyResult { Success = true };
 }
 
-// If you ARE doing async work, await it:
+// If you ARE doing async work, await it with ConfigureAwait(false):
 protected override async Task<MyResult> ExecuteInternalAsync(...)
 {
-    var result = await SomeSlowOperationAsync();
+    var result = await SomeSlowOperationAsync().ConfigureAwait(false);
+    var data = await File.ReadAllTextAsync("file.txt").ConfigureAwait(false);
     return new MyResult { Data = result };
 }
 ```
+
+**🚨 ConfigureAwait(false) Best Practice:**
+
+Always use `ConfigureAwait(false)` on awaited calls in MCP framework code to prevent deadlocks:
+
+```csharp
+// ✅ Good - prevents deadlocks in sync-over-async scenarios
+protected override async Task<MyResult> ExecuteInternalAsync(...)
+{
+    var client = new HttpClient();
+    var response = await client.GetStringAsync("https://api.example.com")
+        .ConfigureAwait(false);
+        
+    var fileContent = await File.ReadAllTextAsync("data.txt")
+        .ConfigureAwait(false);
+        
+    return new MyResult { Data = response };
+}
+
+// ❌ Bad - can cause deadlocks if called from synchronous context
+protected override async Task<MyResult> ExecuteInternalAsync(...)
+{
+    var response = await client.GetStringAsync("url"); // Missing ConfigureAwait(false)
+    return new MyResult { Data = response };
+}
+```
+
+**Why ConfigureAwait(false)?**
+- Prevents continuation from running on the original synchronization context
+- Essential for library code (like MCP tools) that might be called from sync contexts
+- Improves performance by avoiding unnecessary context switches
+- The COA MCP Framework itself uses this pattern throughout
 
 ---
 

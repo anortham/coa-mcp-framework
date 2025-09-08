@@ -9,7 +9,7 @@ namespace COA.Mcp.Framework.Transport
     /// <summary>
     /// Stdio transport implementation for console-based communication.
     /// </summary>
-    public class StdioTransport : IMcpTransport
+    public class StdioTransport : IMcpTransport, IDisposable
     {
         private readonly TextReader _input;
         private readonly TextWriter _output;
@@ -118,9 +118,20 @@ namespace COA.Mcp.Framework.Transport
 
         public void Dispose()
         {
+            Dispose(disposing: true);
+            GC.SuppressFinalize(this);
+        }
+        
+        protected virtual void Dispose(bool disposing)
+        {
             if (_disposed) return;
             
-            _writeLock?.Dispose();
+            if (disposing)
+            {
+                // Dispose managed resources
+                _writeLock?.Dispose();
+            }
+            
             _disposed = true;
         }
     }

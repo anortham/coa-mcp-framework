@@ -81,7 +81,7 @@ public class VerificationStateManager : IVerificationStateManager, IHostedServic
             state.RecordAccess();
 
             // Check if verification is still valid
-            var isValid = await IsVerificationStillValidAsync(state);
+            var isValid = await IsVerificationStillValidAsync(state).ConfigureAwait(false);
             if (isValid)
             {
                 _logger.LogDebug("Type {TypeName} is verified and valid", typeName);
@@ -159,13 +159,13 @@ public class VerificationStateManager : IVerificationStateManager, IHostedServic
         // Persist to disk if enabled
         if (_options.CacheExpirationHours > 0)
         {
-            await PersistCacheAsync();
+            await PersistCacheAsync().ConfigureAwait(false);
         }
 
         // Set up file watching if enabled
         if (_options.EnableFileWatching && !string.IsNullOrEmpty(typeInfo.FilePath))
         {
-            await SetupFileWatchingAsync(typeInfo.FilePath);
+            await SetupFileWatchingAsync(typeInfo.FilePath).ConfigureAwait(false);
         }
     }
 
@@ -180,7 +180,7 @@ public class VerificationStateManager : IVerificationStateManager, IHostedServic
             state.RecordAccess();
             
             // Check if verification is still valid
-            if (await IsVerificationStillValidAsync(state))
+            if (await IsVerificationStillValidAsync(state).ConfigureAwait(false))
             {
                 var hasMember = state.Members.ContainsKey(memberName);
                 _logger.LogDebug("Type {TypeName} member {MemberName} verification: {HasMember}", 
@@ -203,7 +203,7 @@ public class VerificationStateManager : IVerificationStateManager, IHostedServic
             state.RecordAccess();
             
             // Check if verification is still valid
-            if (await IsVerificationStillValidAsync(state))
+            if (await IsVerificationStillValidAsync(state).ConfigureAwait(false))
             {
                 return state.Members.Keys.ToList();
             }
@@ -223,7 +223,7 @@ public class VerificationStateManager : IVerificationStateManager, IHostedServic
             state.RecordAccess();
             
             // Check if verification is still valid
-            if (await IsVerificationStillValidAsync(state))
+            if (await IsVerificationStillValidAsync(state).ConfigureAwait(false))
             {
                 return state;
             }
@@ -260,7 +260,7 @@ public class VerificationStateManager : IVerificationStateManager, IHostedServic
                 keysToRemove.Count, pattern);
         }
 
-        await PersistCacheAsync();
+        await PersistCacheAsync().ConfigureAwait(false);
     }
 
     /// <inheritdoc/>
@@ -270,9 +270,12 @@ public class VerificationStateManager : IVerificationStateManager, IHostedServic
         var validStates = new List<TypeVerificationState>();
         var expiredCount = 0;
 
-        foreach (var state in _typeCache.Values)
+        // Thread-safe: Create snapshot to avoid concurrent modification
+        var cacheSnapshot = _typeCache.Values.ToList();
+
+        foreach (var state in cacheSnapshot)
         {
-            if (await IsVerificationStillValidAsync(state))
+            if (await IsVerificationStillValidAsync(state).ConfigureAwait(false))
             {
                 validStates.Add(state);
             }
@@ -341,8 +344,8 @@ public class VerificationStateManager : IVerificationStateManager, IHostedServic
 
         try
         {
-            var content = await File.ReadAllTextAsync(filePath);
-            var typeRefs = await GetUnverifiedTypesAsync(content, filePath);
+            var content = await File.ReadAllTextAsync(filePath).ConfigureAwait(false);
+            var typeRefs = await GetUnverifiedTypesAsync(content, filePath).ConfigureAwait(false);
             
             _logger.LogDebug("Found {Count} type references in {FilePath} for cache warming", 
                 typeRefs.Count, filePath);
@@ -364,14 +367,17 @@ public class VerificationStateManager : IVerificationStateManager, IHostedServic
 
         var invalidatedTypes = new List<string>();
 
-        foreach (var kvp in _typeCache)
+        // Thread-safe: Collect keys first, then remove to avoid concurrent modification
+        var keysToRemove = _typeCache
+            .Where(kvp => string.Equals(kvp.Value.FilePath, changedFilePath, StringComparison.OrdinalIgnoreCase))
+            .Select(kvp => kvp.Key)
+            .ToList();
+
+        foreach (var key in keysToRemove)
         {
-            if (string.Equals(kvp.Value.FilePath, changedFilePath, StringComparison.OrdinalIgnoreCase))
+            if (_typeCache.TryRemove(key, out _))
             {
-                if (_typeCache.TryRemove(kvp.Key, out _))
-                {
-                    invalidatedTypes.Add(kvp.Key);
-                }
+                invalidatedTypes.Add(key);
             }
         }
 
@@ -395,7 +401,7 @@ public class VerificationStateManager : IVerificationStateManager, IHostedServic
 
         foreach (var typeRef in typeRefs)
         {
-            if (!await IsTypeVerifiedAsync(typeRef.TypeName))
+            if (!await IsTypeVerifiedAsync(typeRef.TypeName).ConfigureAwait(false))
             {
                 unverifiedRefs.Add(typeRef);
             }
@@ -411,7 +417,7 @@ public class VerificationStateManager : IVerificationStateManager, IHostedServic
 
         foreach (var typeName in typeNames)
         {
-            results[typeName] = await IsTypeVerifiedAsync(typeName);
+            results[typeName] = await IsTypeVerifiedAsync(typeName).ConfigureAwait(false);
         }
 
         return results;
@@ -531,7 +537,7 @@ public class VerificationStateManager : IVerificationStateManager, IHostedServic
     {
         // This would implement cache persistence to disk
         // Skipping implementation for now as it's not critical for initial functionality
-        await Task.CompletedTask;
+        await Task.CompletedTask.ConfigureAwait(false);
     }
 
     /// <summary>
@@ -985,7 +991,7 @@ public class VerificationStateManager : IVerificationStateManager, IHostedServic
         // Load persisted cache if available
         // Implementation would go here
         
-        await Task.CompletedTask;
+        await Task.CompletedTask.ConfigureAwait(false);
     }
 
     /// <inheritdoc/>
@@ -994,23 +1000,42 @@ public class VerificationStateManager : IVerificationStateManager, IHostedServic
         _logger.LogInformation("Stopping VerificationStateManager");
         
         // Persist cache before shutdown
-        await PersistCacheAsync();
+        await PersistCacheAsync().ConfigureAwait(false);
         
-        // Clean up file watchers
-        foreach (var watcher in _fileWatchers.Values)
-        {
-            watcher?.Dispose();
-        }
+        // Clean up file watchers - thread-safe disposal
+        var watchersToDispose = _fileWatchers.Values.ToList();
         _fileWatchers.Clear();
+        
+        foreach (var watcher in watchersToDispose)
+        {
+            try
+            {
+                watcher?.Dispose();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Error disposing file watcher during shutdown");
+            }
+        }
     }
 
     /// <inheritdoc/>
     public void Dispose()
     {
-        foreach (var watcher in _fileWatchers.Values)
-        {
-            watcher?.Dispose();
-        }
+        // Thread-safe disposal - create snapshot first
+        var watchersToDispose = _fileWatchers.Values.ToList();
         _fileWatchers.Clear();
+        
+        foreach (var watcher in watchersToDispose)
+        {
+            try
+            {
+                watcher?.Dispose();
+            }
+            catch
+            {
+                // Ignore disposal errors in Dispose
+            }
+        }
     }
 }

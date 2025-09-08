@@ -19,7 +19,7 @@ namespace COA.Mcp.Framework.Server;
 /// Complete MCP server implementation that handles all protocol communication and tool management.
 /// This is the main entry point for creating and running an MCP server.
 /// </summary>
-public class McpServer : IHostedService
+public class McpServer : IHostedService, IDisposable
 {
     private readonly McpToolRegistry _toolRegistry;
     private readonly ResourceRegistry _resourceRegistry;
@@ -31,6 +31,7 @@ public class McpServer : IHostedService
     private readonly IMcpTransport _transport;
     private readonly string? _instructions;
     private CancellationTokenSource? _cancellationTokenSource;
+    private bool _disposed;
 
     /// <summary>
     /// Initializes a new instance of the McpServer class.
@@ -73,7 +74,24 @@ public class McpServer : IHostedService
                 Subscribe = false,
                 ListChanged = false
             },
-            Prompts = new PromptsCapabilityMarker() // Type-safe marker for prompt support
+            Prompts = new PromptsCapabilityMarker(), // Type-safe marker for prompt support
+            Sampling = new SamplingCapabilityMarker(), // Type-safe marker for sampling support
+            Completion = new CompletionCapabilityMarker(), // Type-safe marker for completion support
+            Logging = new LoggingCapabilities
+            {
+                Levels = new List<LoggingLevel>
+                {
+                    LoggingLevel.Debug,
+                    LoggingLevel.Info,
+                    LoggingLevel.Notice,
+                    LoggingLevel.Warning,
+                    LoggingLevel.Error,
+                    LoggingLevel.Critical,
+                    LoggingLevel.Alert,
+                    LoggingLevel.Emergency
+                },
+                Structured = true
+            }
         };
     }
 
@@ -88,7 +106,7 @@ public class McpServer : IHostedService
         _cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         
         // Start the transport
-        await _transport.StartAsync(_cancellationTokenSource.Token);
+        await _transport.StartAsync(_cancellationTokenSource.Token).ConfigureAwait(false);
         
         // Subscribe to transport disconnection
         _transport.Disconnected += OnTransportDisconnected;
@@ -110,7 +128,7 @@ public class McpServer : IHostedService
         _transport.Disconnected -= OnTransportDisconnected;
         
         // Stop the transport
-        await _transport.StopAsync(cancellationToken);
+        await _transport.StopAsync(cancellationToken).ConfigureAwait(false);
     }
     
     private void OnTransportDisconnected(object? sender, TransportDisconnectedEventArgs e)
@@ -128,13 +146,13 @@ public class McpServer : IHostedService
         {
             try
             {
-                var transportMessage = await _transport.ReadMessageAsync(cancellationToken);
+                var transportMessage = await _transport.ReadMessageAsync(cancellationToken).ConfigureAwait(false);
                 if (transportMessage == null)
                 {
                     continue;
                 }
 
-                await ProcessMessageAsync(transportMessage.Content, cancellationToken);
+                await ProcessMessageAsync(transportMessage.Content, cancellationToken).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
@@ -161,7 +179,7 @@ public class McpServer : IHostedService
             if (!root.TryGetProperty("jsonrpc", out var jsonrpcProp) || 
                 jsonrpcProp.GetString() != "2.0")
             {
-                await SendErrorResponseAsync(null, -32600, "Invalid Request");
+                await SendErrorResponseAsync(null, -32600, "Invalid Request").ConfigureAwait(false);
                 return;
             }
 
@@ -172,7 +190,7 @@ public class McpServer : IHostedService
             {
                 if (hasId)
                 {
-                    await SendErrorResponseAsync(idElement, -32600, "Invalid Request");
+                    await SendErrorResponseAsync(idElement, -32600, "Invalid Request").ConfigureAwait(false);
                 }
                 return;
             }
@@ -192,31 +210,43 @@ public class McpServer : IHostedService
             switch (method)
             {
                 case "initialize":
-                    result = await HandleInitializeAsync(parameters, cancellationToken);
+                    result = await HandleInitializeAsync(parameters, cancellationToken).ConfigureAwait(false);
                     break;
                     
                 case "tools/list":
-                    result = await HandleListToolsAsync(cancellationToken);
+                    result = await HandleListToolsAsync(cancellationToken).ConfigureAwait(false);
                     break;
                     
                 case "tools/call":
-                    result = await HandleCallToolAsync(parameters, cancellationToken);
+                    result = await HandleCallToolAsync(parameters, cancellationToken).ConfigureAwait(false);
                     break;
                     
                 case "resources/list":
-                    result = await HandleListResourcesAsync(cancellationToken);
+                    result = await HandleListResourcesAsync(cancellationToken).ConfigureAwait(false);
                     break;
                     
                 case "resources/read":
-                    result = await HandleReadResourceAsync(parameters, cancellationToken);
+                    result = await HandleReadResourceAsync(parameters, cancellationToken).ConfigureAwait(false);
                     break;
                     
                 case "prompts/list":
-                    result = await HandleListPromptsAsync(cancellationToken);
+                    result = await HandleListPromptsAsync(cancellationToken).ConfigureAwait(false);
                     break;
                     
                 case "prompts/get":
-                    result = await HandleGetPromptAsync(parameters, cancellationToken);
+                    result = await HandleGetPromptAsync(parameters, cancellationToken).ConfigureAwait(false);
+                    break;
+                    
+                case "sampling/createMessage":
+                    result = await HandleCreateMessageAsync(parameters, cancellationToken).ConfigureAwait(false);
+                    break;
+                    
+                case "completion/complete":
+                    result = await HandleCompleteAsync(parameters, cancellationToken).ConfigureAwait(false);
+                    break;
+                    
+                case "logging/setLevel":
+                    result = await HandleSetLevelAsync(parameters, cancellationToken).ConfigureAwait(false);
                     break;
                     
                 default:
@@ -231,23 +261,23 @@ public class McpServer : IHostedService
             {
                 if (isError)
                 {
-                    await SendErrorResponseAsync(idElement, errorCode, errorMessage!);
+                    await SendErrorResponseAsync(idElement, errorCode, errorMessage!).ConfigureAwait(false);
                 }
                 else
                 {
-                    await SendSuccessResponseAsync(idElement, result);
+                    await SendSuccessResponseAsync(idElement, result).ConfigureAwait(false);
                 }
             }
         }
         catch (JsonException ex)
         {
             _logger?.LogError(ex, "Failed to parse JSON-RPC message");
-            await SendErrorResponseAsync(null, -32700, "Parse error");
+            await SendErrorResponseAsync(null, -32700, "Parse error").ConfigureAwait(false);
         }
         catch (Exception ex)
         {
             _logger?.LogError(ex, "Unexpected error processing message");
-            await SendErrorResponseAsync(null, -32603, "Internal error");
+            await SendErrorResponseAsync(null, -32603, "Internal error").ConfigureAwait(false);
         }
     }
 
@@ -332,14 +362,14 @@ public class McpServer : IHostedService
             }
         }
         
-        return await _toolRegistry.CallToolAsync(request.Name, args, cancellationToken);
+        return await _toolRegistry.CallToolAsync(request.Name, args, cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<ListResourcesResult> HandleListResourcesAsync(CancellationToken cancellationToken)
     {
         _logger?.LogDebug("Handling resources/list request");
         
-        var resources = await _resourceRegistry.ListResourcesAsync();
+        var resources = await _resourceRegistry.ListResourcesAsync().ConfigureAwait(false);
         
         return new ListResourcesResult
         {
@@ -362,7 +392,7 @@ public class McpServer : IHostedService
 
         _logger?.LogDebug("Reading resource '{Uri}'", request.Uri);
         
-        var content = await _resourceRegistry.GetResourceAsync(request.Uri);
+        var content = await _resourceRegistry.GetResourceAsync(request.Uri).ConfigureAwait(false);
         
         return new ReadResourceResult
         {
@@ -374,7 +404,7 @@ public class McpServer : IHostedService
     {
         _logger?.LogDebug("Handling prompts/list request");
         
-        var prompts = await _promptRegistry.ListPromptsAsync(cancellationToken);
+        var prompts = await _promptRegistry.ListPromptsAsync(cancellationToken).ConfigureAwait(false);
         
         return new ListPromptsResult
         {
@@ -397,7 +427,92 @@ public class McpServer : IHostedService
 
         _logger?.LogDebug("Getting prompt '{Name}'", request.Name);
         
-        return await _promptRegistry.GetPromptAsync(request.Name, request.Arguments, cancellationToken);
+        return await _promptRegistry.GetPromptAsync(request.Name, request.Arguments, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<CreateMessageResult> HandleCreateMessageAsync(JsonElement? parameters, CancellationToken cancellationToken)
+    {
+        if (parameters == null)
+        {
+            throw new InvalidOperationException("Missing parameters for sampling/createMessage");
+        }
+
+        var request = JsonSerializer.Deserialize<CreateMessageRequest>(parameters.Value.GetRawText(), _jsonOptions);
+        if (request == null)
+        {
+            throw new InvalidOperationException("Invalid sampling createMessage request");
+        }
+
+        _logger?.LogDebug("Creating message with {MessageCount} messages", request.Messages.Count);
+        
+        // Default implementation: Echo back the input with a simple response
+        // Override this method in derived classes for custom sampling behavior
+        return new CreateMessageResult
+        {
+            Model = "default-model",
+            StopReason = "length",
+            Role = "assistant",
+            Content = new List<MessageContent>
+            {
+                new MessageContent
+                {
+                    Type = "text",
+                    Text = "Default sampling response. To implement custom sampling, override HandleCreateMessageAsync in your McpServer implementation."
+                }
+            }
+        };
+    }
+
+    private async Task<CompleteResult> HandleCompleteAsync(JsonElement? parameters, CancellationToken cancellationToken)
+    {
+        if (parameters == null)
+        {
+            throw new InvalidOperationException("Missing parameters for completion/complete");
+        }
+
+        var request = JsonSerializer.Deserialize<CompleteRequest>(parameters.Value.GetRawText(), _jsonOptions);
+        if (request == null)
+        {
+            throw new InvalidOperationException("Invalid completion complete request");
+        }
+
+        _logger?.LogDebug("Completing for reference '{Type}:{Name}', argument '{ArgName}'", 
+            request.Ref.Type, request.Ref.Name, request.Argument.Name);
+        
+        // Default implementation: Return empty completion list
+        // Override this method in derived classes for custom completion behavior
+        return new CompleteResult
+        {
+            Completion = new CompletionData
+            {
+                Values = new List<string>(), // Empty list - no completions available
+                Total = 0,
+                HasMore = false
+            }
+        };
+    }
+
+    private async Task<object> HandleSetLevelAsync(JsonElement? parameters, CancellationToken cancellationToken)
+    {
+        if (parameters == null)
+        {
+            throw new InvalidOperationException("Missing parameters for logging/setLevel");
+        }
+
+        var request = JsonSerializer.Deserialize<SetLevelRequest>(parameters.Value.GetRawText(), _jsonOptions);
+        if (request == null)
+        {
+            throw new InvalidOperationException("Invalid logging setLevel request");
+        }
+        
+        _logger?.LogDebug("Setting logging level to {Level}", request.Level);
+        
+        // Default implementation: Log the request but don't change actual log level
+        // Override this method in derived classes to integrate with logging configuration
+        _logger?.LogInformation("Log level change requested to {Level}. To implement dynamic log level changes, override HandleSetLevelAsync in your McpServer implementation.", request.Level);
+        
+        // Return empty object to indicate success
+        return Task.FromResult<object>(new { success = true, message = "Log level request received but not applied (default implementation)" });
     }
 
     private async Task SendSuccessResponseAsync(JsonElement id, object? result)
@@ -414,7 +529,7 @@ public class McpServer : IHostedService
             Content = json,
             Headers = { ["type"] = "response" }
         };
-        await _transport.WriteMessageAsync(transportMessage);
+        await _transport.WriteMessageAsync(transportMessage).ConfigureAwait(false);
     }
 
     private async Task SendErrorResponseAsync(JsonElement? id, int code, string message)
@@ -435,7 +550,7 @@ public class McpServer : IHostedService
             Content = json,
             Headers = { ["type"] = "error" }
         };
-        await _transport.WriteMessageAsync(transportMessage);
+        await _transport.WriteMessageAsync(transportMessage).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -444,5 +559,37 @@ public class McpServer : IHostedService
     public static McpServerBuilder CreateBuilder()
     {
         return new McpServerBuilder();
+    }
+
+    /// <summary>
+    /// Releases all resources used by the McpServer.
+    /// </summary>
+    public void Dispose()
+    {
+        Dispose(disposing: true);
+        GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
+    /// Releases the unmanaged resources used by the McpServer and optionally releases the managed resources.
+    /// </summary>
+    /// <param name="disposing">true to release both managed and unmanaged resources; false to release only unmanaged resources.</param>
+    protected virtual void Dispose(bool disposing)
+    {
+        if (_disposed) return;
+
+        if (disposing)
+        {
+            // Dispose managed resources
+            _cancellationTokenSource?.Dispose();
+            
+            // Dispose transport if it implements IDisposable
+            if (_transport is IDisposable disposableTransport)
+            {
+                disposableTransport.Dispose();
+            }
+        }
+
+        _disposed = true;
     }
 }

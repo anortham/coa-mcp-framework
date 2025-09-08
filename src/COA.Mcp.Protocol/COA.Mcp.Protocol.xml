@@ -22,6 +22,12 @@
             Per MCP specification, this should serialize as an empty object {}.
             </summary>
         </member>
+        <member name="T:COA.Mcp.Protocol.CompletionCapabilityMarker">
+            <summary>
+            Marker type indicating completion capability support.
+            Per MCP specification, this should serialize as an empty object {}.
+            </summary>
+        </member>
         <member name="T:COA.Mcp.Protocol.CapabilityMarkerConverter`1">
             <summary>
             Custom JSON converter that ensures capability markers serialize to empty objects.
@@ -315,6 +321,23 @@
             </summary>
             <value>An empty object {} indicates prompt support is available.</value>
         </member>
+        <member name="P:COA.Mcp.Protocol.ServerCapabilities.Sampling">
+            <summary>
+            Gets or sets the sampling capability marker.
+            </summary>
+            <value>An empty object {} indicates sampling support is available.</value>
+        </member>
+        <member name="P:COA.Mcp.Protocol.ServerCapabilities.Completion">
+            <summary>
+            Gets or sets the completion capability marker.
+            </summary>
+            <value>An empty object {} indicates completion support is available.</value>
+        </member>
+        <member name="P:COA.Mcp.Protocol.ServerCapabilities.Logging">
+            <summary>
+            Gets or sets the logging capabilities supported by the server.
+            </summary>
+        </member>
         <member name="T:COA.Mcp.Protocol.ResourceCapabilities">
             <summary>
             Defines specific capabilities for resource handling.
@@ -328,6 +351,26 @@
         <member name="P:COA.Mcp.Protocol.ResourceCapabilities.ListChanged">
             <summary>
             Gets or sets whether the server can notify when the resource list changes.
+            </summary>
+        </member>
+        <member name="T:COA.Mcp.Protocol.LoggingCapabilities">
+            <summary>
+            Defines specific capabilities for logging.
+            </summary>
+        </member>
+        <member name="P:COA.Mcp.Protocol.LoggingCapabilities.Levels">
+            <summary>
+            Gets or sets the supported logging levels by the server.
+            </summary>
+        </member>
+        <member name="P:COA.Mcp.Protocol.LoggingCapabilities.Structured">
+            <summary>
+            Gets or sets whether the server supports structured logging data.
+            </summary>
+        </member>
+        <member name="T:COA.Mcp.Protocol.LoggingLevel">
+            <summary>
+            Logging level enumeration following RFC 5424 severity levels.
             </summary>
         </member>
         <member name="T:COA.Mcp.Protocol.InitializeRequest">
@@ -919,6 +962,256 @@
             </summary>
             <param name="id">The request identifier.</param>
             <param name="error">The error information.</param>
+        </member>
+        <member name="T:COA.Mcp.Protocol.CreateMessageRequest">
+            <summary>
+            Request to create a message using sampling.
+            </summary>
+        </member>
+        <member name="P:COA.Mcp.Protocol.CreateMessageRequest.Messages">
+            <summary>
+            Gets or sets the messages to use for sampling.
+            </summary>
+        </member>
+        <member name="P:COA.Mcp.Protocol.CreateMessageRequest.ModelPreferences">
+            <summary>
+            Gets or sets the model preferences for sampling.
+            </summary>
+        </member>
+        <member name="P:COA.Mcp.Protocol.CreateMessageRequest.SystemPrompt">
+            <summary>
+            Gets or sets the system prompt for sampling.
+            </summary>
+        </member>
+        <member name="P:COA.Mcp.Protocol.CreateMessageRequest.IncludeContext">
+            <summary>
+            Gets or sets the context to include during sampling.
+            </summary>
+        </member>
+        <member name="P:COA.Mcp.Protocol.CreateMessageRequest.Temperature">
+            <summary>
+            Gets or sets the temperature for sampling.
+            </summary>
+        </member>
+        <member name="P:COA.Mcp.Protocol.CreateMessageRequest.MaxTokens">
+            <summary>
+            Gets or sets the maximum number of tokens to generate.
+            </summary>
+        </member>
+        <member name="P:COA.Mcp.Protocol.CreateMessageRequest.StopSequences">
+            <summary>
+            Gets or sets the stop sequences for sampling.
+            </summary>
+        </member>
+        <member name="P:COA.Mcp.Protocol.CreateMessageRequest.Metadata">
+            <summary>
+            Gets or sets metadata for the sampling request.
+            </summary>
+        </member>
+        <member name="T:COA.Mcp.Protocol.CreateMessageResult">
+            <summary>
+            Result from a sampling request.
+            </summary>
+        </member>
+        <member name="P:COA.Mcp.Protocol.CreateMessageResult.Model">
+            <summary>
+            Gets or sets the model that generated this response.
+            </summary>
+        </member>
+        <member name="P:COA.Mcp.Protocol.CreateMessageResult.StopReason">
+            <summary>
+            Gets or sets the reason why sampling stopped.
+            </summary>
+        </member>
+        <member name="T:COA.Mcp.Protocol.SamplingMessage">
+            <summary>
+            Represents a message for sampling operations.
+            </summary>
+        </member>
+        <member name="P:COA.Mcp.Protocol.SamplingMessage.Role">
+            <summary>
+            Gets or sets the role of the message sender.
+            </summary>
+        </member>
+        <member name="P:COA.Mcp.Protocol.SamplingMessage.Content">
+            <summary>
+            Gets or sets the content of the message.
+            </summary>
+        </member>
+        <member name="T:COA.Mcp.Protocol.MessageContent">
+            <summary>
+            Represents content within a message.
+            </summary>
+        </member>
+        <member name="P:COA.Mcp.Protocol.MessageContent.Type">
+            <summary>
+            Gets or sets the type of content.
+            </summary>
+        </member>
+        <member name="P:COA.Mcp.Protocol.MessageContent.Text">
+            <summary>
+            Gets or sets the text content (for text type).
+            </summary>
+        </member>
+        <member name="T:COA.Mcp.Protocol.ModelPreferences">
+            <summary>
+            Model preferences for sampling.
+            </summary>
+        </member>
+        <member name="P:COA.Mcp.Protocol.ModelPreferences.Hints">
+            <summary>
+            Gets or sets model hints.
+            </summary>
+        </member>
+        <member name="P:COA.Mcp.Protocol.ModelPreferences.CostPriority">
+            <summary>
+            Gets or sets the cost priority (0-1).
+            </summary>
+        </member>
+        <member name="P:COA.Mcp.Protocol.ModelPreferences.SpeedPriority">
+            <summary>
+            Gets or sets the speed priority (0-1).
+            </summary>
+        </member>
+        <member name="P:COA.Mcp.Protocol.ModelPreferences.IntelligencePriority">
+            <summary>
+            Gets or sets the intelligence priority (0-1).
+            </summary>
+        </member>
+        <member name="T:COA.Mcp.Protocol.ModelHint">
+            <summary>
+            Model hint for sampling preferences.
+            </summary>
+        </member>
+        <member name="P:COA.Mcp.Protocol.ModelHint.Name">
+            <summary>
+            Gets or sets the hint name.
+            </summary>
+        </member>
+        <member name="P:COA.Mcp.Protocol.ModelHint.Value">
+            <summary>
+            Gets or sets the hint value.
+            </summary>
+        </member>
+        <member name="T:COA.Mcp.Protocol.CompleteRequest">
+            <summary>
+            Request to complete text using completion.
+            </summary>
+        </member>
+        <member name="P:COA.Mcp.Protocol.CompleteRequest.Ref">
+            <summary>
+            Gets or sets the reference to complete.
+            </summary>
+        </member>
+        <member name="P:COA.Mcp.Protocol.CompleteRequest.Argument">
+            <summary>
+            Gets or sets the argument to complete.
+            </summary>
+        </member>
+        <member name="P:COA.Mcp.Protocol.CompleteRequest.Context">
+            <summary>
+            Gets or sets the completion context.
+            </summary>
+        </member>
+        <member name="T:COA.Mcp.Protocol.CompleteResult">
+            <summary>
+            Result from a completion request.
+            </summary>
+        </member>
+        <member name="P:COA.Mcp.Protocol.CompleteResult.Completion">
+            <summary>
+            Gets or sets the completion results.
+            </summary>
+        </member>
+        <member name="T:COA.Mcp.Protocol.CompletionReference">
+            <summary>
+            Reference for completion operations.
+            </summary>
+        </member>
+        <member name="P:COA.Mcp.Protocol.CompletionReference.Type">
+            <summary>
+            Gets or sets the type of reference.
+            </summary>
+        </member>
+        <member name="P:COA.Mcp.Protocol.CompletionReference.Name">
+            <summary>
+            Gets or sets the reference name or URI.
+            </summary>
+        </member>
+        <member name="T:COA.Mcp.Protocol.CompletionArgument">
+            <summary>
+            Argument for completion operations.
+            </summary>
+        </member>
+        <member name="P:COA.Mcp.Protocol.CompletionArgument.Name">
+            <summary>
+            Gets or sets the argument name.
+            </summary>
+        </member>
+        <member name="P:COA.Mcp.Protocol.CompletionArgument.Value">
+            <summary>
+            Gets or sets the argument value.
+            </summary>
+        </member>
+        <member name="T:COA.Mcp.Protocol.CompletionContext">
+            <summary>
+            Context for completion operations.
+            </summary>
+        </member>
+        <member name="P:COA.Mcp.Protocol.CompletionContext.Arguments">
+            <summary>
+            Gets or sets the context arguments.
+            </summary>
+        </member>
+        <member name="T:COA.Mcp.Protocol.CompletionData">
+            <summary>
+            Completion data containing the results.
+            </summary>
+        </member>
+        <member name="P:COA.Mcp.Protocol.CompletionData.Values">
+            <summary>
+            Gets or sets the completion values.
+            </summary>
+        </member>
+        <member name="P:COA.Mcp.Protocol.CompletionData.Total">
+            <summary>
+            Gets or sets the total number of possible completions.
+            </summary>
+        </member>
+        <member name="P:COA.Mcp.Protocol.CompletionData.HasMore">
+            <summary>
+            Gets or sets whether there are more completions available.
+            </summary>
+        </member>
+        <member name="T:COA.Mcp.Protocol.SetLevelRequest">
+            <summary>
+            Request to set logging level.
+            </summary>
+        </member>
+        <member name="P:COA.Mcp.Protocol.SetLevelRequest.Level">
+            <summary>
+            Gets or sets the logging level to set.
+            </summary>
+        </member>
+        <member name="T:COA.Mcp.Protocol.LoggingMessageNotification">
+            <summary>
+            Logging message notification.
+            </summary>
+        </member>
+        <member name="P:COA.Mcp.Protocol.LoggingMessageNotification.Level">
+            <summary>
+            Gets or sets the logging level.
+            </summary>
+        </member>
+        <member name="P:COA.Mcp.Protocol.LoggingMessageNotification.Logger">
+            <summary>
+            Gets or sets the logger name.
+            </summary>
+        </member>
+        <member name="P:COA.Mcp.Protocol.LoggingMessageNotification.Data">
+            <summary>
+            Gets or sets the logging data.
+            </summary>
         </member>
     </members>
 </doc>
