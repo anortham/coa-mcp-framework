@@ -327,6 +327,12 @@ public abstract class McpToolBase<TParams, TResult> : IMcpTool<TParams, TResult>
 
 
     /// <summary>
+    /// Gets whether Data Annotations validation should be applied to parameters.
+    /// Override in derived classes to disable automatic validation for graceful error handling.
+    /// </summary>
+    protected virtual bool ShouldValidateDataAnnotations => true;
+
+    /// <summary>
     /// Validates the input parameters using data annotations and custom validation.
     /// </summary>
     /// <param name="parameters">The parameters to validate.</param>
@@ -337,7 +343,7 @@ public abstract class McpToolBase<TParams, TResult> : IMcpTool<TParams, TResult>
             throw new ValidationException(ErrorMessages.ParameterRequired("parameters"));
         }
 
-        if (parameters != null)
+        if (parameters != null && ShouldValidateDataAnnotations)
         {
             var validationContext = new DataAnnotations.ValidationContext(parameters);
             var validationResults = new List<DataAnnotations.ValidationResult>();
