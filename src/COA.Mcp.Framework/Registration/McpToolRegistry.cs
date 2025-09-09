@@ -724,9 +724,19 @@ public class McpToolRegistry : IAsyncDisposable
 
     /// <summary>
     /// Determines if a type is a test class by checking naming conventions and attributes.
+    /// First checks if the type is a legitimate MCP tool, then applies filtering.
     /// </summary>
     private static bool IsTestClass(Type type)
     {
+        // If it's a legitimate tool, don't filter it out regardless of name
+        if (type.GetInterfaces().Any(i => 
+            i == typeof(IMcpTool) || 
+            (i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IMcpTool<,>))))
+        {
+            return false; // It's a tool, not a test class
+        }
+        
+        // For non-tool classes, apply the existing filtering
         var name = type.Name;
         return name.Contains("Test") || 
                name.Contains("Mock") || 
