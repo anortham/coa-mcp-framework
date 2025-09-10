@@ -3,7 +3,6 @@ using System.Linq;
 using System.Reflection;
 using COA.Mcp.Framework.Configuration;
 using COA.Mcp.Framework.Interfaces;
-using COA.Mcp.Framework.Pipeline.Middleware;
 using COA.Mcp.Framework.Server;
 using COA.Mcp.Framework.Services;
 using COA.Mcp.Framework.Testing;
@@ -62,61 +61,8 @@ public static class ServiceCollectionExtensions
         return services;
     }
 
-    /// <summary>
-    /// Adds type verification services to the service collection.
-    /// </summary>
-    public static IServiceCollection AddTypeVerification(
-        this IServiceCollection services,
-        Action<TypeVerificationOptions>? configure = null)
-    {
-        // Configure options
-        services.Configure<TypeVerificationOptions>(options =>
-        {
-            configure?.Invoke(options);
-            options.Validate();
-        });
-
-        // Register services
-        services.TryAddSingleton<IVerificationStateManager, VerificationStateManager>();
-        services.TryAddScoped<TypeVerificationMiddleware>();
-
-        return services;
-    }
-
-    /// <summary>
-    /// Adds TDD enforcement services to the service collection.
-    /// </summary>
-    public static IServiceCollection AddTddEnforcement(
-        this IServiceCollection services,
-        Action<TddEnforcementOptions>? configure = null)
-    {
-        // Configure options
-        services.Configure<TddEnforcementOptions>(options =>
-        {
-            configure?.Invoke(options);
-            options.Validate();
-        });
-
-        // Register services
-        services.TryAddSingleton<ITestStatusService, DefaultTestStatusService>();
-        services.TryAddScoped<TddEnforcementMiddleware>();
-
-        return services;
-    }
-
-    /// <summary>
-    /// Adds both type verification and TDD enforcement services.
-    /// </summary>
-    public static IServiceCollection AddAdvancedEnforcement(
-        this IServiceCollection services,
-        Action<TypeVerificationOptions>? configureTypeVerification = null,
-        Action<TddEnforcementOptions>? configureTddEnforcement = null)
-    {
-        services.AddTypeVerification(configureTypeVerification);
-        services.AddTddEnforcement(configureTddEnforcement);
-        
-        return services;
-    }
+    // NOTE: Type verification and TDD enforcement services were removed
+    // as they never worked properly and caused server startup failures
 
     /// <summary>
     /// Adds a specific tool to the service collection.
@@ -190,7 +136,7 @@ public static class ServiceCollectionExtensions
             catch (Exception ex)
             {
                 // Log error but don't fail startup
-                Console.Error.WriteLine($"Failed to register tool {toolType.Name}: {ex.Message}");
+                Console.Error.WriteLine($"Failed to register tool type {toolType.Name}: {ex.Message}");
             }
         }
     }

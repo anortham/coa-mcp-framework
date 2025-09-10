@@ -10,9 +10,9 @@ public class FrameworkOptions
     /// <summary>
     /// Gets or sets whether framework logging is enabled.
     /// When disabled, the framework will not add any logging providers or configuration.
-    /// Default is true.
+    /// Default is false for cleaner out-of-box experience.
     /// </summary>
-    public bool EnableFrameworkLogging { get; set; } = true;
+    public bool EnableFrameworkLogging { get; set; } = false;
 
     /// <summary>
     /// Gets or sets the minimum log level for framework components.

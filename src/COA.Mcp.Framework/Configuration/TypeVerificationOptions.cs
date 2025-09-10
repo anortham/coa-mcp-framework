@@ -10,15 +10,15 @@ public class TypeVerificationOptions
 {
     /// <summary>
     /// Gets or sets whether type verification is enabled.
-    /// Default: true
+    /// Default: false (opt-in for better out-of-box experience)
     /// </summary>
-    public bool Enabled { get; set; } = true;
+    public bool Enabled { get; set; } = false;
 
     /// <summary>
     /// Gets or sets the verification enforcement mode.
-    /// Default: Strict
+    /// Default: Warning (non-blocking for better out-of-box experience)
     /// </summary>
-    public TypeVerificationMode Mode { get; set; } = TypeVerificationMode.Strict;
+    public TypeVerificationMode Mode { get; set; } = TypeVerificationMode.Warning;
 
     /// <summary>
     /// Gets or sets the cache expiration time in hours.

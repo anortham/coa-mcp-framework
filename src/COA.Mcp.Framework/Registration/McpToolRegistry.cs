@@ -110,6 +110,7 @@ public class McpToolRegistry : IAsyncDisposable
             tool.Name, tool.ParameterType.Name, tool.ResultType.Name);
     }
 
+
     /// <summary>
     /// Discovers and registers tools from the specified assembly using attributes.
     /// </summary>
@@ -562,6 +563,7 @@ public class McpToolRegistry : IAsyncDisposable
         public required Type ResultType { get; init; }
         public required IJsonSchema InputSchema { get; init; }
     }
+
 
     /// <summary>
     /// Wrapper for attribute-based tools to implement IMcpTool interface.

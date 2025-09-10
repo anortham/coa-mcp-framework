@@ -55,5 +55,10 @@ class Program
         Console.WriteLine("💡 This server will run until you stop it (Ctrl+C)");
         
         await builder.RunAsync();
+        
+        // NOTE: After updating to the latest framework version, you can use:
+        // await McpServerBuilder.CreateMinimal("Hello MCP Server", "1.0.0")
+        //     .RegisterToolType<HelloTool>()
+        //     .RunAsync();
     }
 }

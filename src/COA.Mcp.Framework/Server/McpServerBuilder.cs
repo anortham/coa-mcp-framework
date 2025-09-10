@@ -7,7 +7,6 @@ using COA.Mcp.Framework.Base;
 using COA.Mcp.Framework.Configuration;
 using COA.Mcp.Framework.Interfaces;
 using COA.Mcp.Framework.Pipeline;
-using COA.Mcp.Framework.Pipeline.Middleware;
 using COA.Mcp.Framework.Pipeline.SimpleMiddleware;
 using COA.Mcp.Framework.Prompts;
 using COA.Mcp.Framework.Registration;
@@ -39,6 +38,7 @@ public class McpServerBuilder
     private Action<ResourceRegistry, IServiceProvider>? _resourceConfigurationWithServices;
     private Action<IPromptRegistry, IServiceProvider>? _promptConfigurationWithServices;
     private Assembly? _toolAssembly;
+    private bool _toolDiscoveryEnabled = true;
     private Assembly? _promptAssembly;
     private IMcpTransport? _transport;
     private bool _transportConfigured;
@@ -56,6 +56,65 @@ public class McpServerBuilder
         
         // Add default services
         ConfigureDefaultServices();
+    }
+
+    /// <summary>
+    /// Creates a minimal MCP server builder with essential defaults only.
+    /// This is the recommended way to create simple servers that "just work" out of the box.
+    /// </summary>
+    /// <param name="name">The server name.</param>
+    /// <param name="version">The server version.</param>
+    /// <returns>A configured builder ready for tool registration.</returns>
+    public static McpServerBuilder CreateMinimal(string name, string version)
+    {
+        var builder = new McpServerBuilder();
+        
+        // Set server info
+        builder.WithServerInfo(name, version);
+        
+        // Configure for minimal operation - no caching, minimal logging, no middleware by default
+        builder.ConfigureFramework(options =>
+        {
+            options.EnableFrameworkLogging = false; // Clean stdio output for MCP protocol
+            options.SuppressStartupLogs = true;
+            options.EnableDetailedToolLogging = false;
+            options.EnableDetailedMiddlewareLogging = false;
+            options.EnableDetailedTransportLogging = false;
+        });
+        
+        // Use stdio transport with minimal configuration (MCP standard)
+        builder.UseStdioTransport();
+        
+        return builder;
+    }
+
+    /// <summary>
+    /// Creates a server builder with common production defaults enabled.
+    /// Includes caching, error recovery, and observability middleware.
+    /// Does NOT include problematic validation middleware (TypeVerification/TDD).
+    /// </summary>
+    /// <param name="name">The server name.</param>
+    /// <param name="version">The server version.</param>
+    /// <returns>A configured builder with production-ready defaults.</returns>
+    public static McpServerBuilder CreateProduction(string name, string version)
+    {
+        var builder = CreateMinimal(name, version);
+        
+        // Enable production features - only the ones that work reliably
+        builder.EnableCaching()
+               .EnableResourceCaching()
+               .AddLoggingMiddleware(LogLevel.Warning)
+               .WithAdvancedErrorRecovery();
+        
+        // Configure framework logging for production (stderr only)
+        builder.ConfigureFramework(options =>
+        {
+            options.EnableFrameworkLogging = true;
+            options.FrameworkLogLevel = LogLevel.Warning;
+            options.SuppressStartupLogs = false; // Show startup info in production
+        });
+        
+        return builder;
     }
 
     /// <summary>
@@ -372,6 +431,17 @@ public class McpServerBuilder
     public McpServerBuilder DiscoverTools(Assembly? assembly = null)
     {
         _toolAssembly = assembly ?? Assembly.GetCallingAssembly();
+        _toolDiscoveryEnabled = true;
+        return this;
+    }
+
+    /// <summary>
+    /// Disables automatic tool discovery.
+    /// </summary>
+    /// <returns>The builder for chaining.</returns>
+    public McpServerBuilder DisableToolDiscovery()
+    {
+        _toolDiscoveryEnabled = false;
         return this;
     }
 
@@ -533,6 +603,46 @@ public class McpServerBuilder
     }
 
     /// <summary>
+    /// Enables memory caching services (opt-in for better defaults).
+    /// </summary>
+    /// <param name="configure">Optional action to configure cache options.</param>
+    /// <returns>The builder for chaining.</returns>
+    public McpServerBuilder EnableCaching(Action<MemoryCacheOptions>? configure = null)
+    {
+        _services.AddMemoryCache(options =>
+        {
+            // Set reasonable defaults
+            options.SizeLimit = 10 * 1024 * 1024; // 10MB instead of 100MB
+            options.CompactionPercentage = 0.1; // More aggressive cleanup
+            options.ExpirationScanFrequency = TimeSpan.FromMinutes(2);
+            configure?.Invoke(options);
+        });
+        return this;
+    }
+
+    /// <summary>
+    /// Enables resource caching services (opt-in for better defaults).
+    /// </summary>
+    /// <param name="configure">Optional action to configure resource cache options.</param>
+    /// <returns>The builder for chaining.</returns>
+    public McpServerBuilder EnableResourceCaching(Action<ResourceCacheOptions>? configure = null)
+    {
+        _services.Configure<ResourceCacheOptions>(options =>
+        {
+            // Set reasonable defaults
+            options.DefaultExpiration = TimeSpan.FromMinutes(5);
+            options.SlidingExpiration = TimeSpan.FromMinutes(2);
+            options.MaxSizeBytes = 10 * 1024 * 1024; // 10MB instead of 100MB
+            options.EnableStatistics = false; // Disabled by default
+            configure?.Invoke(options);
+        });
+#pragma warning disable CS0618 // Type or member is obsolete - backward compatibility
+        _services.AddSingleton<IResourceCache, InMemoryResourceCache>();
+#pragma warning restore CS0618 // Type or member is obsolete
+        return this;
+    }
+
+    /// <summary>
     /// Configures token budgets for tools.
     /// </summary>
     /// <param name="configure">Action to configure token budgets.</param>
@@ -568,9 +678,54 @@ public class McpServerBuilder
     {
         foreach (var m in middleware)
         {
+            ValidateMiddlewareOrder(m);
             _services.AddSingleton<ISimpleMiddleware>(m);
         }
         return this;
+    }
+
+    /// <summary>
+    /// Clears all registered middleware. Useful for minimal servers that want no middleware.
+    /// </summary>
+    /// <returns>The builder for chaining.</returns>
+    public McpServerBuilder ClearMiddleware()
+    {
+        var middlewareDescriptors = _services.Where(sd => sd.ServiceType == typeof(ISimpleMiddleware)).ToList();
+        foreach (var descriptor in middlewareDescriptors)
+        {
+            _services.Remove(descriptor);
+        }
+        return this;
+    }
+
+    /// <summary>
+    /// Validates middleware ordering to prevent common configuration issues.
+    /// </summary>
+    /// <param name="middleware">The middleware to validate.</param>
+    private void ValidateMiddlewareOrder(ISimpleMiddleware middleware)
+    {
+        // Check for common ordering mistakes
+        if (middleware.Order == 0)
+        {
+            Console.Error.WriteLine($"Warning: Middleware {middleware.GetType().Name} has Order=0. " +
+                                  "Consider using explicit ordering ranges: " +
+                                  "0-99 (system), 100-199 (validation), 200-299 (business), 300-399 (observability), 400+ (late-stage).");
+        }
+
+        // Warn about problematic built-in middleware
+        var typeName = middleware.GetType().Name;
+        if (typeName == "TypeVerificationMiddleware" || typeName == "TddEnforcementMiddleware")
+        {
+            Console.Error.WriteLine($"Warning: {typeName} has known issues and may cause server failures. " +
+                                  "Consider removing this middleware for better reliability.");
+        }
+
+        // Check for potential conflicts with LoggingSimpleMiddleware only
+        if (middleware.Order == 300 && typeName != "LoggingSimpleMiddleware")
+        {
+            Console.Error.WriteLine($"Info: Middleware {typeName} uses Order=300, " +
+                                  "same as LoggingSimpleMiddleware. Consider using 301-399 range for custom observability middleware.");
+        }
     }
 
     /// <summary>
@@ -604,35 +759,6 @@ public class McpServerBuilder
         return this;
     }
 
-    /// <summary>
-    /// Convenience method to add the built-in TypeVerificationMiddleware.
-    /// </summary>
-    /// <param name="configure">Optional configuration action.</param>
-    /// <returns>The builder for chaining.</returns>
-    public McpServerBuilder AddTypeVerificationMiddleware(Action<TypeVerificationOptions>? configure = null)
-    {
-        if (configure != null)
-        {
-            _services.Configure(configure);
-        }
-        
-        return AddGlobalMiddleware<TypeVerificationMiddleware>();
-    }
-
-    /// <summary>
-    /// Convenience method to add the built-in TddEnforcementMiddleware.
-    /// </summary>
-    /// <param name="configure">Optional configuration action.</param>
-    /// <returns>The builder for chaining.</returns>
-    public McpServerBuilder AddTddEnforcementMiddleware(Action<TddEnforcementOptions>? configure = null)
-    {
-        if (configure != null)
-        {
-            _services.Configure(configure);
-        }
-        
-        return AddGlobalMiddleware<TddEnforcementMiddleware>();
-    }
 
     /// <summary>
     /// Convenience method to add the built-in LoggingSimpleMiddleware.
@@ -715,6 +841,9 @@ public class McpServerBuilder
     /// <returns>The configured MCP server ready to run.</returns>
     public McpServer Build()
     {
+        // Validate configuration before building
+        ValidateConfiguration();
+        
         // If no transport specified, use stdio by default
         if (!_transportConfigured)
         {
@@ -723,6 +852,78 @@ public class McpServerBuilder
         
         var serviceProvider = _services.BuildServiceProvider();
         return BuildWithProvider(serviceProvider);
+    }
+
+    /// <summary>
+    /// Validates the server configuration to prevent common mistakes that cause failures.
+    /// </summary>
+    private void ValidateConfiguration()
+    {
+        // Check for required server info
+        if (string.IsNullOrWhiteSpace(_configuration.ServerName))
+        {
+            throw new InvalidOperationException("Server name is required. Use WithServerInfo() or CreateMinimal() to set it.");
+        }
+
+        if (string.IsNullOrWhiteSpace(_configuration.ServerVersion))
+        {
+            throw new InvalidOperationException("Server version is required. Use WithServerInfo() or CreateMinimal() to set it.");
+        }
+
+        // Check for problematic configurations
+        CheckForProblematicMiddleware();
+        CheckForResourceLeaks();
+        CheckForLoggingIssues();
+    }
+
+    /// <summary>
+    /// Checks for middleware that is known to cause server failures.
+    /// </summary>
+    private void CheckForProblematicMiddleware()
+    {
+        var middleware = _services.Where(sd => sd.ServiceType == typeof(ISimpleMiddleware)).ToList();
+        
+        foreach (var descriptor in middleware)
+        {
+            if (descriptor.ImplementationType != null)
+            {
+                var typeName = descriptor.ImplementationType.Name;
+                if (typeName == "TypeVerificationMiddleware" || typeName == "TddEnforcementMiddleware")
+                {
+                    Console.Error.WriteLine($"Warning: {typeName} has known reliability issues. " +
+                                          "Consider removing it for better server stability.");
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Checks for configurations that could cause memory leaks or excessive resource usage.
+    /// </summary>
+    private void CheckForResourceLeaks()
+    {
+        // Check if memory cache is configured with excessive limits
+        var cacheOptions = _services.FirstOrDefault(sd => sd.ServiceType == typeof(IConfigureOptions<MemoryCacheOptions>));
+        if (cacheOptions != null)
+        {
+            // We can't easily inspect the configuration here, but we can warn about it
+            Console.Error.WriteLine("Info: Memory caching is enabled. Monitor memory usage in production environments.");
+        }
+    }
+
+    /// <summary>
+    /// Checks for logging configurations that could interfere with MCP protocol.
+    /// </summary>
+    private void CheckForLoggingIssues()
+    {
+        var loggingBuilders = _services.Where(sd => 
+            sd.ServiceType == typeof(ILoggingBuilder) || 
+            sd.ServiceType == typeof(ILoggerProvider)).ToList();
+
+        if (loggingBuilders.Any())
+        {
+            Console.Error.WriteLine("Info: Custom logging detected. Ensure all logs go to stderr to avoid MCP protocol interference.");
+        }
     }
     
     private McpServer BuildWithProvider(IServiceProvider serviceProvider)
@@ -736,7 +937,7 @@ public class McpServerBuilder
         var promptRegistry = serviceProvider.GetRequiredService<IPromptRegistry>();
         
         // Configure tools
-        if (_toolAssembly != null)
+        if (_toolAssembly != null && _toolDiscoveryEnabled)
         {
             toolRegistry.DiscoverAndRegisterTools(_toolAssembly);
         }
@@ -853,30 +1054,20 @@ public class McpServerBuilder
 
     private void ConfigureDefaultServices()
     {
-        // Add memory cache services
-        _services.AddMemoryCache(options =>
-        {
-            // Set size limit for the cache (100 MB default)
-            options.SizeLimit = 100 * 1024 * 1024;
-            options.CompactionPercentage = 0.05; // Compact 5% when size limit is reached
-            options.ExpirationScanFrequency = TimeSpan.FromMinutes(1);
-        });
+        // Memory cache is now opt-in via .EnableCaching() method
+        // Previously consumed 100MB by default for simple servers
         
-        // Add resource cache service as singleton
-        _services.Configure<ResourceCacheOptions>(options =>
-        {
-            options.DefaultExpiration = TimeSpan.FromMinutes(5);
-            options.SlidingExpiration = TimeSpan.FromMinutes(2);
-            options.MaxSizeBytes = 100 * 1024 * 1024; // 100 MB
-            options.EnableStatistics = true;
-        });
-#pragma warning disable CS0618 // Type or member is obsolete - backward compatibility
-        _services.AddSingleton<IResourceCache, InMemoryResourceCache>();
-#pragma warning restore CS0618 // Type or member is obsolete
+        // Resource cache is now opt-in via .EnableResourceCaching() method
+        // Previously consumed another 100MB by default for simple servers
         
-        // Add framework services
+        // Add framework services with optional logger dependencies
         _services.AddSingleton<McpToolRegistry>();
-        _services.AddSingleton<ResourceRegistry>();
+        _services.AddSingleton<ResourceRegistry>(provider =>
+        {
+            var logger = provider.GetService<ILogger<ResourceRegistry>>();
+            var cache = provider.GetService<IResourceCache>();
+            return new ResourceRegistry(logger, cache);
+        });
         _services.AddSingleton<IPromptRegistry, PromptRegistry>();
         
         // Add tool management services (only registered when explicitly enabled via ConfigureToolManagement)
@@ -891,15 +1082,30 @@ public class McpServerBuilder
     
     private void ConfigureFrameworkLogging()
     {
-        var serviceProvider = _services.BuildServiceProvider();
-        var frameworkOptions = serviceProvider.GetService<IOptions<FrameworkOptions>>()?.Value ?? new FrameworkOptions();
+        // Use default FrameworkOptions instead of building ServiceProvider during configuration
+        // This prevents multiple ServiceProvider creation issues
+        var frameworkOptions = new FrameworkOptions();
         
         // Check if logging is already configured by looking for existing loggers
         var existingLoggers = _services.Where(s => s.ServiceType == typeof(ILoggerProvider) || 
                                                    s.ServiceType == typeof(ILoggingBuilder)).Any();
         
-        if (!frameworkOptions.EnableFrameworkLogging || 
-            (!frameworkOptions.ConfigureLoggingIfNotConfigured && existingLoggers))
+        // Always register basic logging services for framework dependencies
+        // Even when EnableFrameworkLogging = false, we need loggers for DI resolution
+        if (existingLoggers && !frameworkOptions.EnableFrameworkLogging)
+        {
+            // Logging already configured and framework logging disabled - nothing to do
+            return;
+        }
+        
+        if (!existingLoggers)
+        {
+            // No logging configured yet - add minimal logging for DI resolution
+            _services.AddLogging();
+        }
+        
+        // Only configure console output if framework logging is enabled
+        if (!frameworkOptions.EnableFrameworkLogging)
         {
             return;
         }
@@ -912,7 +1118,10 @@ public class McpServerBuilder
             // Add console logging with stderr output for MCP protocol compatibility
             builder.AddConsole(options =>
             {
+                // CRITICAL: All framework logs MUST go to stderr for MCP protocol compliance
+                // stdout is reserved for MCP protocol messages only
                 options.LogToStandardErrorThreshold = LogLevel.Trace;
+                options.DisableColors = true; // Cleaner output for MCP
             });
             
             // Configure category-specific log levels for reduced framework verbosity
@@ -935,14 +1144,16 @@ public class McpServerBuilder
         {
             try
             {
-                // Create instance using DI
-                var prompt = (IPrompt)ActivatorUtilities.CreateInstance(_services.BuildServiceProvider(), promptType);
+                // Create instance using default constructor to avoid BuildServiceProvider during config
+                // DI will be properly resolved when the server is built
+                var prompt = (IPrompt)Activator.CreateInstance(promptType)!;
                 registry.RegisterPrompt(prompt);
             }
             catch (Exception ex)
             {
-                var logger = _services.BuildServiceProvider().GetService<ILogger<McpServerBuilder>>();
-                logger?.LogWarning(ex, "Failed to register prompt type {PromptType}", promptType.Name);
+                // Log will be available after the server is built
+                // Don't create ServiceProvider during configuration phase
+                Console.Error.WriteLine($"Warning: Failed to register prompt type {promptType.Name}: {ex.Message}");
             }
         }
     }
