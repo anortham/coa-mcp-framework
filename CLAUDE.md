@@ -16,8 +16,8 @@
 3. **Inherit from McpToolBase<TParams,TResult>** - Automatic validation included
 4. **Build-test-pack cycle** - Framework changes need full rebuild cycle
 5. **Validation helpers available** - `ValidateRequired()`, `ValidateRange()`, `ValidatePositive()`
-6. **Cache grows unbounded** - Configure `MaxCacheSize`, `EvictionStrategy` in TypeVerificationOptions
-7. **Sequential async kills performance** - Use `ConcurrentAsyncUtilities.ExecuteConcurrentlyAsync()`
+6. **Sequential async kills performance** - Use `ConcurrentAsyncUtilities.ExecuteConcurrentlyAsync()`
+7. **Use CreateMinimal() or CreateProduction()** - Factory methods provide better defaults than manual setup
 
 ## 🚀 Quick Patterns (Copy-Paste Ready)
 
@@ -212,25 +212,32 @@ var builder = new McpServerBuilder()
 {{ProjectType}} {{TeamName}} - Any custom variables you define
 ```
 
-### Middleware Configuration
+### Server Configuration (Updated v1.8+)
 ```csharp
-// Essential setup - copy-paste and modify
-services.Configure<TypeVerificationOptions>(options =>
-{
-    options.Enabled = true;
-    options.Mode = TypeVerificationMode.Warning; // Start with warnings
-    options.MaxCacheSize = 10000;
-    options.EvictionStrategy = CacheEvictionStrategy.LRU;
-    options.MaxMemoryBytes = 50 * 1024 * 1024; // 50MB
-});
+// EASY START: Use factory methods for better defaults
+var builder = McpServerBuilder.CreateMinimal("my-server", "1.0.0")
+    .DiscoverTools(typeof(Program).Assembly);
 
-var builder = McpServerBuilder.Create("my-server", services)
-    .WithGlobalMiddleware(new List<ISimpleMiddleware>
+// OR: Production-ready setup with observability
+var builder = McpServerBuilder.CreateProduction("my-server", "1.0.0")
+    .DiscoverTools(typeof(Program).Assembly);
+
+// OR: Manual configuration with improved defaults
+var builder = new McpServerBuilder()
+    .WithServerInfo("my-server", "1.0.0")
+    .ConfigureFramework(options =>
     {
-        new TypeVerificationMiddleware(typeService, stateManager, logger, typeOptions),
-        new LoggingSimpleMiddleware(logger, LogLevel.Information)
-    });
+        options.EnableFrameworkLogging = false; // Clean stdout for MCP protocol (DEFAULT)
+    })
+    .AddLoggingMiddleware(LogLevel.Information); // Simple logging middleware
 ```
+
+### ❌ REMOVED FEATURES (v1.8+)
+These features were removed as they never worked reliably:
+- `TypeVerificationMiddleware` - Caused startup failures
+- `TddEnforcementMiddleware` - Never functional
+- `AddTypeVerification()` service method
+- `AddTddEnforcement()` service method
 
 ## 📍 Essential Files (AI Priority Order)
 
@@ -249,10 +256,8 @@ var builder = McpServerBuilder.Create("my-server", services)
 | **🆕 Error recovery** | `src/COA.Mcp.Framework/Services/ErrorRecoveryTemplateProcessor.cs` |
 | **🆕 Workflow suggestions** | `src/COA.Mcp.Framework/Services/WorkflowSuggestionManager.cs` |
 | **🆕 Tool priority (legacy)** | `src/COA.Mcp.Framework/Interfaces/IToolPriority.cs` |
-| **Type verification** | `src/COA.Mcp.Framework/Pipeline/Middleware/TypeVerificationMiddleware.cs` |
-| **Cache management** | `src/COA.Mcp.Framework/Services/VerificationStateManager.cs` |
 | **Async utilities** | `src/COA.Mcp.Framework/Utilities/ConcurrentAsyncUtilities.cs` |
-| **Configuration** | `src/COA.Mcp.Framework/Configuration/TypeVerificationOptions.cs` |
+| **Configuration options** | `src/COA.Mcp.Framework/Configuration/FrameworkOptions.cs` |
 | **Examples** | `examples/SimpleMcpServer/` |
 
 ## 🆕 Template Variables & Enhancement Features

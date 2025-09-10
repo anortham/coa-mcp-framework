@@ -50,8 +50,8 @@ class Program
 {
     static async Task Main(string[] args)
     {
-        var builder = new McpServerBuilder()
-            .WithServerInfo("My First MCP Server", "1.0.0");
+        // Easy start with optimized defaults
+        var builder = McpServerBuilder.CreateMinimal("My First MCP Server", "1.0.0");
         
         builder.RegisterToolType<EchoTool>();
         await builder.RunAsync();
@@ -228,11 +228,7 @@ var builder = new McpServerBuilder()
 
 ### 🔗 **Lifecycle Hooks & Middleware**
 - **Extensible execution pipeline** - Add cross-cutting concerns with simple middleware
-- **Built-in middleware** - Logging, token counting, performance monitoring
-- **🆕 Type Verification Middleware** - Prevents AI hallucinated types in code generation with intelligent caching
-- **🆕 TDD Enforcement Middleware** - Enforces Test-Driven Development workflow (Red-Green-Refactor)
-- **Smart caching system** - Session-scoped type verification with file modification invalidation
-- **Multi-platform test integration** - Supports dotnet test, npm test, pytest, and more
+- **Built-in middleware** - Logging, performance monitoring
 - **Custom middleware support** - Implement `ISimpleMiddleware` for custom logic
 - **Per-tool configuration** - Override `ToolSpecificMiddleware` for tool-specific hooks
 - See **[Lifecycle Hooks Guide](docs/lifecycle-hooks.md)** for detailed documentation
