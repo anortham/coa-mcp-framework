@@ -6,6 +6,7 @@ using COA.Mcp.Framework.Configuration;
 using COA.Mcp.Framework.Interfaces;
 using COA.Mcp.Framework.Models;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Scriban;
 using Scriban.Runtime;
 
@@ -31,11 +32,11 @@ public class ErrorRecoveryTemplateProcessor
     /// <param name="logger">Optional logger for debugging template processing.</param>
     public ErrorRecoveryTemplateProcessor(
         InstructionTemplateProcessor templateProcessor,
-        ErrorRecoveryOptions? options = null,
+        IOptions<ErrorRecoveryOptions> options,
         ILogger<ErrorRecoveryTemplateProcessor>? logger = null)
     {
         _templateProcessor = templateProcessor ?? throw new ArgumentNullException(nameof(templateProcessor));
-        _options = options ?? new ErrorRecoveryOptions();
+        _options = options?.Value ?? new ErrorRecoveryOptions();
         _logger = logger;
         _errorTemplates = InitializeBuiltInTemplates();
     }

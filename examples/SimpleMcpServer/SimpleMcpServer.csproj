@@ -12,7 +12,6 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\COA.Mcp.Framework\COA.Mcp.Framework.csproj" />
     <ProjectReference Include="..\..\src\COA.Mcp.Framework.TokenOptimization\COA.Mcp.Framework.TokenOptimization.csproj" />
-    <ProjectReference Include="..\..\src\COA.Mcp.Visualization\COA.Mcp.Visualization.csproj" />
   </ItemGroup>
 
   <ItemGroup>

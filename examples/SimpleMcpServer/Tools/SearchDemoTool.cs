@@ -6,8 +6,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using COA.Mcp.Framework.Base;
 using COA.Mcp.Framework.Models;
-using COA.Mcp.Visualization;
-using COA.Mcp.Visualization.Helpers;
 using Microsoft.Extensions.Logging;
 
 namespace SimpleMcpServer.Tools;
@@ -78,9 +76,9 @@ public class SearchResultItem
 }
 
 /// <summary>
-/// Demo tool that demonstrates visualization capabilities by simulating a code search
+/// Demo tool that demonstrates code search functionality with mock results
 /// </summary>
-public class SearchDemoTool : McpToolBase<SearchDemoParams, SearchDemoResult>, IVisualizationProvider
+public class SearchDemoTool : McpToolBase<SearchDemoParams, SearchDemoResult>
 {
     private static readonly List<SearchResultItem> _mockResults = new()
     {
@@ -203,31 +201,4 @@ public class SearchDemoTool : McpToolBase<SearchDemoParams, SearchDemoResult>, I
         return result;
     }
 
-    public override VisualizationDescriptor? GetVisualizationDescriptor()
-    {
-        // Convert search results to visualization format
-        var searchResults = _lastResult?.Results.Select(r => new SearchResult
-        {
-            FilePath = r.FilePath,
-            Line = r.Line,
-            Column = r.Column,
-            Snippet = r.Snippet,
-            Score = r.Score,
-            Metadata = new Dictionary<string, object>
-            {
-                ["context"] = r.Context ?? "",
-                ["type"] = "code"
-            }
-        }).ToList() ?? new List<SearchResult>();
-
-        return VisualizationHelpers.CreateSearchResults(
-            _lastResult?.Query ?? "", 
-            searchResults,
-            builder => builder
-                .WithPriority(COA.Mcp.Visualization.VisualizationPriority.High)
-                .WithInteractive(true)
-                .WithMetadata("executionTime", _lastResult?.ExecutionTime.TotalMilliseconds ?? 0)
-                .WithMetadata("tool", "search_demo")
-        );
-    }
 }

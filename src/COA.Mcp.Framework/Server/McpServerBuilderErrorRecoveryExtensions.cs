@@ -3,6 +3,8 @@ using COA.Mcp.Framework.Base;
 using COA.Mcp.Framework.Configuration;
 using COA.Mcp.Framework.Services;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace COA.Mcp.Framework.Server;
 
@@ -57,9 +59,19 @@ public static class McpServerBuilderErrorRecoveryExtensions
             opts.EnableBehavioralConditioning = options.EnableBehavioralConditioning;
         });
 
-        // Register core error recovery services
-        builder.Services.AddSingleton<ErrorRecoveryTemplateProcessor>();
-        builder.Services.AddTransient<AdvancedErrorMessageProvider>();
+        // Register core error recovery services using factory pattern for IOptions support
+        builder.Services.AddSingleton<ErrorRecoveryTemplateProcessor>(sp => 
+            new ErrorRecoveryTemplateProcessor(
+                sp.GetRequiredService<InstructionTemplateProcessor>(),
+                sp.GetRequiredService<IOptions<ErrorRecoveryOptions>>(),
+                sp.GetService<ILogger<ErrorRecoveryTemplateProcessor>>()));
+
+        builder.Services.AddTransient<AdvancedErrorMessageProvider>(sp => 
+            new AdvancedErrorMessageProvider(
+                sp.GetService<ErrorRecoveryTemplateProcessor>(),
+                sp.GetRequiredService<IOptions<ErrorRecoveryOptions>>(),
+                null, // toolInstances - could be enhanced later
+                sp.GetService<ILogger<AdvancedErrorMessageProvider>>()));
 
         // Ensure template processing services are available (dependency for error recovery)
         builder.Services.AddSingleton<InstructionTemplateProcessor>();
@@ -153,9 +165,4 @@ public static class McpServerBuilderErrorRecoveryExtensions
         });
     }
 
-    /// <summary>
-    /// Internal access to the service collection for advanced configuration.
-    /// </summary>
-    internal static IServiceCollection Services => throw new InvalidOperationException(
-        "This property should be implemented by the actual McpServerBuilder class");
 }

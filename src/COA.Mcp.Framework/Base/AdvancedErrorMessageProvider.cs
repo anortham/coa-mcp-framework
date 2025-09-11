@@ -7,6 +7,7 @@ using COA.Mcp.Framework.Interfaces;
 using COA.Mcp.Framework.Models;
 using COA.Mcp.Framework.Services;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace COA.Mcp.Framework.Base;
 
@@ -29,13 +30,13 @@ public class AdvancedErrorMessageProvider : ErrorMessageProvider
     /// <param name="toolInstances">Available tool instances for context-aware error messages.</param>
     /// <param name="logger">Optional logger for debugging error message generation.</param>
     public AdvancedErrorMessageProvider(
-        ErrorRecoveryTemplateProcessor? recoveryProcessor = null,
-        ErrorRecoveryOptions? options = null,
+        ErrorRecoveryTemplateProcessor? recoveryProcessor,
+        IOptions<ErrorRecoveryOptions> options,
         IEnumerable<object>? toolInstances = null,
         ILogger<AdvancedErrorMessageProvider>? logger = null)
     {
         _recoveryProcessor = recoveryProcessor;
-        _options = options ?? new ErrorRecoveryOptions();
+        _options = options?.Value ?? new ErrorRecoveryOptions();
         _toolInstances = toolInstances;
         _logger = logger;
     }

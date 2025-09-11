@@ -1,3 +1,4 @@
+using COA.Mcp.Framework.Configuration;
 using COA.Mcp.Framework.Server;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -14,29 +15,29 @@ var builder = new McpServerBuilder()
     // Template-based instructions that adapt to available tools
     .WithTemplateInstructions(options =>
     {
-        options.ContextName = "general"; // Use built-in general template
-        options.EnableConditionalLogic = true;
-        options.CustomVariables["ProjectType"] = "MCP Server Example";
-        options.CustomVariables["TeamName"] = "COA Framework Team";
-        options.CustomVariables["Purpose"] = "Demonstrate behavioral adoption features";
+        options.TemplateContext = "general"; // Use built-in general template
+        options.EnableTemplateInstructions = true;
+        options.CustomTemplateVariables["ProjectType"] = "MCP Server Example";
+        options.CustomTemplateVariables["TeamName"] = "COA Framework Team";
+        options.CustomTemplateVariables["Purpose"] = "Demonstrate behavioral adoption features";
     })
     
     // Tool management with priority and workflow suggestions
     .ConfigureToolManagement(config =>
     {
-        config.EnableWorkflowSuggestions = true;  // Suggests optimal tool sequences
-        config.EnableToolPriority = true;        // Promotes high-priority tools
-        config.EnableDescriptionEnhancement = true; // Enriches tool descriptions
+        config.EnableWorkflowSuggestions = true;        // Suggests optimal tool sequences
+        config.EnableToolPrioritySystem = true;        // Promotes high-priority tools
+        config.UseDefaultDescriptionProvider = true;   // Enriches tool descriptions
     })
     
     // Advanced error recovery with educational guidance
     .WithAdvancedErrorRecovery(options =>
     {
         options.EnableRecoveryGuidance = true;
-        options.Tone = ErrorRecoveryTone.Tutorial; // Educational for examples
+        options.RecoveryTone = RecoveryTone.Educational; // Educational for examples
         options.IncludeOriginalError = true;
-        options.IncludePreventionTips = true;  // Teaches error prevention
-        options.IncludeProTips = true;         // Advanced usage tips
+        options.IncludeWorkflowTips = true;    // Teaches workflow improvements
+        options.SuggestAlternativeTools = true; // Advanced usage tips
     })
     .ConfigureLogging(logging =>
     {

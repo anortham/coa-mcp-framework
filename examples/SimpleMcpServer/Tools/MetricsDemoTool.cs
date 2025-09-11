@@ -5,8 +5,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using COA.Mcp.Framework.Base;
 using COA.Mcp.Framework.Models;
-using COA.Mcp.Visualization;
-using COA.Mcp.Visualization.Helpers;
 using Microsoft.Extensions.Logging;
 
 namespace SimpleMcpServer.Tools;
@@ -54,9 +52,9 @@ public class MetricsDemoResult : ToolResultBase
 }
 
 /// <summary>
-/// Demo tool that demonstrates chart visualization with system metrics
+/// Demo tool that demonstrates system metrics collection
 /// </summary>
-public class MetricsDemoTool : McpToolBase<MetricsDemoParams, MetricsDemoResult>, IVisualizationProvider
+public class MetricsDemoTool : McpToolBase<MetricsDemoParams, MetricsDemoResult>
 {
     private MetricsDemoResult? _lastResult;
 
@@ -96,41 +94,7 @@ public class MetricsDemoTool : McpToolBase<MetricsDemoParams, MetricsDemoResult>
         return result;
     }
 
-    public override VisualizationDescriptor? GetVisualizationDescriptor()
-    {
-        if (_lastResult == null) return null;
 
-        return VisualizationHelpers.CreateMetrics(
-            new
-            {
-                type = _lastResult.MetricType,
-                data = _lastResult.Metrics,
-                summary = _lastResult.Summary,
-                chartConfig = new
-                {
-                    type = GetChartType(_lastResult.MetricType),
-                    animate = true,
-                    showLegend = true,
-                    showGrid = true
-                }
-            },
-            builder => builder
-                .WithPriority(COA.Mcp.Visualization.VisualizationPriority.Normal)
-                .WithInteractive(true)
-                .WithMetadata("tool", "metrics_demo")
-                .WithMetadata("metricType", _lastResult.MetricType)
-                .WithMetadata("timestamp", DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ"))
-        );
-    }
-
-    private static string GetChartType(string metricType) => metricType.ToLowerInvariant() switch
-    {
-        "performance" => "line",
-        "memory" => "area",
-        "network" => "line",
-        "disk" => "bar",
-        _ => "line"
-    };
 
     private static (object Data, object Summary) GeneratePerformanceMetrics(int dataPoints)
     {

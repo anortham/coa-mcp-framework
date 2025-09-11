@@ -45,6 +45,7 @@ public class McpServerBuilder
     private ILogger<McpServerBuilder>? _logger;
     private List<ToolComparison>? _toolComparisons;
     private WorkflowEnforcement _workflowEnforcement = WorkflowEnforcement.Recommend;
+    private FrameworkOptions? _frameworkOptions;
 
     /// <summary>
     /// Initializes a new instance of the McpServerBuilder class.
@@ -226,45 +227,6 @@ public class McpServerBuilder
         return this;
     }
 
-    /// <summary>
-    /// Configures advanced error recovery with template-based guidance and professional error messages.
-    /// This system provides educational error messages that teach better tool usage patterns
-    /// without emotional manipulation, following the professional approach from Phase 5 implementation.
-    /// </summary>
-    /// <param name="configure">Optional action to configure error recovery options.</param>
-    /// <returns>The builder for chaining.</returns>
-    public McpServerBuilder WithAdvancedErrorRecovery(Action<ErrorRecoveryOptions>? configure = null)
-    {
-        var options = new ErrorRecoveryOptions();
-        configure?.Invoke(options);
-
-        // Register error recovery configuration
-        _services.Configure<ErrorRecoveryOptions>(opts =>
-        {
-            opts.EnableRecoveryGuidance = options.EnableRecoveryGuidance;
-            opts.IncludeOriginalError = options.IncludeOriginalError;
-            opts.RecoveryTone = options.RecoveryTone;
-            opts.IncludePerformanceMetrics = options.IncludePerformanceMetrics;
-            opts.IncludeWorkflowTips = options.IncludeWorkflowTips;
-            opts.MaxErrorMessageLength = options.MaxErrorMessageLength;
-            opts.CacheCompiledTemplates = options.CacheCompiledTemplates;
-            opts.EnableDebugLogging = options.EnableDebugLogging;
-            opts.ExternalTemplateDirectory = options.ExternalTemplateDirectory;
-            opts.WatchExternalTemplates = options.WatchExternalTemplates;
-            opts.Priority = options.Priority;
-            opts.SuggestAlternativeTools = options.SuggestAlternativeTools;
-            opts.EnableBehavioralConditioning = options.EnableBehavioralConditioning;
-        });
-
-        // Register core error recovery services
-        _services.AddSingleton<ErrorRecoveryTemplateProcessor>();
-        _services.AddTransient<AdvancedErrorMessageProvider>();
-
-        // Ensure template processing services are available (dependency for error recovery)
-        _services.AddSingleton<InstructionTemplateProcessor>();
-
-        return this;
-    }
 
     /// <summary>
     /// Sets instructions from a template file with variables.
@@ -570,6 +532,14 @@ public class McpServerBuilder
     /// <returns>The builder for chaining.</returns>
     public McpServerBuilder ConfigureFramework(Action<FrameworkOptions> configure)
     {
+        // Initialize if not already done
+        if (_frameworkOptions == null)
+            _frameworkOptions = new FrameworkOptions();
+            
+        // Apply user configuration to our instance
+        configure(_frameworkOptions);
+        
+        // Also register with DI for services that need it
         _services.Configure(configure);
         return this;
     }
@@ -1082,9 +1052,8 @@ public class McpServerBuilder
     
     private void ConfigureFrameworkLogging()
     {
-        // Use default FrameworkOptions instead of building ServiceProvider during configuration
-        // This prevents multiple ServiceProvider creation issues
-        var frameworkOptions = new FrameworkOptions();
+        // Use stored framework options or default if not configured
+        var frameworkOptions = _frameworkOptions ?? new FrameworkOptions();
         
         // Check if logging is already configured by looking for existing loggers
         var existingLoggers = _services.Where(s => s.ServiceType == typeof(ILoggerProvider) || 
@@ -1393,9 +1362,8 @@ public class McpServerBuilder
     {
         try
         {
-            // This would need to be implemented in McpToolRegistry to expose tool instances
-            // For now, return null to disable marker detection
-            return null;
+            // Return all tools from the registry to enable marker detection and priority-aware templates
+            return toolRegistry.GetAllTools();
         }
         catch (Exception ex)
         {
