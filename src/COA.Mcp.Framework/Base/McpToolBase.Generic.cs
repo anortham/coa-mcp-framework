@@ -45,7 +45,8 @@ public abstract class McpToolBase<TParams, TResult> : IMcpTool<TParams, TResult>
         _jsonOptions = new JsonSerializerOptions
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-            WriteIndented = false
+            WriteIndented = false,
+            Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping // Fix: Allow UTF-8 emojis and Unicode characters
         };
 
         // Resolve global middleware from DI container

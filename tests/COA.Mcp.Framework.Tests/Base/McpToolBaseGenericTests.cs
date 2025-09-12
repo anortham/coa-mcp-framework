@@ -296,6 +296,173 @@ namespace COA.Mcp.Framework.Tests.Base
         }
 
         #endregion
+        #region UTF-8 Encoding Tests
+
+        private static readonly JsonSerializerOptions Utf8JsonOptions = new()
+        {
+            Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+        };
+
+        [Test]
+        public async Task ExecuteAsync_WithEmojiInJsonElementParameters_PreservesUtf8Encoding()
+        {
+            // Arrange
+            var emojiTestTool = new EmojiTestTool();
+            IMcpTool untypedTool = emojiTestTool; // Use untyped interface to trigger JSON deserialization
+            
+            // Create JSON with emojis exactly like MCP would send
+            var jsonString = """
+                {
+                    "content": "📊 **Daily Standup Report**\n✅ Completed tasks\n📈 Progress metrics\n⏳ In progress work\n💡 Key insights"
+                }
+                """;
+            
+            var jsonElement = JsonSerializer.Deserialize<JsonElement>(jsonString, Utf8JsonOptions);
+
+            // Act - Use untyped interface to trigger deserialization path
+            var result = await untypedTool.ExecuteAsync(jsonElement);
+
+            // Assert
+            result.Should().NotBeNull();
+            var typedResult = (EmojiTestResult)result;
+            typedResult.Success.Should().BeTrue();
+            typedResult.ProcessedContent.Should().NotBeNull();
+            
+            // Verify emojis were NOT corrupted during deserialization
+            typedResult.ProcessedContent.Should().Contain("📊", "chart emoji should be preserved");
+            typedResult.ProcessedContent.Should().Contain("✅", "checkmark emoji should be preserved");
+            typedResult.ProcessedContent.Should().Contain("📈", "trending up emoji should be preserved");
+            typedResult.ProcessedContent.Should().Contain("⏳", "hourglass emoji should be preserved");
+            typedResult.ProcessedContent.Should().Contain("💡", "light bulb emoji should be preserved");
+            
+            // Verify NO corruption patterns appear
+            typedResult.ProcessedContent.Should().NotContain("╬ô├½├¡Γò₧├åΓö£ΓöñΓö£┬┐", "should not contain UTF-8/Windows-1252 corruption");
+            typedResult.ProcessedContent.Should().NotContain("Γò¼├┤Γö¼├║Γö£├í", "should not contain UTF-8/Windows-1252 corruption");
+            typedResult.ProcessedContent.Should().NotContain("╬ô├½├¡Γò₧├åΓö£ΓöñΓö£┬¼", "should not contain UTF-8/Windows-1252 corruption");
+            typedResult.ProcessedContent.Should().NotContain("╬ô├½├¡Γò₧├åΓö£ΓòóΓö£├▒", "should not contain UTF-8/Windows-1252 corruption");
+            typedResult.ProcessedContent.Should().NotContain("╬ô├½├¡Γò₧├åΓö£├ÑΓö£┬í", "should not contain UTF-8/Windows-1252 corruption");
+        }
+
+        #endregion
+
+        #region Test Tool Implementations
+
+        private class TestParameters
+        {
+            public string Name { get; set; }
+            public int Value { get; set; }
+        }
+
+        private class TestValidationParameters
+        {
+            [Required]
+            public string RequiredField { get; set; }
+
+            [FrameworkRangeAttribute(1, 100)]
+            public int RangeValue { get; set; }
+        }
+
+        private class TestResult : ToolResultBase
+        {
+            public override string Operation => "test_operation";
+            public string Data { get; set; }
+        }
+
+        private class EmojiTestParameters
+        {
+            public string Content { get; set; }
+        }
+
+        private class EmojiTestResult : ToolResultBase
+        {
+            public override string Operation => "emoji_test";
+            public string ProcessedContent { get; set; }
+        }
+        private class EmojiTestTool : McpToolBase<EmojiTestParameters, EmojiTestResult>
+        {
+            public override string Name => "emoji_test_tool";
+            public override string Description => "Test tool for UTF-8 emoji handling";
+
+            protected override Task<EmojiTestResult> ExecuteInternalAsync(EmojiTestParameters parameters, CancellationToken cancellationToken)
+            {
+                return Task.FromResult(new EmojiTestResult
+                {
+                    Success = true,
+                    ProcessedContent = parameters.Content // Simply echo the content to test deserialization
+                });
+            }
+        }
+
+        [Test]
+        public async Task ExecuteAsync_WithComplexEmojiSequences_PreservesUtf8Encoding()
+        {
+            // Arrange
+            var emojiTestTool = new EmojiTestTool();
+            
+            // Test with various emoji types and Unicode sequences
+            var jsonString = """
+                {
+                    "content": "📊 Target: 🚀 Launch\n👨‍💻 Developer: 🔧 Tools\n📚 Documentation: ⭐ Quality"
+                }
+                """;
+            
+            var jsonElement = JsonSerializer.Deserialize<JsonElement>(jsonString, Utf8JsonOptions);
+
+            // Act
+            IMcpTool untypedTool = emojiTestTool;
+            var result = await untypedTool.ExecuteAsync(jsonElement);
+            var typedResult = (EmojiTestResult)result;
+
+            // Assert
+            typedResult.Should().NotBeNull();
+            typedResult.Success.Should().BeTrue();
+            typedResult.ProcessedContent.Should().NotBeNull();
+            
+            // Verify complex emoji sequences are preserved
+            typedResult.ProcessedContent.Should().Contain("📊", "direct hit emoji should be preserved");
+            typedResult.ProcessedContent.Should().Contain("🚀", "rocket emoji should be preserved");
+            typedResult.ProcessedContent.Should().Contain("👨‍💻", "man technologist emoji sequence should be preserved");
+            typedResult.ProcessedContent.Should().Contain("🔧", "wrench emoji should be preserved");
+            typedResult.ProcessedContent.Should().Contain("📚", "books emoji should be preserved");
+            typedResult.ProcessedContent.Should().Contain("⭐", "star emoji should be preserved");
+        }
+
+        [Test]
+        public async Task ExecuteAsync_WithMixedUtf8Characters_PreservesAllEncoding()
+        {
+            // Arrange
+            var emojiTestTool = new EmojiTestTool();
+            
+            // Mix emojis with other UTF-8 characters
+            var jsonString = """
+                {
+                    "content": "Résumé: 📊 Données financières\nÄlärem: 🔔 Notification\nNaïve café: ☕ Français"
+                }
+                """;
+            
+            var jsonElement = JsonSerializer.Deserialize<JsonElement>(jsonString, Utf8JsonOptions);
+
+            // Act
+            IMcpTool untypedTool = emojiTestTool;
+            var result = await untypedTool.ExecuteAsync(jsonElement);
+            var typedResult = (EmojiTestResult)result;
+
+            // Assert
+            typedResult.Should().NotBeNull();
+            typedResult.Success.Should().BeTrue();
+            typedResult.ProcessedContent.Should().NotBeNull();
+            
+            // Verify both emojis and accented characters are preserved
+            typedResult.ProcessedContent.Should().Contain("Résumé", "accented characters should be preserved");
+            typedResult.ProcessedContent.Should().Contain("📊", "chart emoji should be preserved");
+            typedResult.ProcessedContent.Should().Contain("Älärem", "German umlauts should be preserved");
+            typedResult.ProcessedContent.Should().Contain("🔔", "bell emoji should be preserved");
+            typedResult.ProcessedContent.Should().Contain("Naïve café", "French accents should be preserved");
+            typedResult.ProcessedContent.Should().Contain("☕", "coffee emoji should be preserved");
+            typedResult.ProcessedContent.Should().Contain("Français", "French characters should be preserved");
+        }
+
+        #endregion
 
         #region Error Helper Tests
 
@@ -355,26 +522,6 @@ namespace COA.Mcp.Framework.Tests.Base
 
         #region Test Tool Implementations
 
-        private class TestParameters
-        {
-            public string Name { get; set; }
-            public int Value { get; set; }
-        }
-
-        private class TestValidationParameters
-        {
-            [Required]
-            public string RequiredField { get; set; }
-
-            [FrameworkRangeAttribute(1, 100)]
-            public int RangeValue { get; set; }
-        }
-
-        private class TestResult : ToolResultBase
-        {
-            public override string Operation => "test_operation";
-            public string Data { get; set; }
-        }
 
         private class TestTool : McpToolBase<TestParameters, TestResult>
         {
