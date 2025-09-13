@@ -62,10 +62,7 @@ public class ProgressNotificationTests
         var notification = new ProgressNotification("test-token", 25, 50, "Processing file");
 
         // Act
-        var json = JsonSerializer.Serialize(notification, new JsonSerializerOptions 
-        { 
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase 
-        });
+        var json = JsonSerializer.Serialize(notification, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
 
         // Assert
         json.Should().Contain("\"jsonrpc\":\"2.0\"");
@@ -83,10 +80,7 @@ public class ProgressNotificationTests
         var notification = new ProgressNotification("test-token", 10);
 
         // Act
-        var json = JsonSerializer.Serialize(notification, new JsonSerializerOptions 
-        { 
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase 
-        });
+        var json = JsonSerializer.Serialize(notification, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
 
         // Assert
         json.Should().Contain("\"progressToken\":\"test-token\"");
@@ -111,10 +105,7 @@ public class ProgressNotificationTests
         """;
 
         // Act
-        var notification = JsonSerializer.Deserialize<ProgressNotification>(json, new JsonSerializerOptions 
-        { 
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase 
-        });
+        var notification = JsonSerializer.Deserialize<ProgressNotification>(json, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
 
         // Assert
         notification.Should().NotBeNull();
@@ -140,10 +131,7 @@ public class ProgressNotificationTests
         """;
 
         // Act
-        var notification = JsonSerializer.Deserialize<ProgressNotification>(json, new JsonSerializerOptions 
-        { 
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase 
-        });
+        var notification = JsonSerializer.Deserialize<ProgressNotification>(json, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
 
         // Assert
         notification.Should().NotBeNull();

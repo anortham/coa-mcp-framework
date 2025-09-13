@@ -63,10 +63,7 @@ public class TypedJsonRpcTests
         );
 
         // Act
-        var json = JsonSerializer.Serialize(request, new JsonSerializerOptions 
-        { 
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase 
-        });
+        var json = JsonSerializer.Serialize(request, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
 
         // Assert
         json.Should().Contain("\"jsonrpc\":\"2.0\"");
@@ -95,10 +92,7 @@ public class TypedJsonRpcTests
         """;
 
         // Act
-        var request = JsonSerializer.Deserialize<TypedJsonRpcRequest<TestParams>>(json, new JsonSerializerOptions 
-        { 
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase 
-        });
+        var request = JsonSerializer.Deserialize<TypedJsonRpcRequest<TestParams>>(json, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
 
         // Assert
         request.Should().NotBeNull();
@@ -163,10 +157,7 @@ public class TypedJsonRpcTests
         );
 
         // Act
-        var json = JsonSerializer.Serialize(response, new JsonSerializerOptions 
-        { 
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase 
-        });
+        var json = JsonSerializer.Serialize(response, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
 
         // Assert
         json.Should().Contain("\"jsonrpc\":\"2.0\"");
@@ -188,10 +179,7 @@ public class TypedJsonRpcTests
         var response = new TypedJsonRpcResponse<TestResult>("error-resp", error);
 
         // Act
-        var json = JsonSerializer.Serialize(response, new JsonSerializerOptions 
-        { 
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase 
-        });
+        var json = JsonSerializer.Serialize(response, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
 
         // Assert
         json.Should().Contain("\"jsonrpc\":\"2.0\"");
@@ -231,10 +219,7 @@ public class TypedJsonRpcTests
         );
 
         // Act
-        var json = JsonSerializer.Serialize(notification, new JsonSerializerOptions 
-        { 
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase 
-        });
+        var json = JsonSerializer.Serialize(notification, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
 
         // Assert
         json.Should().Contain("\"jsonrpc\":\"2.0\"");
@@ -343,14 +328,8 @@ public class TypedJsonRpcTests
         );
 
         // Act - Serialize and deserialize
-        var json = JsonSerializer.Serialize(originalRequest, new JsonSerializerOptions 
-        { 
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase 
-        });
-        var deserializedRequest = JsonSerializer.Deserialize<TypedJsonRpcRequest<TestParams>>(json, new JsonSerializerOptions 
-        { 
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase 
-        });
+        var json = JsonSerializer.Serialize(originalRequest, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+        var deserializedRequest = JsonSerializer.Deserialize<TypedJsonRpcRequest<TestParams>>(json, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
 
         // Assert
         deserializedRequest.Should().NotBeNull();
@@ -372,14 +351,8 @@ public class TypedJsonRpcTests
         );
 
         // Act - Serialize and deserialize
-        var json = JsonSerializer.Serialize(originalResponse, new JsonSerializerOptions 
-        { 
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase 
-        });
-        var deserializedResponse = JsonSerializer.Deserialize<TypedJsonRpcResponse<TestResult>>(json, new JsonSerializerOptions 
-        { 
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase 
-        });
+        var json = JsonSerializer.Serialize(originalResponse, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+        var deserializedResponse = JsonSerializer.Deserialize<TypedJsonRpcResponse<TestResult>>(json, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
 
         // Assert
         deserializedResponse.Should().NotBeNull();
