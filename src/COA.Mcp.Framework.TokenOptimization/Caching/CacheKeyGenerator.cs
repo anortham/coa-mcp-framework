@@ -4,6 +4,7 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using COA.Mcp.Framework.Serialization;
 using COA.Mcp.Framework.TokenOptimization.Utilities;
 
 namespace COA.Mcp.Framework.TokenOptimization.Caching;
@@ -14,11 +15,7 @@ public class CacheKeyGenerator : ICacheKeyGenerator
     
     public CacheKeyGenerator()
     {
-        _jsonOptions = new JsonSerializerOptions
-        {
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-            WriteIndented = false
-        };
+        _jsonOptions = JsonOptionsFactory.CreateStandard();
     }
     
     public string GenerateKey(string toolName, object parameters)
