@@ -4,6 +4,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.Extensions.FileSystemGlobbing;
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
+using COA.Mcp.Framework.Serialization;
 
 namespace COA.Mcp.Framework.Migration.Analyzers;
 
@@ -210,11 +211,7 @@ public class MigrationAnalyzer
     {
         var result = format switch
         {
-            ReportFormat.Json => JsonSerializer.Serialize(report, new JsonSerializerOptions 
-            { 
-                WriteIndented = true,
-                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-            }),
+            ReportFormat.Json => JsonSerializer.Serialize(report, JsonDefaults.Indented),
             ReportFormat.Markdown => GenerateMarkdownReport(report),
             _ => throw new NotSupportedException($"Report format {format} is not supported")
         };

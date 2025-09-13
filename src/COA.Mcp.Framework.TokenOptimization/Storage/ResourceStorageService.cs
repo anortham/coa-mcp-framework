@@ -6,6 +6,7 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using COA.Mcp.Framework.TokenOptimization.Storage.Strategies;
 using COA.Mcp.Framework.Utilities;
+using COA.Mcp.Framework.Serialization;
 
 namespace COA.Mcp.Framework.TokenOptimization.Storage;
 
@@ -17,11 +18,7 @@ public class ResourceStorageService : IResourceStorageService
     
     public ResourceStorageService()
     {
-        _jsonOptions = new JsonSerializerOptions
-        {
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-            WriteIndented = false
-        };
+        _jsonOptions = JsonDefaults.Standard;
         
         // Register default strategies
         RegisterStrategy(new InMemoryStorageStrategy());

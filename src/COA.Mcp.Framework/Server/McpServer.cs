@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using COA.Mcp.Framework.Prompts;
 using COA.Mcp.Framework.Registration;
 using COA.Mcp.Framework.Resources;
+using COA.Mcp.Framework.Serialization;
 using COA.Mcp.Framework.Transport;
 using COA.Mcp.Protocol;
 using Microsoft.Extensions.DependencyInjection;
@@ -60,11 +61,7 @@ public class McpServer : IHostedService, IDisposable
         _instructions = instructions;
         _logger = logger;
         
-        _jsonOptions = new JsonSerializerOptions
-        {
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-            WriteIndented = false
-        };
+        _jsonOptions = JsonDefaults.Standard;
 
         _capabilities = new ServerCapabilities
         {

@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using COA.Mcp.Client.Configuration;
 using COA.Mcp.Client.Interfaces;
 using COA.Mcp.Framework.Models;
+using COA.Mcp.Framework.Serialization;
 using COA.Mcp.Protocol;
 using Microsoft.Extensions.Logging;
 
@@ -51,12 +52,7 @@ namespace COA.Mcp.Client
             _baseClient = new McpHttpClient(options, httpClient, logger as ILogger<McpHttpClient>);
             _logger = logger;
             
-            _jsonOptions = new JsonSerializerOptions
-            {
-                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-                WriteIndented = false,
-                DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
-            };
+            _jsonOptions = JsonDefaults.Standard;
         }
 
         public TypedMcpClient(IMcpClient baseClient, ILogger<TypedMcpClient<TParams, TResult>>? logger = null)
@@ -64,12 +60,7 @@ namespace COA.Mcp.Client
             _baseClient = baseClient ?? throw new ArgumentNullException(nameof(baseClient));
             _logger = logger;
             
-            _jsonOptions = new JsonSerializerOptions
-            {
-                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-                WriteIndented = false,
-                DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
-            };
+            _jsonOptions = JsonDefaults.Standard;
         }
 
         public Task ConnectAsync(CancellationToken cancellationToken = default)
