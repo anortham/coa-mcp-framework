@@ -41,4 +41,19 @@ public static class JsonOptionsFactory
             DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
         };
     }
+
+    /// <summary>
+    /// Creates JsonSerializerOptions for case-insensitive deserialization.
+    /// Used when deserializing JSON from external sources with varying property casing.
+    /// </summary>
+    /// <returns>JsonSerializerOptions configured for case-insensitive property matching</returns>
+    public static JsonSerializerOptions CreateForDeserialization()
+    {
+        return new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true,
+            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+        };
+    }
 }
