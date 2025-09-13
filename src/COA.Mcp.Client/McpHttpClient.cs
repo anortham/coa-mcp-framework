@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using COA.Mcp.Client.Configuration;
 using COA.Mcp.Client.Interfaces;
+using COA.Mcp.Framework.Serialization;
 using COA.Mcp.Protocol;
 using Microsoft.Extensions.Logging;
 using Polly;
@@ -48,11 +49,7 @@ namespace COA.Mcp.Client
             _pendingRequests = new ConcurrentDictionary<int, TaskCompletionSource<JsonDocument>>();
             _requestId = 0;
 
-            _jsonOptions = new JsonSerializerOptions
-            {
-                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-                WriteIndented = false
-            };
+            _jsonOptions = JsonOptionsFactory.CreateStandard();
 
             // Configure HTTP client
             _httpClient.BaseAddress = new Uri(_options.BaseUrl);
