@@ -6,6 +6,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using COA.Mcp.Framework.Configuration;
@@ -17,7 +18,6 @@ using Microsoft.Extensions.DependencyInjection;
 using COA.Mcp.Framework.Schema;
 using COA.Mcp.Framework.Utilities;
 using Microsoft.Extensions.Logging;
-using COA.Mcp.Framework.Serialization;
 
 namespace COA.Mcp.Framework.Base;
 
@@ -43,8 +43,14 @@ public abstract class McpToolBase<TParams, TResult> : IMcpTool<TParams, TResult>
     protected McpToolBase(IServiceProvider? serviceProvider = null, ILogger? logger = null)
     {
         _logger = logger;
-        // Use centralized JSON configuration for consistency across the framework
-        _jsonOptions = JsonDefaults.Standard;
+        // Use centralized JSON configuration from DI container
+        _jsonOptions = serviceProvider?.GetService<JsonSerializerOptions>() ?? new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            WriteIndented = false,
+            Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+        };
 
         // Resolve global middleware from DI container
         _globalMiddleware = serviceProvider?.GetServices<ISimpleMiddleware>()

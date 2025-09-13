@@ -6,6 +6,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using COA.Mcp.Framework.Attributes;
@@ -13,7 +14,6 @@ using COA.Mcp.Framework.Base;
 using COA.Mcp.Framework.Exceptions;
 using COA.Mcp.Framework.Interfaces;
 using COA.Mcp.Framework.Models;
-using COA.Mcp.Framework.Serialization;
 using COA.Mcp.Framework.Schema;
 using COA.Mcp.Protocol;
 using Microsoft.Extensions.DependencyInjection;
@@ -43,7 +43,11 @@ public class McpToolRegistry : IAsyncDisposable
         _tools = new ConcurrentDictionary<string, RegisteredTool>(StringComparer.OrdinalIgnoreCase);
         _serviceProvider = serviceProvider;
         _logger = logger;
-        _jsonOptions = JsonDefaults.Standard;
+        _jsonOptions = new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            WriteIndented = false
+        };
     }
 
     /// <summary>
