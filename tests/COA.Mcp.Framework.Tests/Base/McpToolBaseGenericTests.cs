@@ -584,8 +584,8 @@ namespace COA.Mcp.Framework.Tests.Base
             var complexEstimate = complexTool.TestEstimateResultTokens();
 
             // Assert
-            collectionEstimate.Should().BeGreaterThan(complexEstimate, "Collections should estimate more tokens");
-            complexEstimate.Should().BeGreaterThan(stringEstimate, "Complex objects should estimate more than strings");
+            complexEstimate.Should().BeGreaterThan(collectionEstimate, "Complex result types should estimate more tokens than collections");
+            collectionEstimate.Should().BeGreaterThan(stringEstimate, "Collections should estimate more tokens than simple strings");
         }
 
         [Test]
