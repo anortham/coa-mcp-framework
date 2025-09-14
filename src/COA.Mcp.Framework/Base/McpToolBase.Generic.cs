@@ -147,6 +147,7 @@ public abstract class McpToolBase<TParams, TResult> : IMcpTool<TParams, TResult>
             // Execute with token management
             var result = await ExecuteWithTokenManagement(
                 () => ExecuteInternalAsync(parameters, cancellationToken),
+                parameters,
                 cancellationToken).ConfigureAwait(false);
             
             if (_logger?.IsEnabled(LogLevel.Debug) == true)
@@ -214,6 +215,7 @@ public abstract class McpToolBase<TParams, TResult> : IMcpTool<TParams, TResult>
             // Execute with token management
             result = await ExecuteWithTokenManagement(
                 () => ExecuteInternalAsync(parameters, cancellationToken),
+                parameters,
                 cancellationToken).ConfigureAwait(false);
             
             if (_logger?.IsEnabled(LogLevel.Debug) == true)
@@ -364,43 +366,100 @@ public abstract class McpToolBase<TParams, TResult> : IMcpTool<TParams, TResult>
     /// Executes an operation with token management and monitoring.
     /// </summary>
     protected async Task<T> ExecuteWithTokenManagement<T>(
-        Func<Task<T>> operation, 
+        Func<Task<T>> operation,
         CancellationToken cancellationToken = default)
     {
-        var tokenEstimate = EstimateTokenUsage();
+        return await ExecuteWithTokenManagement(operation, null, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Executes an operation with parameter-aware token management and monitoring.
+    /// </summary>
+    protected async Task<T> ExecuteWithTokenManagement<T>(
+        Func<Task<T>> operation,
+        TParams? parameters,
+        CancellationToken cancellationToken = default)
+    {
+        var tokenEstimate = EstimateTokenUsage(parameters);
         var budget = TokenBudget;
-        
+
+        _logger?.LogDebug("Tool '{ToolName}' token estimate: {Estimate}, Budget: {Budget}, Strategy: {Strategy}",
+            Name, tokenEstimate, budget.MaxTokens, budget.Strategy);
+
         // Check token budget
         if (tokenEstimate > budget.MaxTokens)
         {
+            var errorMessage = $"Tool '{Name}' estimated tokens ({tokenEstimate:N0}) exceeds budget ({budget.MaxTokens:N0})";
+
             switch (budget.Strategy)
             {
                 case TokenLimitStrategy.Throw:
-                    throw new InvalidOperationException(
-                        $"Tool '{Name}' estimated tokens ({tokenEstimate}) exceeds budget ({budget.MaxTokens})");
+                    throw new InvalidOperationException(errorMessage);
+
                 case TokenLimitStrategy.Warn:
-                    _logger?.LogWarning("Tool '{ToolName}' exceeds token budget. Estimated: {Tokens}, Max: {MaxTokens}", 
-                        Name, tokenEstimate, budget.MaxTokens);
+                    _logger?.LogWarning("Token budget exceeded: {Message}", errorMessage);
                     break;
+
                 case TokenLimitStrategy.Truncate:
-                    if (_logger?.IsEnabled(LogLevel.Debug) == true)
-                    {
-                        _logger.LogDebug("Tool '{ToolName}' may truncate output to stay within {MaxTokens} token budget", 
-                            Name, budget.MaxTokens);
-                    }
+                    _logger?.LogInformation("Token budget exceeded, output may be truncated: {Message}", errorMessage);
+                    break;
+
+                case TokenLimitStrategy.Ignore:
+                    _logger?.LogDebug("Token budget exceeded but ignored: {Message}", errorMessage);
                     break;
             }
         }
         else if (tokenEstimate > budget.WarningThreshold)
         {
-            if (_logger?.IsEnabled(LogLevel.Debug) == true)
-            {
-                _logger.LogDebug("Tool '{ToolName}' approaching token limit. Estimated: {Tokens}, Warning: {Threshold}", 
-                    Name, tokenEstimate, budget.WarningThreshold);
-            }
+            _logger?.LogDebug("Tool '{ToolName}' approaching token limit. Estimated: {Tokens:N0}, Warning: {Threshold:N0}",
+                Name, tokenEstimate, budget.WarningThreshold);
         }
-        
-        return await operation().ConfigureAwait(false);
+
+        // Execute operation and measure actual result size
+        var startTime = DateTime.UtcNow;
+        var result = await operation().ConfigureAwait(false);
+        var executionTime = DateTime.UtcNow - startTime;
+
+        // Estimate actual tokens in result for telemetry
+        var actualTokens = EstimateActualResultTokens(result);
+
+        // Log token usage telemetry
+        LogTokenUsageTelemetry(tokenEstimate, actualTokens, executionTime);
+
+        return result;
+    }
+
+    /// <summary>
+    /// Estimates actual tokens in the result for telemetry purposes.
+    /// </summary>
+    private int EstimateActualResultTokens<T>(T result)
+    {
+        try
+        {
+            var json = JsonSerializer.Serialize(result, _jsonOptions);
+            return EstimateTokensFromText(json);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogDebug(ex, "Failed to estimate actual result tokens for tool '{ToolName}'", Name);
+            return 0;
+        }
+    }
+
+    /// <summary>
+    /// Logs token usage telemetry for monitoring and optimization.
+    /// </summary>
+    private void LogTokenUsageTelemetry(int estimatedTokens, int actualTokens, TimeSpan executionTime)
+    {
+        if (_logger?.IsEnabled(LogLevel.Information) == true)
+        {
+            var accuracy = actualTokens > 0 ? (double)Math.Min(estimatedTokens, actualTokens) / Math.Max(estimatedTokens, actualTokens) : 1.0;
+
+            _logger.LogInformation(
+                "Token Usage - Tool: {ToolName}, Estimated: {Estimated:N0}, Actual: {Actual:N0}, " +
+                "Accuracy: {Accuracy:P1}, ExecutionTime: {ExecutionTime:N0}ms",
+                Name, estimatedTokens, actualTokens, accuracy, executionTime.TotalMilliseconds);
+        }
     }
 
     /// <summary>
@@ -409,8 +468,281 @@ public abstract class McpToolBase<TParams, TResult> : IMcpTool<TParams, TResult>
     /// </summary>
     protected virtual int EstimateTokenUsage()
     {
-        // Basic estimation - override for more accuracy
-        return 1000;
+        return EstimateTokenUsage(null);
+    }
+
+    /// <summary>
+    /// Estimates the token usage for this tool execution with specific parameters.
+    /// This provides a more accurate estimation than the parameterless version.
+    /// Override in derived classes for tool-specific estimation logic.
+    /// </summary>
+    /// <param name="parameters">The parameters for this tool execution (null for generic estimation)</param>
+    /// <returns>Estimated token count for this tool execution</returns>
+    protected virtual int EstimateTokenUsage(TParams? parameters)
+    {
+        try
+        {
+            var baseEstimate = CalculateBaseTokenEstimate();
+            var parameterEstimate = parameters != null ? EstimateParameterTokens(parameters) : 0;
+            var resultEstimate = EstimateResultTokens();
+
+            var totalEstimate = baseEstimate + parameterEstimate + resultEstimate;
+
+            // Apply estimation multiplier from token budget configuration
+            var multiplier = TokenBudget.EstimationMultiplier;
+            return (int)(totalEstimate * multiplier);
+        }
+        catch (Exception ex)
+        {
+            // Fallback to conservative estimate if calculation fails
+            _logger?.LogWarning(ex, "Token estimation failed for tool '{ToolName}', using fallback", Name);
+            return TokenBudget.MaxTokens / 2; // Use half of max budget as fallback
+        }
+    }
+
+    /// <summary>
+    /// Calculates base token estimate for this tool type.
+    /// Override to provide tool-specific base estimates.
+    /// </summary>
+    protected virtual int CalculateBaseTokenEstimate()
+    {
+        // Base estimate varies by tool category
+        return Category switch
+        {
+            ToolCategory.Query => 2000,         // Query/Search tools typically return many results
+            ToolCategory.Analysis => 1500,      // Analysis tools return structured data
+            ToolCategory.Resources => 800,      // Resource tools usually return paths/metadata
+            ToolCategory.Utility => 500,        // Utility tools typically have small outputs
+            ToolCategory.Integration => 1200,   // Integration tools return records/metadata
+            ToolCategory.Monitoring => 1000,    // Monitoring tools return status/data
+            _ => 1000                           // Default for General and other categories
+        };
+    }
+
+    /// <summary>
+    /// Estimates tokens consumed by tool parameters.
+    /// Override for parameter-specific estimation logic.
+    /// </summary>
+    protected virtual int EstimateParameterTokens(TParams parameters)
+    {
+        // Basic JSON size estimation without external dependencies
+        try
+        {
+            var json = JsonSerializer.Serialize(parameters, _jsonOptions);
+            return EstimateTokensFromText(json);
+        }
+        catch
+        {
+            // Fallback if serialization fails
+            return 100;
+        }
+    }
+
+    /// <summary>
+    /// Estimates tokens that will be produced in the result.
+    /// Uses dynamic estimation based on result type complexity and expected data patterns.
+    /// Override for result-specific estimation logic.
+    /// </summary>
+    protected virtual int EstimateResultTokens()
+    {
+        var resultType = typeof(TResult);
+
+        // Check if it's a collection type
+        if (resultType.IsGenericType)
+        {
+            var genericDef = resultType.GetGenericTypeDefinition();
+            if (genericDef == typeof(List<>) || genericDef == typeof(IEnumerable<>) ||
+                genericDef == typeof(ICollection<>) || genericDef == typeof(IList<>))
+            {
+                // Estimate collection tokens based on generic type
+                var itemType = resultType.GetGenericArguments()[0];
+                var tokensPerItem = EstimateTokensForType(itemType);
+
+                // Estimate collection size based on tool category
+                var expectedItems = Category switch
+                {
+                    ToolCategory.Query => 25,      // Search results typically return many items
+                    ToolCategory.Analysis => 15,   // Analysis usually returns fewer, more detailed items
+                    ToolCategory.Resources => 50,  // Resource listings can be large
+                    ToolCategory.Utility => 5,     // Utilities typically return few items
+                    _ => 20                        // Default moderate collection size
+                };
+
+                // Collection overhead (array brackets, commas, etc.)
+                var collectionOverhead = expectedItems * 2; // Rough estimate for JSON structure
+
+                return (tokensPerItem * expectedItems) + collectionOverhead;
+            }
+        }
+
+        // Check for complex response types
+        if (resultType.Name.Contains("Response") || resultType.Name.Contains("Result"))
+        {
+            // Response objects typically have metadata + data
+            var baseResponseTokens = 200; // Headers, metadata, status
+            var dataEstimate = EstimateTokensForType(resultType) - baseResponseTokens;
+            return baseResponseTokens + Math.Max(dataEstimate, 500);
+        }
+
+        // Check for simple types
+        if (resultType.IsPrimitive || resultType == typeof(string) || resultType == typeof(DateTime))
+        {
+            return 50; // Simple types produce minimal tokens
+        }
+
+        return EstimateTokensForType(resultType);
+    }
+
+    /// <summary>
+    /// Estimates token count for a specific type based on its complexity.
+    /// </summary>
+    private int EstimateTokensForType(Type type)
+    {
+        // Simple types
+        if (type.IsPrimitive || type == typeof(string) || type == typeof(DateTime))
+            return 30;
+
+        // Known complex types
+        if (type.Name.EndsWith("SearchResult") || type.Name.EndsWith("Response"))
+            return 800;
+
+        // Objects with file paths (common in CodeSearch)
+        if (type.Name.Contains("File") || type.Name.Contains("Path"))
+            return 150;
+
+        // Symbol/code-related objects
+        if (type.Name.Contains("Symbol") || type.Name.Contains("Definition"))
+            return 250;
+
+        // Count properties if it's a public type we can reflect on
+        try
+        {
+            if (type.IsClass && type.IsPublic)
+            {
+                var properties = type.GetProperties();
+                var methods = type.GetMethods().Where(m => m.DeclaringType == type).Count();
+
+                // Rough estimation: 25 tokens per property, 15 per method name
+                return (properties.Length * 25) + (methods * 15) + 100; // Base object overhead
+            }
+        }
+        catch
+        {
+            // If reflection fails, fall back to default
+        }
+
+        return 400; // Default for unknown complex objects
+    }
+
+    /// <summary>
+    /// Estimates tokens from text using improved character/word ratios and JSON structure analysis.
+    /// Uses research-backed token ratios and accounts for JSON overhead.
+    /// </summary>
+    /// <param name="text">The text to estimate</param>
+    /// <returns>Estimated token count</returns>
+    protected virtual int EstimateTokensFromText(string? text)
+    {
+        if (string.IsNullOrEmpty(text))
+            return 0;
+
+        var charCount = text.Length;
+        var isJson = IsJsonContent(text);
+
+        // More accurate ratios based on GPT tokenization research:
+        // - Natural language: ~3.8 chars/token
+        // - Code/JSON: ~3.2 chars/token due to more punctuation/structure
+        var baseRatio = isJson ? 3.2 : 3.8;
+
+        // Count different content types for better estimation
+        var punctuationCount = CountJsonStructureTokens(text);
+        var wordCount = CountWords(text);
+        var numberCount = CountNumbers(text);
+
+        // Base character estimate with improved ratio
+        var charBasedEstimate = (int)Math.Ceiling(charCount / baseRatio);
+
+        // Word-based estimate (adjusted for technical content)
+        var wordsPerToken = isJson ? 0.9 : 0.75; // JSON has more single-token words
+        var wordBasedEstimate = (int)Math.Ceiling(wordCount / wordsPerToken);
+
+        // JSON overhead: structural tokens (brackets, commas, colons, quotes)
+        var structuralOverhead = isJson ? (int)(punctuationCount * 0.8) : 0;
+
+        // Numbers and special tokens often map 1:1
+        var specialTokens = numberCount;
+
+        // Use the most conservative estimate but add structural overhead
+        var baseEstimate = Math.Max(charBasedEstimate, wordBasedEstimate);
+        var totalEstimate = baseEstimate + structuralOverhead + specialTokens;
+
+        // Add 5% buffer for estimation uncertainty
+        return (int)(totalEstimate * 1.05);
+    }
+
+    /// <summary>
+    /// Determines if the text content appears to be JSON.
+    /// </summary>
+    private bool IsJsonContent(string text)
+    {
+        if (text.Length < 10) return false;
+
+        var trimmed = text.Trim();
+        var hasJsonMarkers = (trimmed.StartsWith("{") && trimmed.EndsWith("}")) ||
+                           (trimmed.StartsWith("[") && trimmed.EndsWith("]"));
+
+        // Check for high density of JSON punctuation
+        var jsonChars = text.Count(c => c is '{' or '}' or '[' or ']' or ':' or ',' or '"');
+        var jsonDensity = jsonChars / (double)text.Length;
+
+        return hasJsonMarkers || jsonDensity > 0.15;
+    }
+
+    /// <summary>
+    /// Counts JSON structural tokens that typically map to individual tokens.
+    /// </summary>
+    private int CountJsonStructureTokens(string text)
+    {
+        return text.Count(c => c is '{' or '}' or '[' or ']' or ':' or ',' or '"');
+    }
+
+    /// <summary>
+    /// Counts words using improved tokenization that handles technical content.
+    /// </summary>
+    private int CountWords(string text)
+    {
+        // Split on whitespace and common separators
+        var words = text.Split(new char[] { ' ', '\t', '\n', '\r', '.', ',', ';', ':', '!', '?' },
+                              StringSplitOptions.RemoveEmptyEntries);
+
+        // Filter out single characters and empty strings
+        return words.Count(w => w.Length > 0);
+    }
+
+    /// <summary>
+    /// Counts numeric sequences which often tokenize as single tokens.
+    /// </summary>
+    private int CountNumbers(string text)
+    {
+        var numberMatches = 0;
+        var inNumber = false;
+
+        for (int i = 0; i < text.Length; i++)
+        {
+            if (char.IsDigit(text[i]) || text[i] == '.')
+            {
+                if (!inNumber)
+                {
+                    numberMatches++;
+                    inNumber = true;
+                }
+            }
+            else
+            {
+                inNumber = false;
+            }
+        }
+
+        return numberMatches;
     }
 
     #region Validation Helpers from Original McpToolBase

@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using COA.Mcp.Framework.Base;
+using COA.Mcp.Framework.Configuration;
 using COA.Mcp.Framework.Exceptions;
 using COA.Mcp.Framework.Interfaces;
 using COA.Mcp.Framework.Models;
@@ -502,20 +503,173 @@ namespace COA.Mcp.Framework.Tests.Base
         public async Task ExecuteWithTokenManagement_LogsWarningForHighTokenEstimate()
         {
             // Arrange
-            var highTokenTool = new HighTokenTool(_loggerMock.Object);
+            var loggerMock = new Mock<ILogger>();
+            loggerMock.Setup(x => x.IsEnabled(LogLevel.Warning)).Returns(true);
+            var highTokenTool = new HighTokenTool(loggerMock.Object);
 
             // Act
             await highTokenTool.ExecuteAsync(new TestParameters());
 
             // Assert
-            _loggerMock.Verify(
+            loggerMock.Verify(
                 x => x.Log(
                     LogLevel.Warning,
                     It.IsAny<EventId>(),
-                    It.Is<It.IsAnyType>((v, t) => v.ToString().Contains("exceeds token budget")),
+                    It.Is<It.IsAnyType>((v, t) => v.ToString().Contains("Token budget exceeded")),
                     It.IsAny<Exception>(),
                     It.IsAny<Func<It.IsAnyType, Exception, string>>()),
                 Times.Once);
+        }
+
+        [Test]
+        public void EstimateTokenUsage_WithoutParameters_ReturnsBasedOnCategory()
+        {
+            // Arrange
+            var queryTool = new QueryCategoryTool();
+            var analysisTool = new AnalysisCategoryTool();
+            var utilityTool = new UtilityCategoryTool();
+
+            // Act
+            var queryEstimate = queryTool.TestEstimateTokenUsage();
+            var analysisEstimate = analysisTool.TestEstimateTokenUsage();
+            var utilityEstimate = utilityTool.TestEstimateTokenUsage();
+
+            // Assert
+            queryEstimate.Should().BeGreaterThan(analysisEstimate, "Query tools should estimate more tokens");
+            analysisEstimate.Should().BeGreaterThan(utilityEstimate, "Analysis tools should estimate more than utility");
+            utilityEstimate.Should().BePositive("All estimates should be positive");
+        }
+
+        [Test]
+        public void EstimateTokenUsage_WithParameters_IncludesParameterSize()
+        {
+            // Arrange
+            var tool = new TestTool();
+            var simpleParams = new TestParameters { Name = "Hi", Value = 1 };
+            var complexParams = new TestParameters { Name = "This is a much longer parameter value that should result in more estimated tokens", Value = 12345 };
+
+            // Act
+            var simpleEstimate = tool.TestEstimateTokenUsageWithParams(simpleParams);
+            var complexEstimate = tool.TestEstimateTokenUsageWithParams(complexParams);
+
+            // Assert
+            complexEstimate.Should().BeGreaterThan(simpleEstimate, "Complex parameters should result in higher token estimate");
+            simpleEstimate.Should().BePositive("Simple parameters should still have positive estimate");
+        }
+
+        [Test]
+        public void EstimateTokensFromText_WithVariousInputs_ReturnsReasonableEstimates()
+        {
+            // Arrange
+            var tool = new TestTool();
+
+            // Act & Assert
+            tool.TestEstimateTokensFromText(null).Should().Be(0, "Null text should return 0");
+            tool.TestEstimateTokensFromText("").Should().Be(0, "Empty text should return 0");
+            tool.TestEstimateTokensFromText("Hello").Should().Be(2, "Short text should return small estimate");
+            tool.TestEstimateTokensFromText("This is a longer sentence with more words").Should().BeGreaterThan(5, "Longer text should return larger estimate");
+        }
+
+        [Test]
+        public void EstimateResultTokens_WithDifferentResultTypes_VariesCorrectly()
+        {
+            // Arrange
+            var stringTool = new StringResultTool();
+            var collectionTool = new CollectionResultTool();
+            var complexTool = new ComplexResultTool();
+
+            // Act
+            var stringEstimate = stringTool.TestEstimateResultTokens();
+            var collectionEstimate = collectionTool.TestEstimateResultTokens();
+            var complexEstimate = complexTool.TestEstimateResultTokens();
+
+            // Assert
+            collectionEstimate.Should().BeGreaterThan(complexEstimate, "Collections should estimate more tokens");
+            complexEstimate.Should().BeGreaterThan(stringEstimate, "Complex objects should estimate more than strings");
+        }
+
+        [Test]
+        public void EstimateTokenUsage_AppliesEstimationMultiplier()
+        {
+            // Arrange
+            var tool = new CustomMultiplierTool();
+
+            // Act
+            var estimate = tool.TestEstimateTokenUsage();
+
+            // Assert - Tool has 2.0 multiplier, so result should be doubled from base
+            estimate.Should().BeGreaterThan(1000, "Multiplier should increase the estimate");
+        }
+
+        [Test]
+        public async Task ExecuteWithTokenManagement_WithThrowStrategy_ThrowsForHighEstimate()
+        {
+            // Arrange
+            var tool = new ThrowStrategyTool();
+
+            // Act & Assert
+            Func<Task> act = async () => await tool.ExecuteAsync(new TestParameters());
+            var exception = await act.Should().ThrowAsync<ToolExecutionException>()
+                .WithMessage("*estimated tokens*exceeds budget*");
+            exception.And.InnerException.Should().BeOfType<InvalidOperationException>();
+        }
+
+        [Test]
+        public async Task ExecuteWithTokenManagement_LogsTelemetry()
+        {
+            // Arrange
+            var loggerMock = new Mock<ILogger>();
+            loggerMock.Setup(x => x.IsEnabled(LogLevel.Information)).Returns(true);
+            var tool = new TestTool(loggerMock.Object);
+
+            // Act
+            await tool.ExecuteAsync(new TestParameters { Name = "Test", Value = 42 });
+
+            // Assert
+            loggerMock.Verify(
+                x => x.Log(
+                    LogLevel.Information,
+                    It.IsAny<EventId>(),
+                    It.Is<It.IsAnyType>((v, t) => v.ToString().Contains("Token Usage")),
+                    It.IsAny<Exception>(),
+                    It.IsAny<Func<It.IsAnyType, Exception, string>>()),
+                Times.Once);
+        }
+
+        [Test]
+        public async Task ExecuteWithTokenManagement_WithParameterAwareEstimation_UsesParameters()
+        {
+            // Arrange
+            var tool = new ParameterAwareTool(_loggerMock.Object);
+            var parameters = new TestParameters { Name = "LongParameterValue", Value = 999 };
+
+            // Act
+            await tool.ExecuteAsync(parameters);
+
+            // Assert - Should log debug message with token estimate
+            _loggerMock.Verify(
+                x => x.Log(
+                    LogLevel.Debug,
+                    It.IsAny<EventId>(),
+                    It.Is<It.IsAnyType>((v, t) => v.ToString().Contains("token estimate")),
+                    It.IsAny<Exception>(),
+                    It.IsAny<Func<It.IsAnyType, Exception, string>>()),
+                Times.Once);
+        }
+
+        [Test]
+        public void EstimateTokenUsage_WithFailureInEstimation_ReturnsFallback()
+        {
+            // Arrange
+            var tool = new FailingEstimationTool();
+            var parameters = new TestParameters { Name = "Test", Value = 100 };
+
+            // Act
+            var estimate = tool.TestEstimateTokenUsageWithParameters(parameters);
+            var maxBudget = tool.TestGetMaxTokens();
+
+            // Assert
+            estimate.Should().Be(maxBudget / 2, $"Should return half of max budget ({maxBudget}) as fallback");
         }
 
         #endregion
@@ -546,6 +700,12 @@ namespace COA.Mcp.Framework.Tests.Base
             public ICollection<T> TestValidateNotEmpty<T>(ICollection<T> collection, string parameterName) => ValidateNotEmpty(collection, parameterName);
             public ErrorInfo TestCreateErrorResult(string operation, string error, string recovery) => CreateErrorResult(operation, error, recovery);
             public ErrorInfo TestCreateValidationErrorResult(string operation, string param, string requirement) => CreateValidationErrorResult(operation, param, requirement);
+
+            // Expose token estimation methods for testing
+            public int TestEstimateTokenUsage() => EstimateTokenUsage();
+            public int TestEstimateTokenUsageWithParams(TestParameters parameters) => EstimateTokenUsage(parameters);
+            public int TestEstimateTokensFromText(string text) => EstimateTokensFromText(text);
+            public int TestEstimateResultTokens() => EstimateResultTokens();
         }
 
         private class TestToolWithValidation : McpToolBase<TestValidationParameters, TestResult>
@@ -618,12 +778,162 @@ namespace COA.Mcp.Framework.Tests.Base
             public override string Name => "high_token_tool";
             public override string Description => "Tool with high token usage";
 
-            protected override int EstimateTokenUsage() => 15000; // Above default limit
+            // Override TokenBudget to have a low max tokens so we exceed the budget and trigger a warning
+            protected override TokenBudgetConfiguration TokenBudget => new()
+            {
+                MaxTokens = 2000, // Set low so our ~3000 token estimate exceeds budget
+                WarningThreshold = 1600,
+                Strategy = TokenLimitStrategy.Warn
+            };
 
             protected override Task<TestResult> ExecuteInternalAsync(TestParameters parameters, CancellationToken cancellationToken)
             {
                 return Task.FromResult(new TestResult { Success = true });
             }
+        }
+
+        private class QueryCategoryTool : McpToolBase<TestParameters, TestResult>
+        {
+            public override string Name => "query_tool";
+            public override string Description => "Query category tool";
+            public override ToolCategory Category => ToolCategory.Query;
+
+            protected override Task<TestResult> ExecuteInternalAsync(TestParameters parameters, CancellationToken cancellationToken)
+            {
+                return Task.FromResult(new TestResult { Success = true });
+            }
+
+            public int TestEstimateTokenUsage() => EstimateTokenUsage();
+        }
+
+        private class AnalysisCategoryTool : McpToolBase<TestParameters, TestResult>
+        {
+            public override string Name => "analysis_tool";
+            public override string Description => "Analysis category tool";
+            public override ToolCategory Category => ToolCategory.Analysis;
+
+            protected override Task<TestResult> ExecuteInternalAsync(TestParameters parameters, CancellationToken cancellationToken)
+            {
+                return Task.FromResult(new TestResult { Success = true });
+            }
+
+            public int TestEstimateTokenUsage() => EstimateTokenUsage();
+        }
+
+        private class UtilityCategoryTool : McpToolBase<TestParameters, TestResult>
+        {
+            public override string Name => "utility_tool";
+            public override string Description => "Utility category tool";
+            public override ToolCategory Category => ToolCategory.Utility;
+
+            protected override Task<TestResult> ExecuteInternalAsync(TestParameters parameters, CancellationToken cancellationToken)
+            {
+                return Task.FromResult(new TestResult { Success = true });
+            }
+
+            public int TestEstimateTokenUsage() => EstimateTokenUsage();
+        }
+
+        private class StringResultTool : McpToolBase<TestParameters, string>
+        {
+            public override string Name => "string_result_tool";
+            public override string Description => "Tool returning string";
+
+            protected override Task<string> ExecuteInternalAsync(TestParameters parameters, CancellationToken cancellationToken)
+            {
+                return Task.FromResult("Result string");
+            }
+
+            public int TestEstimateResultTokens() => EstimateResultTokens();
+        }
+
+        private class CollectionResultTool : McpToolBase<TestParameters, List<string>>
+        {
+            public override string Name => "collection_result_tool";
+            public override string Description => "Tool returning collection";
+
+            protected override Task<List<string>> ExecuteInternalAsync(TestParameters parameters, CancellationToken cancellationToken)
+            {
+                return Task.FromResult(new List<string> { "item1", "item2" });
+            }
+
+            public int TestEstimateResultTokens() => EstimateResultTokens();
+        }
+
+        private class ComplexResultTool : McpToolBase<TestParameters, TestResult>
+        {
+            public override string Name => "complex_result_tool";
+            public override string Description => "Tool returning complex object";
+
+            protected override Task<TestResult> ExecuteInternalAsync(TestParameters parameters, CancellationToken cancellationToken)
+            {
+                return Task.FromResult(new TestResult { Success = true });
+            }
+
+            public int TestEstimateResultTokens() => EstimateResultTokens();
+        }
+
+        private class CustomMultiplierTool : McpToolBase<TestParameters, TestResult>
+        {
+            public override string Name => "custom_multiplier_tool";
+            public override string Description => "Tool with custom multiplier";
+
+            protected override TokenBudgetConfiguration TokenBudget => new() { EstimationMultiplier = 2.0 };
+
+            protected override Task<TestResult> ExecuteInternalAsync(TestParameters parameters, CancellationToken cancellationToken)
+            {
+                return Task.FromResult(new TestResult { Success = true });
+            }
+
+            public int TestEstimateTokenUsage() => EstimateTokenUsage();
+        }
+
+        private class ThrowStrategyTool : McpToolBase<TestParameters, TestResult>
+        {
+            public override string Name => "throw_strategy_tool";
+            public override string Description => "Tool with throw strategy";
+
+            protected override TokenBudgetConfiguration TokenBudget => new() { Strategy = TokenLimitStrategy.Throw, MaxTokens = 1000 };
+
+            protected override int EstimateTokenUsage() => 2000; // Above limit
+
+            protected override Task<TestResult> ExecuteInternalAsync(TestParameters parameters, CancellationToken cancellationToken)
+            {
+                return Task.FromResult(new TestResult { Success = true });
+            }
+        }
+
+        private class ParameterAwareTool : McpToolBase<TestParameters, TestResult>
+        {
+            public ParameterAwareTool(ILogger logger) : base(null, logger) { }
+
+            public override string Name => "parameter_aware_tool";
+            public override string Description => "Tool that uses parameter-aware estimation";
+
+            protected override Task<TestResult> ExecuteInternalAsync(TestParameters parameters, CancellationToken cancellationToken)
+            {
+                return Task.FromResult(new TestResult { Success = true });
+            }
+        }
+
+        private class FailingEstimationTool : McpToolBase<TestParameters, TestResult>
+        {
+            public override string Name => "failing_estimation_tool";
+            public override string Description => "Tool that fails during estimation";
+
+            protected override int EstimateParameterTokens(TestParameters parameters)
+            {
+                throw new InvalidOperationException("Estimation failed");
+            }
+
+            protected override Task<TestResult> ExecuteInternalAsync(TestParameters parameters, CancellationToken cancellationToken)
+            {
+                return Task.FromResult(new TestResult { Success = true });
+            }
+
+            public int TestEstimateTokenUsage() => EstimateTokenUsage();
+            public int TestEstimateTokenUsageWithParameters(TestParameters parameters) => EstimateTokenUsage(parameters);
+            public int TestGetMaxTokens() => TokenBudget.MaxTokens;
         }
 
         #endregion
