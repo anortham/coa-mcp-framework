@@ -83,11 +83,11 @@ public static class JsonSchemaGenerator
             propertyType = underlyingType;
         }
 
-        // Add description from Description attribute
-        var descriptionAttr = property.GetCustomAttribute<DescriptionAttribute>();
-        if (descriptionAttr != null)
+        // Add description - prefer XML documentation over Description attribute
+        var description = GetPropertyDescription(property);
+        if (!string.IsNullOrEmpty(description))
         {
-            schema["description"] = descriptionAttr.Description;
+            schema["description"] = description;
         }
 
         // Handle different types
@@ -273,5 +273,32 @@ public static class JsonSchemaGenerator
             return name;
 
         return char.ToLowerInvariant(name[0]) + name.Substring(1);
+    }
+
+    /// <summary>
+    /// Gets the description for a property, preferring XML documentation over Description attribute.
+    /// </summary>
+    /// <param name="property">The property to get description for.</param>
+    /// <returns>The description text or null if not found.</returns>
+    private static string? GetPropertyDescription(PropertyInfo property)
+    {
+        // Try XML documentation first
+        var xmlDoc = XmlDocumentationExtractor.GetPropertyDocumentation(property);
+        if (xmlDoc?.Summary != null)
+        {
+            var description = xmlDoc.Summary;
+
+            // Append examples if available
+            if (xmlDoc.Examples.Any())
+            {
+                description += $" Examples: {string.Join(", ", xmlDoc.Examples)}";
+            }
+
+            return description;
+        }
+
+        // Fall back to Description attribute
+        var descriptionAttr = property.GetCustomAttribute<DescriptionAttribute>();
+        return descriptionAttr?.Description;
     }
 }
