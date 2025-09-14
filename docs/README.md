@@ -56,7 +56,8 @@ Welcome to the comprehensive documentation for the COA MCP Framework - a complet
 
 ### Technical Documentation
 - [Lifecycle Hooks & Middleware](lifecycle-hooks.md) - Comprehensive guide to middleware and tool execution hooks
-- [Token Optimization Strategies](TOKEN_OPTIMIZATION_STRATEGIES.md) - Comprehensive token management guide  
+- [Token Optimization Strategies](TOKEN_OPTIMIZATION_STRATEGIES.md) - Comprehensive token management guide
+- [XML Documentation Guide](XML_DOCUMENTATION_GUIDE.md) - Enhanced parameter descriptions with examples
 - [Migration Example](MIGRATION_EXAMPLE.md) - Step-by-step migration guide with updated patterns
 - [Validation & Error Handling](VALIDATION_AND_ERROR_HANDLING.md) - Best practices for tool validation
 - [Common Pitfalls](COMMON_PITFALLS.md) - Known issues and solutions
